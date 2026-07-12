@@ -1,0 +1,780 @@
+/* Root */
+.root {
+    -fx-font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    -fx-font-size: 12px;
+    -fx-background-color: -fx-bg-primary;
+    -fx-text-fill: -fx-text-primary;
+}
+
+/* Label */
+.label {
+    -fx-text-fill: -fx-text-primary;
+    -fx-background-color: transparent;
+}
+
+/**Label 作为功能切换按钮*/
+.label-tab {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: -fx-text-primary;
+    -fx-cursor: hand;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+}
+
+.label-tab:hover {
+    -fx-background-color: -fx-tab-hover-bg;
+    -fx-text-fill: -fx-text-primary;
+}
+
+.label-tab:pressed {
+    -fx-background-color: -fx-tab-pressed-bg;
+    -fx-text-fill: -fx-text-inverse;
+}
+
+.label-tab.active {
+    -fx-background-color: -fx-tab-active-bg;
+    -fx-text-fill: -fx-text-inverse;
+}
+
+.label-tab.active:hover {
+    -fx-background-color: -fx-tab-active-bg;
+    -fx-text-fill: -fx-text-inverse;
+}
+
+/**作为关闭按钮*/
+.label-close {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-cursor: hand;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+}
+
+.tab-close:hover {
+    -fx-background-color: -fx-button-danger-bg;
+}
+
+.label-close FontIcon,
+.label-close .ikonli-font-icon {
+    -fx-icon-color: -fx-text-primary;
+    -fx-icon-size: 12px;
+}
+
+.label-close:hover FontIcon,
+.label-close:hover .ikonli-font-icon {
+    -fx-icon-color: -fx-text-inverse;
+}
+
+/**覆盖Javafx全屏模人样式*/
+.label-fullscreen-hint {
+    -fx-font-size: 18px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -fx-text-primary;
+}
+
+/* Button */
+.button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-cursor: hand;
+    -fx-text-fill: -fx-text-primary;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+}
+
+.button:hover {
+    -fx-background-color: -fx-bg-hover;
+}
+
+.button .ikonli-font-icon {
+    -fx-icon-color: -fx-text-primary;
+    -fx-icon-size: 12px;
+}
+
+.button:disabled .ikonli-font-icon {
+    -fx-icon-color: -fx-text-primary;
+}
+
+.button:disabled,
+.button-primary:disabled,
+.button-cancel:disabled,
+.button-danger:disabled {
+    -fx-background-color: -fx-bg-disabled;
+    -fx-text-fill: -fx-text-primary;
+    -fx-cursor: default;
+}
+
+.button-primary {
+    -fx-background-color: -fx-button-primary-bg;
+    -fx-text-fill: -fx-text-inverse;
+    -fx-border-color: -fx-button-primary-bg;
+}
+
+.button-primary .ikonli-font-icon {
+    -fx-icon-color: -fx-text-inverse;
+}
+
+.button-primary:hover {
+    -fx-background-color: -fx-button-primary-hover;
+    -fx-border-color: -fx-button-primary-hover;
+}
+
+.button-cancel {
+    -fx-background-color: -fx-button-cancel-bg;
+    -fx-text-fill: -fx-text-primary;
+    -fx-border-color: -fx-button-cancel-bg;
+}
+
+.button-cancel .ikonli-font-icon {
+    -fx-icon-color: -fx-text-primary;
+}
+
+.button-cancel:hover {
+    -fx-background-color: -fx-button-cancel-hover;
+    -fx-border-color: -fx-button-cancel-hover;
+}
+
+.button-danger {
+    -fx-background-color: -fx-button-danger-bg;
+    -fx-text-fill: -fx-text-inverse;
+    -fx-border-color: -fx-button-danger-bg;
+}
+
+.button-danger .ikonli-font-icon {
+    -fx-icon-color: -fx-text-inverse;
+    -fx-icon-size: 12px;
+}
+
+.button-danger:hover {
+    -fx-background-color: -fx-button-danger-hover;
+    -fx-border-color: -fx-button-danger-hover;
+}
+
+.button-danger:hover .ikonli-font-icon {
+    -fx-icon-color: -fx-text-inverse;
+}
+
+.button-close,
+.button-window {
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+}
+
+.button-close:pressed,
+.button-window:pressed {
+    -fx-background-color: -fx-button-icon-bg;
+}
+
+.button-close .ikonli-font-icon,
+.button-window .ikonli-font-icon {
+    -fx-icon-color: -fx-text-primary;
+    -fx-icon-size: 12px;
+}
+
+.button-close:hover {
+    -fx-background-color: -fx-button-danger-bg;
+}
+
+.button-close:hover .ikonli-font-icon {
+    -fx-icon-color: -fx-text-inverse;
+}
+
+.button-icon-mini {
+    -fx-background-color: -fx-button-icon-bg;
+    -fx-background-radius: 3px;
+    -fx-border-radius: 3px;
+}
+
+.button-icon-mini:hover {
+    -fx-background-color: -fx-button-icon-hover;
+}
+
+.button-icon-mini FontIcon,
+.button-icon-mini .ikonli-font-icon {
+    -fx-icon-color: -fx-text-inverse;
+}
+
+.button-icon-mini:hover FontIcon,
+.button-icon-mini:hover .ikonli-font-icon {
+    -fx-icon-color: -fx-text-inverse;
+}
+
+/* HBox */
+HBox {
+    -fx-background-color: transparent;
+}
+
+.hbox-interactive {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: -fx-text-primary;
+    -fx-cursor: hand;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+}
+
+.hbox-interactive:hover {
+    -fx-background-color: -fx-bg-hover;
+    -fx-text-fill: -fx-text-primary;
+}
+
+.hbox-interactive:pressed {
+    -fx-background-color: -fx-bg-selected;
+    -fx-text-fill: -fx-text-inverse;
+}
+
+.hbox-interactive:pressed .ikonli-font-icon {
+    -fx-icon-color: -fx-text-inverse;
+}
+
+.hbox-interactive .ikonli-font-icon {
+    -fx-icon-color: -fx-text-primary;
+    -fx-icon-size: 12px;
+}
+
+.hbox-interactive:hover .ikonli-font-icon {
+    -fx-icon-color: -fx-text-primary;
+}
+
+.hbox-navigation {
+    -fx-text-fill: -fx-text-muted;
+}
+
+.hbox-navigation.active {
+    -fx-background-color: -fx-bg-selected;
+    -fx-text-fill: -fx-text-inverse;
+}
+
+.hbox-input {
+    -fx-background-color: -fx-input-bg;
+    -fx-border-color: -fx-input-border;
+    -fx-border-width: 1px;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+    -fx-text-fill: -fx-text-primary;
+    -fx-prompt-text-fill: -fx-text-muted;
+}
+
+.hbox-input:focused {
+    -fx-border-color: -fx-input-focus-border;
+}
+
+.hbox-window,
+.hbox-close {
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+}
+
+.hbox-window:pressed {
+    -fx-background-color: -fx-bg-selected;
+}
+
+.hbox-window:pressed FontIcon,
+.hbox-window:pressed .ikonli-font-icon {
+    -fx-icon-color: -fx-text-inverse;
+}
+
+.hbox-window FontIcon,
+.hbox-window .ikonli-font-icon,
+.hbox-close FontIcon,
+.hbox-close .ikonli-font-icon {
+    -fx-icon-color: -fx-text-primary;
+    -fx-icon-size: 12px;
+}
+
+.hbox-close:hover {
+    -fx-background-color: -fx-button-danger-bg;
+}
+
+.hbox-close:hover FontIcon,
+.hbox-close:hover .ikonli-font-icon {
+    -fx-icon-color: -fx-text-inverse;
+}
+
+/* Text Input */
+.text-field,
+.password-field {
+    -fx-background-color: -fx-input-bg;
+    -fx-border-color: -fx-input-border;
+    -fx-border-width: 1px;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+    -fx-text-fill: -fx-text-primary;
+    -fx-prompt-text-fill: -fx-text-muted;
+}
+
+.text-field:focused,
+.password-field:focused {
+    -fx-border-color: -fx-input-focus-border;
+}
+
+.text-area {
+    -fx-background-color: -fx-input-bg;
+    -fx-border-color: -fx-input-border;
+    -fx-border-width: 1px;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+    -fx-text-fill: -fx-text-primary;
+    -fx-prompt-text-fill: -fx-text-muted;
+}
+
+.text-area:focused {
+    -fx-border-color: -fx-input-focus-border;
+}
+
+.text-area .content {
+    -fx-background-color: -fx-input-bg;
+    -fx-background-radius: 4px;
+}
+
+.text-area .scroll-bar {
+    -fx-background-color: -fx-input-bg;
+}
+
+.text-area .scroll-bar .thumb {
+    -fx-background-color: -fx-scrollbar-thumb;
+}
+
+/* ComboBox */
+.combo-box {
+    -fx-background-color: -fx-input-bg;
+    -fx-border-color: -fx-input-border;
+    -fx-border-width: 1px;
+}
+
+.combo-box:focused {
+    -fx-border-color: -fx-input-focus-border;
+}
+
+.combo-box .list-cell {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-text-fill: -fx-text-primary;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: -fx-bg-secondary;
+}
+
+.combo-box-popup .list-view .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -fx-text-primary;
+}
+
+.combo-box-popup .list-view .list-cell:hover {
+    -fx-background-color: -fx-bg-hover;
+}
+
+.combo-box-popup .list-view .list-cell:selected {
+    -fx-background-color: -fx-bg-selected;
+    -fx-text-fill: -fx-text-inverse;
+}
+
+/* Spinner */
+.spinner {
+    -fx-background-color: -fx-input-bg;
+    -fx-border-color: -fx-input-border;
+    -fx-border-width: 1px;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+    -fx-font-size: 12px;
+}
+
+.spinner:focused {
+    -fx-border-color: -fx-input-focus-border;
+}
+
+.spinner .text-field {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: -fx-text-primary;
+}
+
+.spinner .increment-arrow-button,
+.spinner .decrement-arrow-button {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-border-color: -fx-input-border;
+    -fx-border-width: 0 0 0 1px;
+    -fx-background-radius: 0;
+}
+
+.spinner .increment-arrow-button:hover,
+.spinner .decrement-arrow-button:hover {
+    -fx-background-color: -fx-bg-hover;
+}
+
+.spinner .increment-arrow,
+.spinner .decrement-arrow {
+    -fx-background-color: -fx-text-secondary;
+}
+
+.spinner .increment-arrow-button:hover .increment-arrow,
+.spinner .decrement-arrow-button:hover .decrement-arrow {
+    -fx-background-color: -fx-text-primary;
+}
+
+/* CheckBox */
+.check-box {
+    -fx-text-fill: -fx-text-primary;
+}
+
+.check-box .box {
+    -fx-background-color: -fx-input-bg;
+    -fx-border-color: -fx-input-border;
+    -fx-border-width: 1px;
+}
+
+.check-box:selected .box {
+    -fx-background-color: -fx-bg-selected;
+    -fx-border-color: -fx-bg-selected;
+}
+
+.check-box:selected .mark {
+    -fx-background-color: -fx-text-inverse;
+}
+
+.check-box-interactive {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: -fx-text-primary;
+    -fx-cursor: hand;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+}
+
+.check-box-interactive:hover {
+    -fx-background-color: -fx-bg-hover;
+    -fx-text-fill: -fx-text-primary;
+}
+
+.check-box-interactive:pressed {
+    -fx-background-color: -fx-bg-selected;
+    -fx-text-fill: -fx-text-inverse;
+}
+
+/* RadioButton */
+.radio-button {
+    -fx-text-fill: -fx-text-primary;
+}
+
+.radio-button .radio {
+    -fx-background-color: -fx-input-bg;
+}
+
+.radio-button:selected .radio {
+    -fx-background-color: -fx-bg-selected;
+}
+
+.radio-button:selected .dot {
+    -fx-background-color: -fx-text-inverse;
+}
+
+/* ListView */
+.list-view {
+    -fx-background-color: -fx-bg-primary;
+    -fx-border-color: -fx-border-default;
+}
+
+.list-view .virtual-flow,
+.list-view .virtual-flow .viewport,
+.list-view .virtual-flow .corner {
+    -fx-background-color: -fx-bg-primary;
+}
+
+.list-view .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -fx-text-primary;
+}
+
+.list-view .list-cell:hover {
+    -fx-background-color: -fx-bg-hover;
+}
+
+.list-view .list-cell:selected {
+    -fx-background-color: -fx-bg-selected;
+    -fx-text-fill: -fx-text-inverse;
+}
+
+/* TreeView */
+.tree-view {
+    -fx-background-color: -fx-bg-primary;
+    -fx-border-color: -fx-border-default;
+}
+
+.tree-view .virtual-flow,
+.tree-view .virtual-flow .viewport,
+.tree-view .virtual-flow .corner {
+    -fx-background-color: -fx-bg-primary;
+}
+
+.tree-view .tree-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -fx-text-primary;
+}
+
+.tree-view .tree-cell:hover {
+    -fx-background-color: -fx-bg-hover;
+}
+
+.tree-view .tree-cell:selected {
+    -fx-background-color: -fx-bg-selected;
+    -fx-text-fill: -fx-text-inverse;
+}
+
+.tree-view .tree-disclosure-node .arrow {
+    -fx-background-color: -fx-text-primary;
+}
+
+.tree-view .tree-cell:selected .tree-disclosure-node .arrow {
+    -fx-background-color: -fx-text-inverse;
+}
+
+/* TableView */
+.table-view {
+    -fx-background-color: -fx-bg-primary;
+    -fx-border-color: -fx-table-border;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: -fx-table-header-bg;
+}
+
+.table-view .column-header-background .filler,
+.table-view .column-header-background > *.filler,
+.table-view .column-header-row {
+    -fx-background-color: -fx-table-header-bg;
+}
+
+.table-view .virtual-flow,
+.table-view .virtual-flow .viewport,
+.table-view .virtual-flow .sheet,
+.table-view .virtual-flow .corner {
+    -fx-background-color: -fx-bg-primary;
+}
+
+.table-view .column-header {
+    -fx-background-color: transparent;
+    -fx-text-fill: -fx-text-muted;
+}
+
+.table-view .table-row-cell {
+    -fx-background-color: -fx-table-row-bg;
+    -fx-text-fill: -fx-text-primary;
+}
+
+.table-view .table-row-cell:odd {
+    -fx-background-color: -fx-table-row-bg;
+}
+
+.table-view .table-row-cell:hover {
+    -fx-background-color: -fx-table-row-hover-bg;
+}
+
+.table-view .table-row-cell:selected {
+    -fx-background-color: -fx-table-row-selected-bg;
+    -fx-text-fill: -fx-text-inverse;
+}
+
+.table-view .table-row-cell:selected .table-cell {
+    -fx-text-fill: -fx-text-inverse;
+}
+
+.table-view .table-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -fx-text-primary;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+}
+
+.table-view .show-hide-columns-button {
+    -fx-background-color: -fx-table-header-bg;
+    -fx-border-color: -fx-border-default;
+}
+
+.table-view .show-hide-column-image {
+    -fx-background-color: transparent;
+}
+
+/* Pane */
+VBox {
+    -fx-background-color: transparent;
+}
+
+BorderPane {
+    -fx-background-color: transparent;
+}
+
+StackPane {
+    -fx-background-color: transparent;
+}
+
+FlowPane {
+    -fx-background-color: transparent;
+}
+
+GridPane {
+    -fx-background-color: transparent;
+}
+
+AnchorPane {
+    -fx-background-color: transparent;
+}
+
+.pane-outlined {
+    -fx-background-color: transparent;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 1px;
+}
+
+.stack-pane-fullscreen-hint {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-background-radius: 8px;
+    -fx-padding: 18px 52px;
+}
+
+/* Scroll */
+.scroll-pane {
+    -fx-background-color: transparent;
+}
+
+.scroll-pane .viewport {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar {
+    -fx-background-color: -fx-scrollbar-track;
+}
+
+.scroll-bar .track {
+    -fx-background-color: -fx-scrollbar-track;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: -fx-scrollbar-thumb;
+    -fx-background-radius: 4px;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: -fx-scrollbar-thumb-hover;
+}
+
+/* SplitPane */
+.split-pane {
+    -fx-background-color: -fx-bg-primary;
+}
+
+.split-pane .split-pane-divider {
+    -fx-background-color: -fx-border-default;
+}
+
+.split-pane .split-pane-divider:hover {
+    -fx-background-color: -fx-bg-hover;
+}
+
+/* TabPane */
+.tab-pane {
+    -fx-background-color: transparent;
+}
+
+.tab-pane .tab-header-area {
+    -fx-background-color: transparent;
+}
+
+.tab-pane .tab-header-background {
+    -fx-background-color: transparent;
+}
+
+.tab-pane .tab {
+    -fx-background-color: -fx-tab-bg;
+}
+
+.tab-pane .tab .tab-label {
+    -fx-text-fill: -fx-text-secondary;
+}
+
+.tab-pane .tab:selected {
+    -fx-background-color: -fx-tab-active-bg;
+}
+
+.tab-pane .tab:selected:hover {
+    -fx-background-color: -fx-tab-active-bg;
+}
+
+.tab-pane .tab:selected .tab-label {
+    -fx-text-fill: -fx-text-inverse;
+}
+
+.tab-pane .tab:hover {
+    -fx-background-color: -fx-tab-hover-bg;
+}
+
+.tab-pane .content {
+    -fx-background-color: transparent;
+}
+
+/* ContextMenu */
+.context-menu {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 1;
+    -fx-min-width: 40px;
+    -fx-padding: 4px 0;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+    -fx-effect: dropshadow(gaussian, -fx-bg-shadow, 8, 0, 2, 2);
+}
+
+.context-menu .menu-item {
+    -fx-padding: 6px 12px;
+    -fx-cursor: hand;
+    -fx-background-color: transparent;
+}
+
+.context-menu .menu-item:hover,
+.context-menu .menu-item:focused {
+    -fx-background-color: -fx-bg-hover;
+}
+
+.context-menu .menu-item .label {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 13px;
+}
+
+.context-menu .menu-item .graphic-container {
+    -fx-padding: 0 8px 0 0;
+}
+
+.context-menu-icon {
+    -fx-icon-color: -fx-text-muted;
+}
+
+.dropdown-menu-separator {
+    -fx-background-color: -fx-border-default;
+}
+
+/* Terminal */
+.terminal-canvas {
+    -ys-terminal-background: -fx-terminal-bg;
+    -ys-terminal-foreground: -fx-terminal-text;
+    -ys-terminal-cursor: -fx-terminal-cursor;
+    -ys-terminal-selection-background: -fx-terminal-selection-bg;
+    -ys-terminal-search-match-background: -fx-terminal-search-match-bg;
+    -ys-terminal-search-current-background: -fx-terminal-search-current-bg;
+}
+
+/* ProgressBar */
+.progress-bar {
+    -fx-background-color: transparent;
+}
+
+.progress-bar .track {
+    -fx-background-color: -fx-progress-track;
+    -fx-background-insets: 0;
+    -fx-background-radius: 4px;
+}
+
+.progress-bar .bar {
+    -fx-background-color: -fx-progress-bar-fill;
+    -fx-background-insets: 0;
+    -fx-background-radius: 4px;
+}

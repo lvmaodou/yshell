@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.*?>
+<?import java.lang.*?>
+<BorderPane xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="root"
+            fx:controller="com.yshell.controller.CommandManagerController">
+    <styleClass>
+        <String fx:value="command-dialog"/>
+    </styleClass>
+    <top>
+        <HBox>
+            <styleClass>
+                <String fx:value="cmd-header"/>
+            </styleClass>
+            <Label text="命令收藏">
+                <styleClass>
+                    <String fx:value="cmd-title"/>
+                </styleClass>
+            </Label>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnMinimize" onAction="#minimizeDialog">
+                <styleClass>
+                    <String fx:value="button-window"/>
+                    <String fx:value="cmd-window-btn"/>
+                </styleClass>
+                <graphic>
+                    <FontIcon iconLiteral="fas-minus" iconSize="12"/>
+                </graphic>
+            </Button>
+            <Button fx:id="btnMaximize" onAction="#toggleMaximize">
+                <styleClass>
+                    <String fx:value="button-window"/>
+                    <String fx:value="cmd-window-btn"/>
+                </styleClass>
+                <graphic>
+                    <FontIcon iconLiteral="far-square" iconSize="12"/>
+                </graphic>
+            </Button>
+            <Button fx:id="btnClose" onAction="#closeDialog">
+                <styleClass>
+                    <String fx:value="button-close"/>
+                    <String fx:value="cmd-window-btn"/>
+                </styleClass>
+                <graphic>
+                    <FontIcon iconLiteral="fas-times" iconSize="12"/>
+                </graphic>
+            </Button>
+        </HBox>
+    </top>
+
+    <center>
+        <VBox>
+            <styleClass>
+                <String fx:value="cmd-tree"/>
+            </styleClass>
+            <HBox>
+                <styleClass>
+                    <String fx:value="cmd-toolbar"/>
+                </styleClass>
+                <HBox styleClass="cmd-toolbar-left">
+                    <ComboBox fx:id="searchType">
+                        <styleClass>
+                            <String fx:value="cmd-search-select"/>
+                        </styleClass>
+                    </ComboBox>
+                    <HBox>
+                        <styleClass>
+                            <String fx:value="hbox-input"/>
+                            <String fx:value="cmd-search-input-wrap"/>
+                        </styleClass>
+                        <FontIcon iconLiteral="fas-search" iconSize="12">
+                            <styleClass>
+                                <String fx:value="icon-search"/>
+                            </styleClass>
+                        </FontIcon>
+                        <TextField fx:id="searchInput" promptText="搜索" onAction="#refreshTree">
+                            <styleClass>
+                                <String fx:value="cmd-search-input"/>
+                            </styleClass>
+                        </TextField>
+                        <Button fx:id="btnClearSearch" contentDisplay="GRAPHIC_ONLY"
+                                focusTraversable="false" visible="false" managed="false">
+                            <styleClass>
+                                <String fx:value="cmd-search-clear-btn"/>
+                            </styleClass>
+                            <graphic>
+                                <FontIcon iconLiteral="fas-times" iconSize="10"/>
+                            </graphic>
+                            <tooltip>
+                                <Tooltip text="清空搜索" showDelay="200ms"/>
+                            </tooltip>
+                        </Button>
+                    </HBox>
+                </HBox>
+                <HBox styleClass="cmd-toolbar-center">
+                    <Button fx:id="btnNewCmd" contentDisplay="GRAPHIC_ONLY"
+                            focusTraversable="false">
+                        <styleClass>
+                            <String fx:value="cmd-tree-action-btn"/>
+                        </styleClass>
+                        <graphic>
+                            <FontIcon iconLiteral="fas-plus" iconSize="12"/>
+                        </graphic>
+                        <tooltip>
+                            <Tooltip text="新建命令" showDelay="200ms"/>
+                        </tooltip>
+                    </Button>
+                    <Button fx:id="btnNewCategory" contentDisplay="GRAPHIC_ONLY"
+                            focusTraversable="false">
+                        <styleClass>
+                            <String fx:value="cmd-tree-action-btn"/>
+                        </styleClass>
+                        <graphic>
+                            <FontIcon iconLiteral="fas-folder-plus" iconSize="12"/>
+                        </graphic>
+                        <tooltip>
+                            <Tooltip text="新建分类" showDelay="200ms"/>
+                        </tooltip>
+                    </Button>
+                    <Button fx:id="btnExpandAll" contentDisplay="GRAPHIC_ONLY"
+                            focusTraversable="false">
+                        <styleClass>
+                            <String fx:value="cmd-tree-action-btn"/>
+                        </styleClass>
+                        <graphic>
+                            <FontIcon iconLiteral="fas-expand" iconSize="12"/>
+                        </graphic>
+                        <tooltip>
+                            <Tooltip text="展开全部" showDelay="200ms"/>
+                        </tooltip>
+                    </Button>
+                    <Button fx:id="btnCollapseAll" contentDisplay="GRAPHIC_ONLY"
+                            focusTraversable="false">
+                        <styleClass>
+                            <String fx:value="cmd-tree-action-btn"/>
+                        </styleClass>
+                        <graphic>
+                            <FontIcon iconLiteral="fas-compress" iconSize="12"/>
+                        </graphic>
+                        <tooltip>
+                            <Tooltip text="折叠全部" showDelay="200ms"/>
+                        </tooltip>
+                    </Button>
+                </HBox>
+            </HBox>
+
+            <ScrollPane fitToWidth="true" fitToHeight="true" VBox.vgrow="ALWAYS">
+                <TreeView fx:id="cmdTreeView">
+                    <styleClass>
+                        <String fx:value="cmd-tree-view"/>
+                    </styleClass>
+                </TreeView>
+            </ScrollPane>
+        </VBox>
+    </center>
+</BorderPane>
+

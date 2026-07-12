@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.*?>
+<?import java.lang.*?>
+<BorderPane fx:id="root" xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.yshell.controller.ToolbarController">
+    <styleClass>
+        <String fx:value="toolbar"/>
+    </styleClass>
+    <left>
+        <HBox>
+            <styleClass>
+                <String fx:value="top-toolbar-left"/>
+            </styleClass>
+            <HBox fx:id="logo">
+                <styleClass>
+                    <String fx:value="logo"/>
+                </styleClass>
+                <ImageView fitHeight="16" fitWidth="16" preserveRatio="true">
+                    <styleClass>
+                        <String fx:value="logo-icon"/>
+                    </styleClass>
+                    <Image url="@../logo/yshell.png"/>
+                </ImageView>
+                <Label text="YShell">
+                    <styleClass>
+                        <String fx:value="logo-text"/>
+                    </styleClass>
+                </Label>
+            </HBox>
+            <HBox fx:id="menuConnect">
+                <styleClass>
+                    <String fx:value="hbox-interactive"/>
+                    <String fx:value="toolbar-menu"/>
+                </styleClass>
+                <FontIcon iconLiteral="fas-link"/>
+                <Label text="连接"/>
+            </HBox>
+            <HBox fx:id="menuCmd">
+                <styleClass>
+                    <String fx:value="hbox-interactive"/>
+                    <String fx:value="toolbar-menu"/>
+                </styleClass>
+                <FontIcon iconLiteral="fas-phone"/>
+                <Label text="命令收藏"/>
+            </HBox>
+            <HBox fx:id="menuWindow">
+                <styleClass>
+                    <String fx:value="hbox-interactive"/>
+                    <String fx:value="toolbar-menu"/>
+                </styleClass>
+                <FontIcon iconLiteral="fas-folder-open"/>
+                <Label text="窗口"/>
+            </HBox>
+            <HBox fx:id="menuKey">
+                <styleClass>
+                    <String fx:value="hbox-interactive"/>
+                    <String fx:value="toolbar-menu"/>
+                </styleClass>
+                <FontIcon iconLiteral="fas-key"/>
+                <Label text="秘钥管理"/>
+            </HBox>
+            <HBox fx:id="menuSettings">
+                <styleClass>
+                    <String fx:value="hbox-interactive"/>
+                    <String fx:value="toolbar-menu"/>
+                </styleClass>
+                <FontIcon iconLiteral="fas-cog"/>
+                <Label text="设置"/>
+            </HBox>
+            <HBox fx:id="menuHelp">
+                <styleClass>
+                    <String fx:value="hbox-interactive"/>
+                    <String fx:value="toolbar-menu"/>
+                </styleClass>
+                <FontIcon iconLiteral="fas-question-circle"/>
+                <Label text="帮助"/>
+            </HBox>
+        </HBox>
+    </left>
+    <right>
+        <HBox>
+            <styleClass>
+                <String fx:value="top-toolbar-right"/>
+            </styleClass>
+            <HBox fx:id="btnMinimize">
+                <styleClass>
+                    <String fx:value="hbox-interactive"/>
+                    <String fx:value="hbox-window"/>
+                    <String fx:value="window-btn"/>
+                </styleClass>
+                <FontIcon iconLiteral="fas-minus"/>
+            </HBox>
+            <HBox fx:id="btnMaximize">
+                <styleClass>
+                    <String fx:value="hbox-interactive"/>
+                    <String fx:value="hbox-window"/>
+                    <String fx:value="window-btn"/>
+                </styleClass>
+                <FontIcon iconLiteral="far-square"/>
+            </HBox>
+            <HBox fx:id="btnExit">
+                <styleClass>
+                    <String fx:value="hbox-interactive"/>
+                    <String fx:value="hbox-close"/>
+                    <String fx:value="window-btn"/>
+                </styleClass>
+                <FontIcon iconLiteral="fas-times"/>
+            </HBox>
+        </HBox>
+    </right>
+</BorderPane>

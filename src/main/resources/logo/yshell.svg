@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="512" height="512" role="img" aria-label="Yshell logo">
+  <title>Yshell</title>
+  <defs>
+    <linearGradient id="yGrad" gradientUnits="userSpaceOnUse" x1="26" y1="26" x2="174" y2="178">
+      <stop offset="0"   stop-color="#00E5FF"/>
+      <stop offset="0.5" stop-color="#00FFC2"/>
+      <stop offset="1"   stop-color="#22FF8C"/>
+    </linearGradient>
+    <linearGradient id="termGrad" gradientUnits="userSpaceOnUse" x1="106" y1="104" x2="162" y2="160">
+      <stop offset="0" stop-color="#00F0FF"/>
+      <stop offset="1" stop-color="#00FF9D"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Y arms + stem -->
+  <g fill="none" stroke="url(#yGrad)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="26"  y1="26"  x2="100" y2="106"/>
+    <line x1="174" y1="26"  x2="100" y2="106"/>
+    <line x1="100" y1="106" x2="100" y2="178"/>
+  </g>
+
+  <!-- terminal window -->
+  <rect x="106" y="104" width="56" height="56" rx="13" fill="url(#termGrad)"/>
+
+  <!-- 9-dot grid (white) -->
+  <g fill="#FFFFFF">
+    <circle cx="118" cy="116" r="3.6"/>
+    <circle cx="134" cy="116" r="3.6"/>
+    <circle cx="150" cy="116" r="3.6"/>
+    <circle cx="118" cy="132" r="3.6"/>
+    <circle cx="134" cy="132" r="3.6"/>
+    <circle cx="150" cy="132" r="3.6"/>
+    <circle cx="118" cy="148" r="3.6"/>
+    <circle cx="134" cy="148" r="3.6"/>
+    <circle cx="150" cy="148" r="3.6"/>
+  </g>
+
+  <!-- signal arc -->
+  <path d="M148 100 Q160 85 176 96" fill="none" stroke="#00E5FF" stroke-width="6" stroke-linecap="round"/>
+</svg>

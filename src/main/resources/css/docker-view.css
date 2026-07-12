@@ -1,0 +1,165 @@
+.docker-view {
+    -fx-background-color: -fx-bg-primary;
+    -fx-fill-height: true;
+}
+
+.docker-layout {
+    -fx-fill-height: true;
+}
+
+.docker-sidebar {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-border-color: -fx-border-default;
+    -fx-pref-width: 160px;
+    -fx-border-width: 0 1px 0 0;
+}
+
+.docker-nav {
+    -fx-padding: 8px 0;
+}
+
+.nav-item {
+    -fx-spacing: 8px;
+    -fx-padding: 6px 12px;
+    -fx-font-size: 12px;
+    -fx-alignment: center-left;
+}
+
+.nav-icon {
+    -fx-font-size: 14px;
+}
+
+.nav-text {
+    -fx-flex: 1;
+}
+
+.nav-count {
+    -fx-font-size: 10px;
+    -fx-padding: 2px 6px;
+}
+
+.docker-stats {
+    -fx-border-color: -fx-border-default;
+    -fx-padding: 12px;
+    -fx-border-width: 1px 0 0 0;
+}
+
+.stat-item {
+    -fx-text-fill: -fx-text-muted;
+    -fx-spacing: 8px;
+    -fx-padding: 4px 0;
+    -fx-font-size: 11px;
+    -fx-alignment: center-left;
+    -fx-justify-content: space-between;
+}
+
+.stat-item .label {
+    -fx-text-fill: -fx-text-muted;
+}
+
+.stat-value {
+    -fx-text-fill: -fx-text-info;
+}
+
+.docker-content {
+    -fx-background-color: -fx-bg-primary;
+    -fx-fill-height: true;
+}
+
+.docker-toolbar {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 8px 12px;
+    -fx-spacing: 8px;
+    -fx-alignment: center-left;
+}
+
+.tool-btn {
+    -fx-padding: 4px 8px;
+    -fx-font-size: 12px;
+}
+
+.search-box {
+    -fx-border-width: 1px;
+    -fx-font-size: 12px;
+    -fx-pref-width: 200px;
+}
+
+.docker-table-scroll {
+    -fx-fill-height: true;
+}
+
+
+.table-header {
+    -fx-text-fill: -fx-text-muted;
+    -fx-padding: 8px 12px;
+    -fx-font-size: 11px;
+    -fx-spacing: 4px;
+    -fx-alignment: center-left;
+}
+
+.table-header .label {
+    -fx-text-fill: -fx-text-muted;
+}
+
+.table-col {
+    -fx-flex: 1;
+    -fx-min-width: 0;
+}
+
+.table-col.name {
+    -fx-pref-width: 150px;
+    -fx-flex: 2;
+}
+
+.table-col.status {
+    -fx-pref-width: 100px;
+}
+
+.table-col.actions {
+    -fx-pref-width: 80px;
+}
+
+.table-row {
+    -fx-padding: 8px 12px;
+    -fx-border-width: 0 0 1px 0;
+    -fx-font-size: 12px;
+    -fx-spacing: 4px;
+    -fx-alignment: center-left;
+}
+
+.table-row:hover {
+}
+
+.status-badge {
+    -fx-padding: 2px 8px;
+    -fx-background-radius: 12px;
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+}
+
+.status-badge.running {
+    -fx-text-fill: -fx-text-success;
+}
+
+.status-badge.exited {
+    -fx-text-fill: -fx-text-error;
+}
+
+.status-badge.paused {
+    -fx-text-fill: -fx-text-warning;
+}
+
+.status-badge.pending {
+    -fx-text-fill: -fx-text-warning;
+}
+
+.action-btn {
+    -fx-min-width: 24px;
+    -fx-max-width: 24px;
+    -fx-min-height: 24px;
+    -fx-max-height: 24px;
+    -fx-font-size: 10px;
+    -fx-alignment: center;
+}

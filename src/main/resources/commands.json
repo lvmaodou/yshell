@@ -1,0 +1,366 @@
+[
+  {
+    "id": "linux-common",
+    "type": "category",
+    "name": "Linux 通用",
+    "command": null,
+    "description": "不同 Linux 发行版通用的常用查看命令",
+    "categoryId": "",
+    "expanded": true,
+    "children": [
+      {
+        "id": "linux-common-os-release",
+        "type": "command",
+        "name": "查看系统版本",
+        "command": "cat /etc/os-release",
+        "description": "查看发行版名称、版本号和 ID",
+        "categoryId": "linux-common",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "linux-common-kernel",
+        "type": "command",
+        "name": "查看内核版本",
+        "command": "uname -a",
+        "description": "查看内核、主机名和系统架构",
+        "categoryId": "linux-common",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "linux-common-cpu",
+        "type": "command",
+        "name": "查看 CPU 信息",
+        "command": "lscpu",
+        "description": "查看 CPU 架构、核心数和型号",
+        "categoryId": "linux-common",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "linux-common-memory",
+        "type": "command",
+        "name": "查看内存使用",
+        "command": "free -h",
+        "description": "查看内存和 swap 使用情况",
+        "categoryId": "linux-common",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "linux-common-disk",
+        "type": "command",
+        "name": "查看磁盘空间",
+        "command": "df -h",
+        "description": "查看各挂载点磁盘容量和使用率",
+        "categoryId": "linux-common",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "linux-common-du",
+        "type": "command",
+        "name": "查看当前目录占用",
+        "command": "du -sh * 2>/dev/null | sort -h",
+        "description": "按大小排序查看当前目录下文件和目录占用",
+        "categoryId": "linux-common",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "linux-common-ports",
+        "type": "command",
+        "name": "查看监听端口",
+        "command": "ss -tulnp",
+        "description": "查看 TCP/UDP 监听端口和进程",
+        "categoryId": "linux-common",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "linux-common-process",
+        "type": "command",
+        "name": "查看资源占用进程",
+        "command": "ps aux --sort=-%mem | head -n 15",
+        "description": "按内存占用排序查看进程",
+        "categoryId": "linux-common",
+        "expanded": false,
+        "children": []
+      }
+    ]
+  },
+  {
+    "id": "centos-rhel",
+    "type": "category",
+    "name": "CentOS / RHEL",
+    "command": null,
+    "description": "CentOS、RHEL、Rocky Linux、AlmaLinux 常用命令",
+    "categoryId": "",
+    "expanded": true,
+    "children": [
+      {
+        "id": "centos-release",
+        "type": "command",
+        "name": "查看系统版本",
+        "command": "cat /etc/redhat-release",
+        "description": "查看 Red Hat 系发行版版本",
+        "categoryId": "centos-rhel",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "centos-yum-repos",
+        "type": "command",
+        "name": "查看 Yum 仓库",
+        "command": "yum repolist",
+        "description": "查看已启用的软件仓库",
+        "categoryId": "centos-rhel",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "centos-yum-makecache",
+        "type": "command",
+        "name": "更新 Yum 缓存",
+        "command": "sudo yum makecache",
+        "description": "刷新 yum 软件源缓存",
+        "categoryId": "centos-rhel",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "centos-yum-install",
+        "type": "command",
+        "name": "安装软件包",
+        "command": "sudo yum install -y <package>",
+        "description": "将 <package> 替换为要安装的软件包名",
+        "categoryId": "centos-rhel",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "centos-service-status",
+        "type": "command",
+        "name": "查看服务状态",
+        "command": "systemctl status <service>",
+        "description": "将 <service> 替换为服务名",
+        "categoryId": "centos-rhel",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "centos-firewall-state",
+        "type": "command",
+        "name": "查看防火墙状态",
+        "command": "sudo firewall-cmd --state",
+        "description": "查看 firewalld 当前状态",
+        "categoryId": "centos-rhel",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "centos-open-port",
+        "type": "command",
+        "name": "开放防火墙端口",
+        "command": "sudo firewall-cmd --add-port=8080/tcp --permanent && sudo firewall-cmd --reload",
+        "description": "示例开放 8080/tcp，可按需替换端口",
+        "categoryId": "centos-rhel",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "centos-selinux",
+        "type": "command",
+        "name": "查看 SELinux 状态",
+        "command": "getenforce",
+        "description": "查看 SELinux 当前模式",
+        "categoryId": "centos-rhel",
+        "expanded": false,
+        "children": []
+      }
+    ]
+  },
+  {
+    "id": "ubuntu",
+    "type": "category",
+    "name": "Ubuntu",
+    "command": null,
+    "description": "Ubuntu 常用命令",
+    "categoryId": "",
+    "expanded": true,
+    "children": [
+      {
+        "id": "ubuntu-release",
+        "type": "command",
+        "name": "查看 Ubuntu 版本",
+        "command": "lsb_release -a",
+        "description": "查看 Ubuntu 发行版本信息",
+        "categoryId": "ubuntu",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "ubuntu-apt-update",
+        "type": "command",
+        "name": "更新 Apt 索引",
+        "command": "sudo apt update",
+        "description": "刷新 apt 软件包索引",
+        "categoryId": "ubuntu",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "ubuntu-upgradable",
+        "type": "command",
+        "name": "查看可升级软件",
+        "command": "apt list --upgradable",
+        "description": "列出可升级的软件包",
+        "categoryId": "ubuntu",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "ubuntu-install",
+        "type": "command",
+        "name": "安装软件包",
+        "command": "sudo apt install -y <package>",
+        "description": "将 <package> 替换为要安装的软件包名",
+        "categoryId": "ubuntu",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "ubuntu-service-status",
+        "type": "command",
+        "name": "查看服务状态",
+        "command": "systemctl status <service>",
+        "description": "将 <service> 替换为服务名",
+        "categoryId": "ubuntu",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "ubuntu-ufw-status",
+        "type": "command",
+        "name": "查看 UFW 状态",
+        "command": "sudo ufw status verbose",
+        "description": "查看 Ubuntu 常用防火墙 UFW 状态",
+        "categoryId": "ubuntu",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "ubuntu-journal-service",
+        "type": "command",
+        "name": "查看服务日志",
+        "command": "journalctl -u <service> -n 100 --no-pager",
+        "description": "查看指定 systemd 服务最近 100 行日志",
+        "categoryId": "ubuntu",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "ubuntu-snap-list",
+        "type": "command",
+        "name": "查看 Snap 包",
+        "command": "snap list",
+        "description": "查看已安装的 snap 软件包",
+        "categoryId": "ubuntu",
+        "expanded": false,
+        "children": []
+      }
+    ]
+  },
+  {
+    "id": "debian",
+    "type": "category",
+    "name": "Debian",
+    "command": null,
+    "description": "Debian 常用命令",
+    "categoryId": "",
+    "expanded": true,
+    "children": [
+      {
+        "id": "debian-version",
+        "type": "command",
+        "name": "查看 Debian 版本",
+        "command": "cat /etc/debian_version",
+        "description": "查看 Debian 版本号",
+        "categoryId": "debian",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "debian-apt-update",
+        "type": "command",
+        "name": "更新 Apt 索引",
+        "command": "sudo apt update",
+        "description": "刷新 apt 软件包索引",
+        "categoryId": "debian",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "debian-dpkg-list",
+        "type": "command",
+        "name": "查看已安装软件",
+        "command": "dpkg -l | less",
+        "description": "查看 Debian 已安装的软件包",
+        "categoryId": "debian",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "debian-search-package",
+        "type": "command",
+        "name": "搜索软件包",
+        "command": "apt-cache search <keyword>",
+        "description": "将 <keyword> 替换为搜索关键词",
+        "categoryId": "debian",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "debian-service-units",
+        "type": "command",
+        "name": "查看服务列表",
+        "command": "systemctl list-units --type=service --state=running",
+        "description": "查看正在运行的 systemd 服务",
+        "categoryId": "debian",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "debian-ip-addr",
+        "type": "command",
+        "name": "查看网络地址",
+        "command": "ip addr",
+        "description": "查看网卡和 IP 地址",
+        "categoryId": "debian",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "debian-auth-log",
+        "type": "command",
+        "name": "查看认证日志",
+        "command": "sudo tail -n 100 /var/log/auth.log",
+        "description": "查看最近认证、登录和 sudo 相关日志",
+        "categoryId": "debian",
+        "expanded": false,
+        "children": []
+      },
+      {
+        "id": "debian-reboot-required",
+        "type": "command",
+        "name": "检查是否需要重启",
+        "command": "test -f /var/run/reboot-required && cat /var/run/reboot-required || echo \"no reboot required\"",
+        "description": "检查系统升级后是否提示需要重启",
+        "categoryId": "debian",
+        "expanded": false,
+        "children": []
+      }
+    ]
+  }
+]

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.layout.BorderPane?>
+<BorderPane xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.yshell.controller.MainLayoutController">
+    <top>
+        <fx:include source="Toolbar.fxml"/>
+    </top>
+    <center>
+        <SplitPane fx:id="mainSplitPane" styleClass="main-split-pane">
+            <fx:include source="LeftPanel.fxml"/>
+            <fx:include source="RightPanel.fxml"/>
+        </SplitPane>
+    </center>
+</BorderPane>

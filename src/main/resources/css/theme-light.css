@@ -1,0 +1,103 @@
+.root,
+.combo-box-popup,
+.context-menu {
+    -fx-bg-primary: #ffffff;
+    -fx-bg-secondary: #f8fafc;
+    -fx-bg-tertiary: #eef2f7;
+    -fx-bg-hover: #f1f5f9;
+    -fx-bg-selected: #dbeafe;
+    -fx-bg-disabled: #f6f8fa;
+    -fx-bg-dialog: #f6f8fa;
+    -fx-bg-shadow: #8c959f33;
+
+    -fx-text-primary: #1f2937;
+    -fx-text-secondary: #4b5563;
+    -fx-text-muted: #64748b;
+    -fx-text-inverse: #0f172a;
+    -fx-text-info: #2f5f9f;
+    -fx-text-success: #2f6f4e;
+    -fx-text-warning: #8a5a12;
+    -fx-text-error: #9f3a38;
+
+    -fx-border-default: #cbd5e1;
+
+    -fx-scrollbar-track: #f8fafc;
+    -fx-scrollbar-thumb: #cbd5e1;
+    -fx-scrollbar-thumb-hover: #94a3b8;
+
+    -fx-input-bg: #ffffff;
+    -fx-input-border: #cbd5e1;
+    -fx-input-focus-border: #2563eb;
+
+    -fx-button-primary-bg: #bbf7d0;
+    -fx-button-primary-hover: #86efac;
+    -fx-button-cancel-bg: #e2e8f0;
+    -fx-button-cancel-hover: #cbd5e1;
+    -fx-button-danger-bg: #fecaca;
+    -fx-button-danger-hover: #fca5a5;
+    -fx-button-icon-bg: #e2e8f0;
+    -fx-button-icon-hover: #cbd5e1;
+
+    -fx-table-header-bg: #f8fafc;
+    -fx-table-row-bg: transparent;
+    -fx-table-row-hover-bg: #f1f5f9;
+    -fx-table-row-selected-bg: #dbeafe;
+    -fx-table-border: #cbd5e1;
+
+    -fx-tab-bg: #f8fafc;
+    -fx-tab-active-bg: #dbeafe;
+    -fx-tab-hover-bg: #f1f5f9;
+    -fx-tab-pressed-bg: #e8f0fe;
+
+    -fx-progress-track: #d7dee8;
+    -fx-progress-bar-fill: #60a5fa;
+    -fx-progress-cpu: #22c55e;
+    -fx-progress-memory: #f59e0b;
+    -fx-progress-swap: #60a5fa;
+    -fx-progress-disk: #f97316;
+    -fx-transfer-progress-bar: #60a5fa;
+
+    /**终端相关配色*/
+    -fx-terminal-bg: #ffffff;
+    -fx-terminal-text: #111827;
+    -fx-terminal-cursor: #11182799;
+    -fx-terminal-selection-bg: #bfdbfecc;
+    -fx-terminal-search-match-bg: #fde68acc;
+    -fx-terminal-search-current-bg: #fca5a5cc;
+
+    /* File Icon Colors */
+    -fx-file-icon-txt: #64748b;
+    -fx-file-icon-log: #64748b;
+    -fx-file-icon-bashrc: #64748b;
+    -fx-file-icon-md: #2563eb;
+    -fx-file-icon-yaml: #2563eb;
+    -fx-file-icon-css: #2563eb;
+    -fx-file-icon-java: #a16207;
+    -fx-file-icon-html: #a16207;
+    -fx-file-icon-py: #2563eb;
+    -fx-file-icon-js: #854d0e;
+    -fx-file-icon-xml: #854d0e;
+    -fx-file-icon-json: #15803d;
+    -fx-file-icon-sh: #15803d;
+    -fx-file-icon-folder: #ca8a04;
+
+    /* Folder Icon Color - 所有文件夹 */
+    -fx-icon-folder: #ca8a04;
+
+    /* Connection Status Icons - 终端连接状态 */
+    -fx-icon-status-success: #15803d;
+    -fx-icon-status-error: #b91c1c;
+
+    /* Connection Type Icons - Windows/Linux 连接图标 */
+    -fx-icon-connection-windows: #2563eb;
+    -fx-icon-connection-linux: #a16207;
+
+    /* Search Icon Color - 所有搜索图标 */
+    -fx-icon-search: #64748b;
+
+    /* Detail Icons - 连接详情中的主机/端口/用户图标 */
+    -fx-icon-detail-info: #64748b;
+
+    /* Network Icon - 左侧面板网络图标 */
+    -fx-icon-network: #2563eb;
+}

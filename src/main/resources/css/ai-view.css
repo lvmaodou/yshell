@@ -1,0 +1,119 @@
+.ai-view {
+    -fx-fill-height: true;
+    -fx-background-color: -fx-bg-primary;
+}
+
+.ai-toolbar {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 8px 12px;
+    -fx-spacing: 8px;
+    -fx-alignment: center-left;
+}
+
+.toolbar-spacer {
+    -fx-fill-width: true;
+}
+
+.model-selector {
+    -fx-border-width: 1px;
+    -fx-font-size: 12px;
+}
+
+.tool-btn {
+    -fx-padding: 4px 8px;
+    -fx-font-size: 12px;
+}
+
+.ai-content {
+    -fx-background-color: -fx-bg-primary;
+    -fx-fill-height: true;
+}
+
+.chat-scroll {
+    -fx-fill-height: true;
+}
+
+
+.chat-messages {
+    -fx-background-color: -fx-bg-primary;
+    -fx-padding: 12px;
+    -fx-spacing: 16px;
+}
+
+.message-container {
+    -fx-spacing: 12px;
+    -fx-alignment: top-left;
+}
+
+.message-container.user {
+    -fx-alignment: top-right;
+}
+
+.message-avatar {
+    -fx-font-size: 24px;
+    -fx-min-width: 36px;
+    -fx-max-width: 36px;
+    -fx-alignment: center;
+}
+
+.message-content {
+    -fx-spacing: 4px;
+}
+
+.message-author {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+
+.message-text {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 14px;
+    -fx-wrap-text: true;
+}
+
+.input-area {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 1px 0 0 0;
+    -fx-padding: 12px;
+    -fx-spacing: 8px;
+}
+
+.input-toolbar {
+    -fx-spacing: 4px;
+    -fx-alignment: center-left;
+}
+
+.input-btn {
+    -fx-min-width: 28px;
+    -fx-max-width: 28px;
+    -fx-min-height: 28px;
+    -fx-max-height: 28px;
+    -fx-font-size: 12px;
+    -fx-alignment: center;
+}
+
+.input-textarea {
+    -fx-border-width: 1px;
+    -fx-font-size: 14px;
+    -fx-pref-height: 80px;
+}
+
+.input-footer {
+    -fx-alignment: center-right;
+    -fx-spacing: 12px;
+}
+
+.input-hint {
+    -fx-text-fill: -fx-text-muted;
+    -fx-font-size: 11px;
+}
+
+.send-btn {
+    -fx-padding: 8px 20px;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}

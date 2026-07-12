@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+<?import java.lang.*?>
+<BorderPane xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="root"
+            fx:controller="com.yshell.controller.UpdateDialogController">
+    <styleClass>
+        <String fx:value="update-dialog"/>
+    </styleClass>
+    <top>
+        <HBox>
+            <styleClass>
+                <String fx:value="update-header"/>
+            </styleClass>
+            <Label text="检查更新">
+                <styleClass>
+                    <String fx:value="update-header-title"/>
+                </styleClass>
+            </Label>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnClose" onAction="#closeDialog">
+                <styleClass>
+                    <String fx:value="button-close"/>
+                </styleClass>
+                <graphic>
+                    <FontIcon iconLiteral="fas-times"/>
+                </graphic>
+            </Button>
+        </HBox>
+    </top>
+
+    <center>
+        <VBox>
+            <styleClass>
+                <String fx:value="update-content"/>
+            </styleClass>
+            <Label fx:id="titleLabel">
+                <styleClass>
+                    <String fx:value="update-title"/>
+                </styleClass>
+            </Label>
+            <HBox fx:id="versionBox" styleClass="version-box">
+                <Label fx:id="currentVersionLabel">
+                    <styleClass>
+                        <String fx:value="update-version-current"/>
+                    </styleClass>
+                </Label>
+                <Label text="→">
+                    <styleClass>
+                        <String fx:value="update-version-arrow"/>
+                    </styleClass>
+                </Label>
+                <Label fx:id="newVersionLabel">
+                    <styleClass>
+                        <String fx:value="update-version-new"/>
+                    </styleClass>
+                </Label>
+            </HBox>
+            <Label fx:id="versionOnlyLabel">
+                <styleClass>
+                    <String fx:value="update-version-current"/>
+                </styleClass>
+            </Label>
+            <Label fx:id="sizeLabel">
+                <styleClass>
+                    <String fx:value="update-size"/>
+                </styleClass>
+            </Label>
+            <VBox fx:id="progressBox" styleClass="update-progress-box" visible="false" managed="false">
+                <ProgressBar fx:id="progressBar" prefWidth="340" progress="0"/>
+                <Label fx:id="progressLabel">
+                    <styleClass>
+                        <String fx:value="update-progress-label"/>
+                    </styleClass>
+                </Label>
+            </VBox>
+        </VBox>
+    </center>
+
+    <bottom>
+        <HBox styleClass="update-button-box">
+            <CheckBox fx:id="startupPromptCheckBox"
+                      text="不再提醒"
+                      visible="false"
+                      managed="false">
+                <styleClass>
+                    <String fx:value="update-startup-prompt-check"/>
+                </styleClass>
+            </CheckBox>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="changelogButton" text="更新日志" styleClass="button-cancel"
+                    onAction="#onChangelog"/>
+            <Button fx:id="cancelButton" text="稍后更新" styleClass="button-cancel"
+                    onAction="#closeDialog"/>
+            <Button fx:id="updateButton" text="立即更新" styleClass="button-primary"
+                    onAction="#onUpdate"/>
+        </HBox>
+    </bottom>
+</BorderPane>

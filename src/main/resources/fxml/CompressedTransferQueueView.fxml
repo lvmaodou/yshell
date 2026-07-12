@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+<?import java.lang.*?>
+<VBox fx:id="root" xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.yshell.controller.CompressedTransferQueueController">
+    <styleClass>
+        <String fx:value="transfer-window"/>
+    </styleClass>
+    <HBox>
+        <styleClass>
+            <String fx:value="transfer-title-bar"/>
+        </styleClass>
+        <Label text="压缩传输队列">
+            <styleClass>
+                <String fx:value="transfer-title-label"/>
+            </styleClass>
+        </Label>
+        <Pane HBox.hgrow="ALWAYS"/>
+        <Button fx:id="btnMinimize">
+            <styleClass>
+                <String fx:value="button-window"/>
+                <String fx:value="window-btn"/>
+            </styleClass>
+            <graphic>
+                <FontIcon iconLiteral="fas-minus"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnMaximize">
+            <styleClass>
+                <String fx:value="button-window"/>
+                <String fx:value="window-btn"/>
+            </styleClass>
+            <graphic>
+                <FontIcon iconLiteral="far-square"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnClose">
+            <styleClass>
+                <String fx:value="button-close"/>
+                <String fx:value="window-btn-close"/>
+            </styleClass>
+            <graphic>
+                <FontIcon iconLiteral="fas-times"/>
+            </graphic>
+        </Button>
+    </HBox>
+
+    <BorderPane VBox.vgrow="ALWAYS">
+        <top>
+            <HBox>
+                <styleClass>
+                    <String fx:value="transfer-root-bar"/>
+                </styleClass>
+                <Label text="下载目录"/>
+                <TextField fx:id="downloadDirectoryField" editable="false" HBox.hgrow="ALWAYS"/>
+                <Button fx:id="btnChooseDirectory" text="选择"/>
+                <Button fx:id="btnOpenDirectory" text="打开"/>
+                <Button fx:id="btnClearFinished" text="清空已完成"/>
+            </HBox>
+        </top>
+        <center>
+            <TabPane fx:id="queueTabs" styleClass="transfer-tabs">
+                <Tab fx:id="downloadTab" text="压缩下载" closable="false">
+                    <TableView fx:id="downloadTable" styleClass="transfer-table">
+                        <columnResizePolicy>
+                            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                        </columnResizePolicy>
+                        <columns>
+                            <TableColumn fx:id="downloadNameColumn" text="任务" minWidth="160"/>
+                            <TableColumn fx:id="downloadSourceColumn" text="源路径" minWidth="260"/>
+                            <TableColumn fx:id="downloadTargetColumn" text="目标路径" minWidth="220"/>
+                            <TableColumn fx:id="downloadStageColumn" text="步骤" minWidth="110"/>
+                            <TableColumn fx:id="downloadProgressColumn" text="进度" minWidth="130"/>
+                            <TableColumn fx:id="downloadSizeColumn" text="压缩包大小" minWidth="170"/>
+                            <TableColumn fx:id="downloadStatusColumn" text="状态" minWidth="120"/>
+                            <TableColumn fx:id="downloadActionColumn" text="操作" minWidth="210"/>
+                        </columns>
+                    </TableView>
+                </Tab>
+                <Tab fx:id="uploadTab" text="压缩上传" closable="false">
+                    <TableView fx:id="uploadTable" styleClass="transfer-table">
+                        <columnResizePolicy>
+                            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                        </columnResizePolicy>
+                        <columns>
+                            <TableColumn fx:id="uploadNameColumn" text="任务" minWidth="160"/>
+                            <TableColumn fx:id="uploadSourceColumn" text="源路径" minWidth="260"/>
+                            <TableColumn fx:id="uploadTargetColumn" text="目标路径" minWidth="220"/>
+                            <TableColumn fx:id="uploadStageColumn" text="步骤" minWidth="110"/>
+                            <TableColumn fx:id="uploadProgressColumn" text="进度" minWidth="130"/>
+                            <TableColumn fx:id="uploadSizeColumn" text="压缩包大小" minWidth="170"/>
+                            <TableColumn fx:id="uploadStatusColumn" text="状态" minWidth="120"/>
+                            <TableColumn fx:id="uploadActionColumn" text="操作" minWidth="210"/>
+                        </columns>
+                    </TableView>
+                </Tab>
+            </TabPane>
+        </center>
+    </BorderPane>
+</VBox>

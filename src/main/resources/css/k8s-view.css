@@ -1,0 +1,48 @@
+.k8s-view {
+    -fx-background-color: -fx-bg-primary;
+    -fx-fill-height: true;
+}
+
+.k8s-layout {
+    -fx-fill-height: true;
+}
+
+.k8s-sidebar {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-border-color: -fx-border-default;
+    -fx-pref-width: 160px;
+    -fx-border-width: 0 1px 0 0;
+}
+
+.k8s-nav {
+    -fx-padding: 8px 0;
+}
+
+.k8s-stats {
+    -fx-border-color: -fx-border-default;
+    -fx-padding: 12px;
+    -fx-border-width: 1px 0 0 0;
+}
+
+.k8s-content {
+    -fx-background-color: -fx-bg-primary;
+    -fx-fill-height: true;
+}
+
+.k8s-toolbar {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 8px 12px;
+    -fx-spacing: 8px;
+    -fx-alignment: center-left;
+}
+
+.k8s-table-scroll {
+    -fx-fill-height: true;
+}
+
+
+.table-col.namespace {
+    -fx-pref-width: 100px;
+}

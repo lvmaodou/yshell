@@ -1,0 +1,126 @@
+.key-manager {
+    -fx-background-color: -fx-bg-primary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 1;
+    -fx-padding: 0;
+}
+
+.key-header {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-border-color: -fx-border-default;
+    -fx-padding: 4 4 4 14;
+    -fx-alignment: center-left;
+    -fx-border-width: 0 0 1 0;
+}
+
+.key-title {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+}
+
+.key-close {
+    -fx-min-width: 24px;
+    -fx-max-width: 24px;
+    -fx-min-height: 24px;
+    -fx-max-height: 24px;
+    -fx-padding: 0;
+}
+
+.key-table {
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+}
+
+.key-table .column-header .label {
+    -fx-font-size: 12px;
+    -fx-padding: 8 10;
+    -fx-alignment: center-left;
+}
+
+.key-table .table-row-cell {
+    -fx-cell-size: 34px;
+}
+
+.key-table .table-cell {
+    -fx-font-size: 12px;
+    -fx-padding: 0 10;
+    -fx-alignment: center-left;
+}
+
+.key-table:focused {
+    -fx-background-insets: 0;
+}
+
+.key-table .scroll-bar:horizontal {
+    -fx-opacity: 0;
+    -fx-max-height: 0;
+    -fx-pref-height: 0;
+}
+
+.key-footer {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default;
+    -fx-padding: 10 12;
+    -fx-spacing: 8;
+    -fx-alignment: center-left;
+    -fx-border-width: 1 0 0 0;
+}
+
+.key-btn {
+    -fx-min-width: 62px;
+    -fx-pref-height: 30px;
+    -fx-padding: 6 10;
+    -fx-font-size: 12px;
+}
+
+.dialog-pane.key-form-dialog .content,
+.dialog-pane.key-properties-dialog .content {
+    -fx-padding: 14 18 8 18;
+}
+
+.key-form-grid,
+.key-properties-grid {
+    -fx-hgap: 10;
+    -fx-vgap: 10;
+    -fx-padding: 2 0 0 0;
+}
+
+.key-form-grid .label,
+.key-properties-grid .label {
+    -fx-font-size: 12px;
+}
+
+.key-form-grid .text-field,
+.key-form-grid .password-field,
+.key-form-grid .combo-box,
+.key-properties-grid .text-field {
+    -fx-font-size: 12px;
+    -fx-pref-height: 30px;
+    -fx-pref-width: 180px;
+}
+
+.key-form-grid .text-field,
+.key-form-grid .password-field,
+.key-properties-grid .text-field {
+    -fx-padding: 5 8;
+}
+
+.key-form-grid .combo-box .list-cell {
+    -fx-padding: 2 6;
+}
+
+.key-form-grid .check-box {
+    -fx-font-size: 12px;
+}
+
+.key-properties-grid .key-property-label {
+    -fx-text-fill: -fx-text-muted;
+    -fx-pref-width: 92px;
+    -fx-min-width: 92px;
+}
+
+.key-properties-grid .key-property-value {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-pref-width: 420px;
+}

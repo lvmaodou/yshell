@@ -1,0 +1,31 @@
+.main-split-pane {
+}
+
+.main-split-pane .split-pane-divider {
+    -fx-padding: 0 1px 0 1px;
+}
+
+.content-split-pane {
+    -fx-background-color: transparent;
+    -fx-min-width: 0;
+    -fx-min-height: 0;
+    -fx-pref-width: 100%;
+    -fx-pref-height: 100%;
+}
+
+.content-split-pane .split-pane-divider {
+    -fx-min-height: 6px;
+    -fx-max-height: 6px;
+}
+
+.content-split-pane > .split-pane-items > .split-pane-item {
+    -fx-min-width: 0;
+    -fx-min-height: 0;
+    -fx-pref-height: -1;
+    -fx-pref-width: 100%;
+}
+
+.right-panel {
+    -fx-background-color: -fx-bg-primary;
+    -fx-fill-height: true;
+}

@@ -1,0 +1,463 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.canvas.Canvas?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.*?>
+<?import java.lang.*?>
+<VBox xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.yshell.controller.LeftPanelController">
+    <styleClass>
+        <String fx:value="left-panel"/>
+    </styleClass>
+
+    <HBox fx:id="serverItem">
+        <styleClass>
+            <String fx:value="server-item"/>
+        </styleClass>
+        <Pane fx:id="serverIcon">
+            <styleClass>
+                <String fx:value="server-icon"/>
+            </styleClass>
+        </Pane>
+        <Label fx:id="serverLabel" styleClass="server-label" text="--"/>
+    </HBox>
+
+    <StackPane VBox.vgrow="ALWAYS">
+        <ScrollPane fx:id="systemInfoScroll" fitToWidth="true">
+            <styleClass>
+                <String fx:value="system-info-scroll"/>
+            </styleClass>
+            <VBox>
+                <VBox styleClass="info-section">
+                    <HBox>
+                        <styleClass>
+                            <String fx:value="info-header"/>
+                        </styleClass>
+                        <Label text="基本信息"/>
+                    </HBox>
+                    <HBox styleClass="info-row">
+                        <Label text="发行版">
+                            <styleClass>
+                                <String fx:value="info-label"/>
+                            </styleClass>
+                        </Label>
+                        <Label fx:id="distroValue" text="--">
+                            <styleClass>
+                                <String fx:value="info-value"/>
+                            </styleClass>
+                        </Label>
+                    </HBox>
+                    <HBox styleClass="info-row">
+                        <Label text="内核版本">
+                            <styleClass>
+                                <String fx:value="info-label"/>
+                            </styleClass>
+                        </Label>
+                        <Label fx:id="kernelValue" text="--">
+                            <styleClass>
+                                <String fx:value="info-value"/>
+                            </styleClass>
+                        </Label>
+                    </HBox>
+                    <HBox styleClass="info-row">
+                        <Label text="运行时间">
+                            <styleClass>
+                                <String fx:value="info-label"/>
+                            </styleClass>
+                        </Label>
+                        <Label fx:id="uptimeValue" text="--">
+                            <styleClass>
+                                <String fx:value="info-value"/>
+                            </styleClass>
+                        </Label>
+                    </HBox>
+                    <HBox styleClass="info-row">
+                        <Label text="系统时间">
+                            <styleClass>
+                                <String fx:value="info-label"/>
+                            </styleClass>
+                        </Label>
+                        <Label fx:id="systemTimeValue" text="--">
+                            <styleClass>
+                                <String fx:value="info-value"/>
+                            </styleClass>
+                        </Label>
+                    </HBox>
+                </VBox>
+
+                <VBox styleClass="info-section">
+                    <HBox>
+                        <styleClass>
+                            <String fx:value="info-header"/>
+                        </styleClass>
+                        <Label text="CPU信息"/>
+                    </HBox>
+                    <HBox styleClass="info-row">
+                        <Label text="CPU型号">
+                            <styleClass>
+                                <String fx:value="info-label"/>
+                            </styleClass>
+                        </Label>
+                        <Label fx:id="cpuModelValue" text="--">
+                            <styleClass>
+                                <String fx:value="info-value"/>
+                            </styleClass>
+                        </Label>
+                    </HBox>
+                    <HBox styleClass="info-row">
+                        <Label text="核心数">
+                            <styleClass>
+                                <String fx:value="info-label"/>
+                            </styleClass>
+                        </Label>
+                        <Label fx:id="cpuCoresValue" text="--">
+                            <styleClass>
+                                <String fx:value="info-value"/>
+                            </styleClass>
+                        </Label>
+                    </HBox>
+                    <HBox styleClass="info-row">
+                        <Label text="使用率">
+                            <styleClass>
+                                <String fx:value="info-label"/>
+                            </styleClass>
+                        </Label>
+                        <StackPane styleClass="progress-bar-container">
+                            <Region>
+                                <styleClass>
+                                    <String fx:value="progress-track"/>
+                                    <String fx:value="fill-progress-track"/>
+                                </styleClass>
+                            </Region>
+                            <Region fx:id="cpuProgressBar">
+                                <styleClass>
+                                    <String fx:value="progress-fill-cpu"/>
+                                    <String fx:value="fill-progress-cpu"/>
+                                </styleClass>
+                            </Region>
+                            <HBox styleClass="progress-bar-text">
+                                <Label fx:id="cpuPercentLabel" text="0%">
+                                    <styleClass>
+                                        <String fx:value="progress-text-left"/>
+                                    </styleClass>
+                                </Label>
+                            </HBox>
+                        </StackPane>
+                    </HBox>
+                </VBox>
+
+                <VBox styleClass="info-section">
+                    <HBox>
+                        <styleClass>
+                            <String fx:value="info-header"/>
+                        </styleClass>
+                        <Label text="内存信息"/>
+                    </HBox>
+                    <HBox styleClass="info-row">
+                        <Label text="内存">
+                            <styleClass>
+                                <String fx:value="info-label"/>
+                            </styleClass>
+                        </Label>
+                        <StackPane styleClass="progress-bar-container">
+                            <Region>
+                                <styleClass>
+                                    <String fx:value="progress-track"/>
+                                    <String fx:value="fill-progress-track"/>
+                                </styleClass>
+                            </Region>
+                            <Region fx:id="memoryProgressBar">
+                                <styleClass>
+                                    <String fx:value="progress-fill-memory"/>
+                                    <String fx:value="fill-progress-memory"/>
+                                </styleClass>
+                            </Region>
+                            <HBox styleClass="progress-bar-text">
+                                <Label fx:id="memoryPercentLabel" text="0%">
+                                    <styleClass>
+                                        <String fx:value="progress-text-left"/>
+                                    </styleClass>
+                                </Label>
+                                <Pane HBox.hgrow="ALWAYS"/>
+                                <Label fx:id="memoryValueLabel" text="0/0 GB">
+                                    <styleClass>
+                                        <String fx:value="progress-text-right"/>
+                                    </styleClass>
+                                </Label>
+                            </HBox>
+                        </StackPane>
+                    </HBox>
+                    <HBox styleClass="info-row">
+                        <Label text="Swap">
+                            <styleClass>
+                                <String fx:value="info-label"/>
+                            </styleClass>
+                        </Label>
+                        <StackPane styleClass="progress-bar-container">
+                            <Region>
+                                <styleClass>
+                                    <String fx:value="progress-track"/>
+                                    <String fx:value="fill-progress-track"/>
+                                </styleClass>
+                            </Region>
+                            <Region fx:id="swapProgressBar">
+                                <styleClass>
+                                    <String fx:value="progress-fill-swap"/>
+                                    <String fx:value="fill-progress-swap"/>
+                                </styleClass>
+                            </Region>
+                            <HBox styleClass="progress-bar-text">
+                                <Label fx:id="swapPercentLabel" text="0%">
+                                    <styleClass>
+                                        <String fx:value="progress-text-left"/>
+                                    </styleClass>
+                                </Label>
+                                <Pane HBox.hgrow="ALWAYS"/>
+                                <Label fx:id="swapValueLabel" text="0/0 GB">
+                                    <styleClass>
+                                        <String fx:value="progress-text-right"/>
+                                    </styleClass>
+                                </Label>
+                            </HBox>
+                        </StackPane>
+                    </HBox>
+                </VBox>
+
+                <VBox styleClass="info-section">
+                    <HBox>
+                        <styleClass>
+                            <String fx:value="info-header"/>
+                        </styleClass>
+                        <Label text="进程信息"/>
+                    </HBox>
+                    <HBox styleClass="info-row">
+                        <Label text="运行中" style="-fx-min-width: 40px; -fx-max-width: 40px;">
+                            <styleClass>
+                                <String fx:value="info-label"/>
+                            </styleClass>
+                        </Label>
+                        <Label fx:id="processRunningValue" text="0">
+                            <styleClass>
+                                <String fx:value="process-running"/>
+                            </styleClass>
+                        </Label>
+                        <Label text="休眠" style="-fx-min-width: 40px; -fx-max-width: 40px;">
+                            <styleClass>
+                                <String fx:value="info-label"/>
+                            </styleClass>
+                        </Label>
+                        <Label fx:id="processSleepingValue" text="0">
+                        </Label>
+                        <Label text="总数" style="-fx-min-width: 40px; -fx-max-width: 40px;">
+                            <styleClass>
+                                <String fx:value="info-label"/>
+                            </styleClass>
+                        </Label>
+                        <Label fx:id="processTotalValue" text="0">
+                            <styleClass>
+                                <String fx:value="info-value"/>
+                            </styleClass>
+                        </Label>
+                    </HBox>
+
+                    <TableView fx:id="processTableView" fixedCellSize="24">
+                        <styleClass>
+                            <String fx:value="process-table"/>
+                        </styleClass>
+                        <columns>
+                            <TableColumn fx:id="nameCol" text="进程名" prefWidth="140"/>
+                            <TableColumn fx:id="cpuCol" text="CPU%" prefWidth="100"/>
+                            <TableColumn fx:id="memCol" text="MEM%" prefWidth="100"/>
+                        </columns>
+                        <columnResizePolicy>
+                            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                        </columnResizePolicy>
+                    </TableView>
+                </VBox>
+
+                <VBox styleClass="info-section">
+                    <HBox>
+                        <styleClass>
+                            <String fx:value="info-header"/>
+                        </styleClass>
+                        <Label text="磁盘信息"/>
+                    </HBox>
+                    <TableView fx:id="diskTableView" fixedCellSize="24">
+                        <styleClass>
+                            <String fx:value="disk-table"/>
+                        </styleClass>
+                        <columns>
+                            <TableColumn fx:id="diskPathCol" text="路径" prefWidth="140"/>
+                            <TableColumn fx:id="diskSizeCol" text="已用/总量"/>
+                        </columns>
+                        <columnResizePolicy>
+                            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                        </columnResizePolicy>
+                    </TableView>
+                </VBox>
+
+                <VBox styleClass="info-section">
+                    <HBox>
+                        <styleClass>
+                            <String fx:value="info-header"/>
+                        </styleClass>
+                        <Label text="网络信息"/>
+                    </HBox>
+                    <HBox styleClass="info-row">
+                        <Label text="网卡">
+                            <styleClass>
+                                <String fx:value="info-label"/>
+                            </styleClass>
+                        </Label>
+                        <ComboBox fx:id="nicSelect">
+                            <styleClass>
+                                <String fx:value="nic-select"/>
+                            </styleClass>
+                        </ComboBox>
+                    </HBox>
+                    <HBox styleClass="network-info-row">
+                        <HBox HBox.hgrow="ALWAYS" styleClass="network-item">
+                            <Label text="上传">
+                                <styleClass>
+                                    <String fx:value="info-label"/>
+                                </styleClass>
+                            </Label>
+                            <Label fx:id="uploadSpeedValue" text="--">
+                                <styleClass>
+                                    <String fx:value="upload-speed"/>
+                                </styleClass>
+                            </Label>
+                        </HBox>
+                        <HBox HBox.hgrow="ALWAYS" styleClass="network-item">
+                            <Label text="下载">
+                                <styleClass>
+                                    <String fx:value="info-label"/>
+                                </styleClass>
+                            </Label>
+                            <Label fx:id="downloadSpeedValue" text="--">
+                                <styleClass>
+                                    <String fx:value="download-speed"/>
+                                </styleClass>
+                            </Label>
+                        </HBox>
+                    </HBox>
+                    <VBox styleClass="chart-container">
+                        <Pane fx:id="networkChartPane">
+                            <styleClass>
+                                <String fx:value="chart-line"/>
+                            </styleClass>
+                            <Canvas fx:id="networkChartCanvas" width="400" height="80"/>
+                        </Pane>
+                    </VBox>
+                    <HBox styleClass="info-row">
+                        <Label text="延迟">
+                            <styleClass>
+                                <String fx:value="info-label"/>
+                            </styleClass>
+                        </Label>
+                        <Label fx:id="latencyValue" text="--">
+                            <styleClass>
+                                <String fx:value="latency-value"/>
+                            </styleClass>
+                        </Label>
+                    </HBox>
+                </VBox>
+
+                <VBox styleClass="info-section">
+                    <HBox>
+                        <styleClass>
+                            <String fx:value="info-header"/>
+                        </styleClass>
+                        <Label text="用户信息"/>
+                    </HBox>
+                    <HBox styleClass="info-row">
+                        <Label text="当前用户">
+                            <styleClass>
+                                <String fx:value="info-label"/>
+                            </styleClass>
+                        </Label>
+                        <Label fx:id="currentUserValue" text="--">
+                            <styleClass>
+                                <String fx:value="current-user"/>
+                            </styleClass>
+                        </Label>
+                    </HBox>
+                    <TableView fx:id="userTableView" fixedCellSize="24">
+                        <styleClass>
+                            <String fx:value="user-table"/>
+                        </styleClass>
+                        <columns>
+                            <TableColumn fx:id="userUidCol" text="UID" prefWidth="58"/>
+                            <TableColumn fx:id="userNameCol" text="NAME" prefWidth="112"/>
+                            <TableColumn fx:id="userGidCol" text="GID" prefWidth="58"/>
+                            <TableColumn fx:id="userGroupCol" text="GNAME" prefWidth="112"/>
+                        </columns>
+                        <columnResizePolicy>
+                            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                        </columnResizePolicy>
+                    </TableView>
+                </VBox>
+            </VBox>
+        </ScrollPane>
+
+        <VBox fx:id="connectionInfoPane" visible="false" managed="false">
+            <styleClass>
+                <String fx:value="connection-info-pane"/>
+            </styleClass>
+            <HBox>
+                <styleClass>
+                    <String fx:value="left-connection-title"/>
+                </styleClass>
+                <FontIcon iconLiteral="fas-network-wired" iconSize="14">
+                    <styleClass>
+                        <String fx:value="icon-network"/>
+                    </styleClass>
+                </FontIcon>
+                <Label text="我的连接">
+                    <styleClass>
+                        <String fx:value="left-connection-title-label"/>
+                    </styleClass>
+                </Label>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button fx:id="btnNewConnectionFromTitle">
+                    <styleClass>
+                        <String fx:value="left-connection-title-btn"/>
+                    </styleClass>
+                    <graphic>
+                        <FontIcon iconLiteral="fas-plug" iconSize="12"/>
+                    </graphic>
+                </Button>
+                <Button fx:id="btnNewFolderFromTitle">
+                    <styleClass>
+                        <String fx:value="left-connection-title-btn"/>
+                    </styleClass>
+                    <graphic>
+                        <FontIcon iconLiteral="fas-folder-plus" iconSize="12"/>
+                    </graphic>
+                </Button>
+                <Button fx:id="btnExpandAllConnections">
+                    <styleClass>
+                        <String fx:value="left-connection-title-btn"/>
+                    </styleClass>
+                    <graphic>
+                        <FontIcon iconLiteral="fas-angle-double-down" iconSize="12"/>
+                    </graphic>
+                </Button>
+                <Button fx:id="btnCollapseAllConnections">
+                    <styleClass>
+                        <String fx:value="left-connection-title-btn"/>
+                    </styleClass>
+                    <graphic>
+                        <FontIcon iconLiteral="fas-angle-double-up" iconSize="12"/>
+                    </graphic>
+                </Button>
+            </HBox>
+            <TreeView fx:id="connectionTreeView" VBox.vgrow="ALWAYS">
+                <styleClass>
+                    <String fx:value="left-connection-tree-view"/>
+                </styleClass>
+            </TreeView>
+        </VBox>
+    </StackPane>
+</VBox>

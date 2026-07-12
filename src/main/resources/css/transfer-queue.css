@@ -1,0 +1,122 @@
+.transfer-window {
+    -fx-background-color: -fx-bg-primary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 1px;
+    -fx-font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+}
+
+.transfer-title-bar {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-padding: 0 2 0 2px;
+    -fx-alignment: center-left;
+    -fx-min-height: 32px;
+    -fx-max-height: 32px;
+}
+
+.transfer-title-label {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 13px;
+    -fx-padding: 0 8px;
+}
+
+.transfer-window .window-btn,
+.transfer-window .window-btn-close {
+    -fx-border-width: 0;
+    -fx-content-display: graphic-only;
+    -fx-min-width: 40px;
+    -fx-min-height: 28px;
+    -fx-padding: 4px 16px;
+}
+
+.transfer-root-bar {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 0 0 1px 0;
+    -fx-alignment: center-left;
+    -fx-padding: 4 0 4 8;
+    -fx-spacing: 2;
+}
+
+.transfer-tabs {
+    -fx-tab-min-height: 20px;
+    -fx-tab-max-height: 20px;
+    -fx-tab-min-width: 36px;
+}
+
+.transfer-tabs .tab-header-area {
+    -fx-padding: 0 0 0 0;
+}
+
+.transfer-tabs .tab-header-background {
+    -fx-border-width: 0 0 1px 0;
+}
+
+.transfer-tabs .headers-region {
+    -fx-spacing: 4px;
+    -fx-padding: 4px 0 0 4px;
+}
+
+.transfer-tabs .tab {
+    -fx-background-radius: 4px 4px 0 0;
+    -fx-border-width: 1px 1px 0 1px;
+    -fx-border-radius: 4px 4px 0 0;
+    -fx-padding: 6px 12px;
+}
+
+.transfer-tabs .tab:selected {
+    -fx-border-width: 1px 1px 0 1px;
+}
+
+.transfer-tabs .tab:selected {
+    -fx-background-insets: 0;
+}
+
+.transfer-tabs .tab .tab-label {
+    -fx-font-size: 12px;
+}
+
+.transfer-tabs .tab:selected .tab-label {
+    -fx-font-weight: bold;
+}
+
+.transfer-tabs .focus-indicator {
+    -fx-border-width: 0;
+}
+
+.transfer-root-bar .button,
+.transfer-table .button {
+    -fx-padding: 3px 8px;
+}
+
+.transfer-table .button:disabled {
+    -fx-opacity: 0.45;
+}
+
+.transfer-table .column-header {
+    -fx-alignment: center-left;
+    -fx-padding: 4px 8px;
+}
+
+.transfer-table .column-header .label {
+    -fx-alignment: center-left;
+}
+
+.transfer-table .table-cell {
+    -fx-alignment: center-left;
+    -fx-padding: 4px 8px;
+}
+
+.transfer-table .progress-bar {
+    -fx-pref-height: 12px;
+}
+
+.transfer-table .progress-bar .track {
+    -fx-background-radius: 3px;
+    -fx-border-radius: 3px;
+}
+
+.transfer-table .progress-bar .bar {
+    -fx-background-color: -fx-transfer-progress-bar;
+    -fx-background-radius: 3px;
+    -fx-background-insets: 2px;
+}

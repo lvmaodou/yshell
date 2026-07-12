@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import java.lang.String?>
+<VBox xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.yshell.controller.RightPanelController" prefHeight="10000">
+    <styleClass>
+        <String fx:value="right-panel"/>
+    </styleClass>
+    <fx:include fx:id="connectionToolbar" source="ConnectionToolbar.fxml"/>
+
+    <!-- 内容区域：StackPane切换 终端面板 / 快速连接面板 -->
+    <StackPane fx:id="contentArea" VBox.vgrow="ALWAYS">
+
+        <!-- 默认内容：终端+可视化 -->
+        <SplitPane fx:id="contentSplitPane" orientation="VERTICAL">
+            <styleClass>
+                <String fx:value="content-split-pane"/>
+            </styleClass>
+            <StackPane fx:id="terminalHost">
+                <fx:include fx:id="terminalPanel" source="TerminalPanel.fxml"/>
+            </StackPane>
+        </SplitPane>
+
+        <fx:include fx:id="quickConnectPanel" source="QuickConnectPanel.fxml"/>
+    </StackPane>
+</VBox>

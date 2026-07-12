@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+<?import java.lang.*?>
+<BorderPane xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="root"
+            fx:controller="com.yshell.controller.SettingsManagerController"
+            stylesheets="@../css/settings-manager.css">
+    <styleClass>
+        <String fx:value="settings-manager"/>
+    </styleClass>
+    <top>
+        <HBox styleClass="settings-header">
+            <Label text="设置" styleClass="settings-title"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnClose" onAction="#closeDialog">
+                <styleClass>
+                    <String fx:value="button-close"/>
+                    <String fx:value="settings-close"/>
+                </styleClass>
+                <graphic>
+                    <FontIcon iconLiteral="fas-times" iconSize="12"/>
+                </graphic>
+            </Button>
+        </HBox>
+    </top>
+
+    <center>
+        <HBox>
+            <VBox prefWidth="164" minWidth="164" maxWidth="164" styleClass="settings-nav">
+                <Button fx:id="navGeneral" text="常规">
+                    <styleClass>
+                        <String fx:value="nav-item"/>
+                        <String fx:value="active"/>
+                    </styleClass>
+                </Button>
+                <Button fx:id="navUpdate" text="更新" styleClass="nav-item"/>
+                <Button fx:id="navTerminal" text="终端" styleClass="nav-item"/>
+                <Button fx:id="navEditor" text="编辑器" styleClass="nav-item"/>
+                <Button fx:id="navTransfer" text="文件传输" styleClass="nav-item"/>
+                <Button fx:id="navShortcut" text="快捷键" styleClass="nav-item"/>
+                <Button fx:id="navMaintenance" text="数据与维护" styleClass="nav-item"/>
+                <Button fx:id="navAI" text="AI 助手" styleClass="nav-item" visible="false" managed="false"/>
+            </VBox>
+
+            <TabPane fx:id="settingsTabPane" HBox.hgrow="ALWAYS" styleClass="settings-tab-pane">
+                <Tab text="常规" closable="false">
+                    <VBox styleClass="tab-content">
+                        <VBox styleClass="form-section">
+                            <Label text="外观" styleClass="form-section-title"/>
+                            <HBox styleClass="form-row">
+                                <VBox styleClass="form-group">
+                                    <Label text="主题" styleClass="form-label"/>
+                                    <ComboBox fx:id="themeCombo" styleClass="settings-select"/>
+                                </VBox>
+                            </HBox>
+                        </VBox>
+                    </VBox>
+                </Tab>
+
+                <Tab text="更新" closable="false">
+                    <VBox styleClass="tab-content">
+                        <VBox styleClass="form-section">
+                            <Label text="启动检查" styleClass="form-section-title"/>
+                            <CheckBox fx:id="startupUpdateCheck" text="启动时自动检查更新" styleClass="form-checkbox"/>
+                        </VBox>
+                    </VBox>
+                </Tab>
+
+                <Tab text="终端" closable="false">
+                    <VBox styleClass="tab-content">
+                        <VBox styleClass="form-section">
+                            <Label text="默认终端配置" styleClass="form-section-title"/>
+                            <HBox styleClass="form-row">
+                                <VBox styleClass="form-group">
+                                    <Label text="默认字号" styleClass="form-label"/>
+                                    <Spinner fx:id="terminalFontSizeSpinner" editable="true"
+                                             styleClass="settings-spinner"/>
+                                </VBox>
+                                <VBox styleClass="form-group">
+                                    <Label text="回滚行数" styleClass="form-label"/>
+                                    <Spinner fx:id="scrollbackSpinner" editable="true" styleClass="settings-spinner"/>
+                                </VBox>
+                            </HBox>
+                            <HBox styleClass="form-row">
+                                <VBox styleClass="form-group">
+                                    <Label text="默认编码" styleClass="form-label"/>
+                                    <ComboBox fx:id="terminalEncodingCombo" styleClass="settings-select"/>
+                                </VBox>
+                                <VBox styleClass="form-group">
+                                    <Label text="Backspace" styleClass="form-label"/>
+                                    <ComboBox fx:id="backspaceCombo" styleClass="settings-select"/>
+                                </VBox>
+                                <VBox styleClass="form-group">
+                                    <Label text="Delete" styleClass="form-label"/>
+                                    <ComboBox fx:id="deleteCombo" styleClass="settings-select"/>
+                                </VBox>
+                            </HBox>
+                        </VBox>
+                    </VBox>
+                </Tab>
+
+                <Tab text="编辑器" closable="false">
+                    <VBox styleClass="tab-content">
+                        <VBox styleClass="form-section">
+                            <Label text="默认编辑器配置" styleClass="form-section-title"/>
+                            <HBox styleClass="form-row">
+                                <VBox styleClass="form-group">
+                                    <Label text="默认字号" styleClass="form-label"/>
+                                    <Spinner fx:id="editorFontSizeSpinner" editable="true"
+                                             styleClass="settings-spinner"/>
+                                </VBox>
+                            </HBox>
+                        </VBox>
+                    </VBox>
+                </Tab>
+
+                <Tab text="文件传输" closable="false">
+                    <VBox styleClass="tab-content">
+                        <VBox styleClass="form-section">
+                            <Label text="默认传输配置" styleClass="form-section-title"/>
+                            <HBox>
+                                <styleClass>
+                                    <String fx:value="form-row"/>
+                                    <String fx:value="form-row-wide"/>
+                                </styleClass>
+                                <VBox styleClass="form-group-wide" HBox.hgrow="ALWAYS">
+                                    <Label text="默认下载目录" styleClass="form-label"/>
+                                    <HBox styleClass="inline-field">
+                                        <TextField fx:id="downloadDirectoryField" editable="false" HBox.hgrow="ALWAYS"
+                                                   styleClass="settings-select"/>
+                                        <Button fx:id="btnChooseDownloadDirectory" text="选择" styleClass="button-cancel"/>
+                                    </HBox>
+                                </VBox>
+                            </HBox>
+                            <HBox styleClass="form-row">
+                                <VBox styleClass="form-group">
+                                    <Label text="同名文件策略" styleClass="form-label"/>
+                                    <ComboBox fx:id="duplicateStrategyCombo" styleClass="settings-select"/>
+                                </VBox>
+                            </HBox>
+                            <HBox styleClass="checkbox-row">
+                                <CheckBox fx:id="closeQueueWhenFinished" text="传输全部完成后自动关闭队列窗口"
+                                          styleClass="form-checkbox"/>
+                            </HBox>
+                            <HBox styleClass="checkbox-row">
+                                <CheckBox fx:id="clearFinishedWhenDone" text="传输完成后自动清理已完成任务"
+                                          styleClass="form-checkbox"/>
+                            </HBox>
+                        </VBox>
+                    </VBox>
+                </Tab>
+
+                <Tab text="快捷键" closable="false">
+                    <VBox styleClass="tab-content">
+                        <VBox styleClass="form-section">
+                            <Label text="快捷键" styleClass="form-section-title"/>
+                            <TableView fx:id="shortcutTable" styleClass="shortcut-table" prefHeight="360">
+                                <columnResizePolicy>
+                                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                                </columnResizePolicy>
+                                <columns>
+                                    <TableColumn fx:id="shortcutGroupColumn" text="分组" minWidth="120"/>
+                                    <TableColumn fx:id="shortcutActionColumn" text="操作" minWidth="240"/>
+                                    <TableColumn fx:id="shortcutKeyColumn" text="快捷键" minWidth="160"/>
+                                </columns>
+                            </TableView>
+                        </VBox>
+                    </VBox>
+                </Tab>
+
+                <Tab text="数据与维护" closable="false">
+                    <VBox styleClass="tab-content">
+                        <VBox styleClass="form-section">
+                            <Label text="目录" styleClass="form-section-title"/>
+                            <HBox styleClass="button-row">
+                                <Button fx:id="btnOpenConfigDir" text="打开配置目录" styleClass="button-cancel"/>
+                                <Button fx:id="btnOpenLogDir" text="查看日志目录" styleClass="button-cancel"/>
+                            </HBox>
+                        </VBox>
+                        <VBox styleClass="form-section">
+                            <Label text="维护" styleClass="form-section-title"/>
+                            <HBox styleClass="button-row">
+                                <Button fx:id="btnClearRecentFiles" text="清空最近文件" styleClass="button-cancel"/>
+                                <Button fx:id="btnClearTransferQueue" text="清空传输队列" styleClass="button-cancel"/>
+                                <Button fx:id="btnResetLayout" text="重置布局" styleClass="button-cancel"/>
+                            </HBox>
+                        </VBox>
+                    </VBox>
+                </Tab>
+
+                <Tab text="AI 助手" closable="false" disable="true">
+                    <VBox styleClass="tab-content" visible="false" managed="false">
+                        <CheckBox fx:id="aiEnabled" text="启用 AI 助手"/>
+                        <TextField fx:id="aiModelField" promptText="模型"/>
+                        <PasswordField fx:id="aiApiKeyField" promptText="API Key"/>
+                        <TextField fx:id="aiBaseUrlField" promptText="Base URL"/>
+                    </VBox>
+                </Tab>
+            </TabPane>
+        </HBox>
+    </center>
+</BorderPane>

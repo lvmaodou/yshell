@@ -1,0 +1,98 @@
+.update-dialog {
+    -fx-background-color: -fx-bg-primary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+}
+
+.update-header {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-border-color: -fx-border-default;
+    -fx-padding: 5 5;
+    -fx-alignment: center;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.update-header-title {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.update-content {
+    -fx-background-color: transparent;
+    -fx-padding: 20 20 10 10;
+    -fx-spacing: 10;
+}
+
+.update-title {
+    -fx-text-fill: -fx-text-info;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-alignment: CENTER;
+}
+
+.version-box {
+    -fx-spacing: 8;
+}
+
+.update-version-current {
+    -fx-text-fill: -fx-text-muted;
+    -fx-font-size: 12px;
+}
+
+.update-version-arrow {
+    -fx-text-fill: -fx-text-muted;
+    -fx-font-size: 12px;
+}
+
+.update-version-new {
+    -fx-text-fill: -fx-text-info;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.update-size {
+    -fx-text-fill: -fx-text-secondary;
+    -fx-font-size: 12px;
+    -fx-alignment: CENTER;
+}
+
+.update-progress-box {
+    -fx-spacing: 6;
+}
+
+.update-progress-box ProgressBar {
+    -fx-pref-height: 8px;
+}
+
+.update-progress-box .progress-bar {
+    -fx-pref-height: 8px;
+    -fx-padding: 0.25em;
+}
+
+.update-progress-label {
+    -fx-text-fill: -fx-text-secondary;
+    -fx-font-size: 12px;
+}
+
+.update-startup-prompt-check {
+    -fx-text-fill: -fx-text-secondary;
+    -fx-font-size: 12px;
+}
+
+.update-button-box {
+    -fx-spacing: 10;
+    -fx-alignment: center-right;
+    -fx-padding: 0 10 10 20;
+}
+
+.update-button-primary {
+    -fx-font-size: 12px;
+    -fx-padding: 4px 10px;
+}
+
+.update-button-secondary {
+    -fx-font-size: 12px;
+    -fx-padding: 4px 10px;
+}

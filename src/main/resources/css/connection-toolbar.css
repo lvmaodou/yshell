@@ -1,0 +1,92 @@
+.connection-toolbar {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 0 8 0 1;
+    -fx-alignment: center-left;
+}
+
+.tabs-container {
+    -fx-spacing: 2;
+    -fx-fill-width: true;
+}
+
+.tabs-container .tab-row {
+    -fx-fill-height: true;
+}
+
+.connection-tab {
+    -fx-spacing: 6;
+    -fx-padding: 5 10 5 12;
+    -fx-font-size: 12;
+    -fx-border-width: 2;
+    -fx-alignment: center-left;
+    -fx-min-height: 32;
+    -fx-pref-height: 32;
+}
+
+.connection-tab .label {
+    -fx-alignment: center;
+    -fx-padding: 0;
+}
+
+.tab-status-dot {
+    -fx-min-width: 8;
+    -fx-max-width: 8;
+    -fx-min-height: 8;
+    -fx-max-height: 8;
+    -fx-background-radius: 50%;
+}
+
+.tab-status-dot.connected {
+    -fx-background-color: -fx-icon-status-success;
+}
+
+.tab-status-dot.disconnected {
+    -fx-background-color: -fx-icon-status-error;
+}
+
+.tab-number {
+    -fx-text-fill: -fx-text-muted;
+    -fx-font-size: 12;
+    -fx-padding: 0;
+    -fx-min-width: 14;
+}
+
+.tab-label {
+    -fx-text-fill: -fx-text-secondary;
+    -fx-font-size: 12;
+    -fx-padding: 0;
+}
+
+.tab-close {
+    -fx-min-width: 16;
+    -fx-max-width: 16;
+    -fx-min-height: 16;
+    -fx-max-height: 16;
+    -fx-alignment: center;
+    -fx-opacity: 0.8;
+    -fx-padding: 0;
+}
+
+.tab-close:hover {
+    -fx-opacity: 1;
+}
+
+.connection-toolbar .toolbar-spacer {
+    -fx-hgrow: always;
+}
+
+.toolbar-buttons {
+    -fx-spacing: 4;
+    -fx-alignment: center;
+}
+
+.toolbar-btn {
+    -fx-min-width: 24;
+    -fx-max-width: 24;
+    -fx-min-height: 24;
+    -fx-max-height: 24;
+    -fx-alignment: center;
+    -fx-padding: 0;
+}

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import java.lang.*?>
+<VBox xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.yshell.controller.VisualPanelController">
+    <styleClass>
+        <String fx:value="visual-panel"/>
+    </styleClass>
+    <HBox>
+        <styleClass>
+            <String fx:value="visual-tab-bar"/>
+        </styleClass>
+        <Label fx:id="tabFiles" text="文件">
+            <styleClass>
+                <String fx:value="label-tab"/>
+                <String fx:value="visual-tab"/>
+                <String fx:value="active"/>
+            </styleClass>
+        </Label>
+        <Label fx:id="tabDocker" text="docker" managed="false" visible="false">
+            <styleClass>
+                <String fx:value="label-tab"/>
+                <String fx:value="visual-tab"/>
+            </styleClass>
+        </Label>
+        <Label fx:id="tabK8s" text="k8s" managed="false" visible="false">
+            <styleClass>
+                <String fx:value="label-tab"/>
+                <String fx:value="visual-tab"/>
+            </styleClass>
+        </Label>
+        <Label fx:id="tabAi" text="ai" managed="false" visible="false">
+            <styleClass>
+                <String fx:value="label-tab"/>
+                <String fx:value="visual-tab"/>
+            </styleClass>
+        </Label>
+    </HBox>
+
+    <StackPane fx:id="contentArea" VBox.vgrow="ALWAYS">
+        <styleClass>
+            <String fx:value="content-area"/>
+        </styleClass>
+        <fx:include fx:id="filesView" source="FilesView.fxml"/>
+        <fx:include fx:id="dockerView" source="DockerView.fxml" managed="false" visible="false"/>
+        <fx:include fx:id="k8sView" source="K8sView.fxml" managed="false" visible="false"/>
+        <fx:include fx:id="aiView" source="AiView.fxml" managed="false" visible="false"/>
+    </StackPane>
+</VBox>

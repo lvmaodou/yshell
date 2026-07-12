@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.layout.FlowPane?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+<?import java.lang.String?>
+<FlowPane xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+          fx:controller="com.yshell.controller.ConnectionToolbarController"
+          hgap="2" vgap="2" fx:id="tabsContainer">
+    <styleClass>
+        <String fx:value="connection-toolbar"/>
+    </styleClass>
+
+    <Button fx:id="btnNewConnection">
+
+        <styleClass>
+
+            <String fx:value="toolbar-btn"/>
+
+        </styleClass>
+        <graphic>
+            <FontIcon iconLiteral="fas-plus" iconSize="12"/>
+        </graphic>
+    </Button>
+</FlowPane>

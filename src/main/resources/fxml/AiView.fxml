@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import java.lang.*?>
+<VBox xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.yshell.controller.AiViewController"
+      stylesheets="@../css/ai-view.css">
+    <styleClass>
+        <String fx:value="ai-view"/>
+    </styleClass>
+    <HBox>
+        <styleClass>
+            <String fx:value="ai-toolbar"/>
+        </styleClass>
+        <ComboBox fx:id="aiModelSelector">
+            <styleClass>
+                <String fx:value="model-selector"/>
+            </styleClass>
+        </ComboBox>
+        <Region styleClass="toolbar-spacer"/>
+        <Button text="🔄">
+            <styleClass>
+                <String fx:value="tool-btn"/>
+            </styleClass>
+        </Button>
+        <Button text="📋">
+            <styleClass>
+                <String fx:value="tool-btn"/>
+            </styleClass>
+        </Button>
+        <Button text="🌙">
+            <styleClass>
+                <String fx:value="tool-btn"/>
+            </styleClass>
+        </Button>
+    </HBox>
+
+    <VBox VBox.vgrow="ALWAYS">
+        <styleClass>
+            <String fx:value="ai-content"/>
+        </styleClass>
+        <ScrollPane styleClass="chat-scroll" fitToWidth="true" VBox.vgrow="ALWAYS">
+            <VBox fx:id="chatMessages">
+                <styleClass>
+                    <String fx:value="chat-messages"/>
+                </styleClass>
+                <HBox>
+                    <styleClass>
+                        <String fx:value="message-container"/>
+                        <String fx:value="user"/>
+                    </styleClass>
+                    <Label text="👤" styleClass="message-avatar"/>
+                    <VBox styleClass="message-content">
+                        <Label text="用户" styleClass="message-author"/>
+                        <Label text="你好，帮我解释一下什么是Docker容器？">
+                            <styleClass>
+                                <String fx:value="message-text"/>
+                            </styleClass>
+                        </Label>
+                    </VBox>
+                </HBox>
+
+                <HBox>
+                    <styleClass>
+                        <String fx:value="message-container"/>
+                    </styleClass>
+                    <Label text="🤖" styleClass="message-avatar"/>
+                    <VBox styleClass="message-content">
+                        <Label text="AI助手" styleClass="message-author"/>
+                        <Label text="Docker容器是一种轻量级的虚拟化技术，可以将应用程序及其依赖项打包成一个独立的、可移植的容器中。容器共享宿主机的操作系统内核，但拥有自己独立的文件系统、进程空间和网络接口。">
+                            <styleClass>
+                                <String fx:value="message-text"/>
+                            </styleClass>
+                        </Label>
+                    </VBox>
+                </HBox>
+
+                <HBox>
+                    <styleClass>
+                        <String fx:value="message-container"/>
+                        <String fx:value="user"/>
+                    </styleClass>
+                    <Label text="👤" styleClass="message-avatar"/>
+                    <VBox styleClass="message-content">
+                        <Label text="用户" styleClass="message-author"/>
+                        <Label text="那Docker和Kubernetes有什么关系？">
+                            <styleClass>
+                                <String fx:value="message-text"/>
+                            </styleClass>
+                        </Label>
+                    </VBox>
+                </HBox>
+
+                <HBox>
+                    <styleClass>
+                        <String fx:value="message-container"/>
+                    </styleClass>
+                    <Label text="🤖" styleClass="message-avatar"/>
+                    <VBox styleClass="message-content">
+                        <Label text="AI助手" styleClass="message-author"/>
+                        <Label text="Docker和Kubernetes是紧密相关但不同层面的技术：Docker负责打包容器，Kubernetes负责管理容器。">
+                            <styleClass>
+                                <String fx:value="message-text"/>
+                            </styleClass>
+                        </Label>
+                    </VBox>
+                </HBox>
+            </VBox>
+        </ScrollPane>
+
+        <VBox>
+            <styleClass>
+                <String fx:value="input-area"/>
+            </styleClass>
+            <HBox styleClass="input-toolbar">
+                <Button text="📎">
+                    <styleClass>
+                        <String fx:value="input-btn"/>
+                    </styleClass>
+                </Button>
+                <Button text="🔤">
+                    <styleClass>
+                        <String fx:value="input-btn"/>
+                    </styleClass>
+                </Button>
+                <Button text="📊">
+                    <styleClass>
+                        <String fx:value="input-btn"/>
+                    </styleClass>
+                </Button>
+                <Region styleClass="toolbar-spacer"/>
+                <Button text="💡">
+                    <styleClass>
+                        <String fx:value="input-btn"/>
+                    </styleClass>
+                </Button>
+            </HBox>
+            <TextArea fx:id="inputArea" promptText="输入您的问题..." styleClass="input-textarea"/>
+            <HBox styleClass="input-footer">
+                <Label text="Shift + Enter 换行">
+                    <styleClass>
+                        <String fx:value="input-hint"/>
+                    </styleClass>
+                </Label>
+                <Button text="发送">
+                    <styleClass>
+                        <String fx:value="send-btn"/>
+                        <String fx:value="button-primary"/>
+                    </styleClass>
+                </Button>
+            </HBox>
+        </VBox>
+    </VBox>
+</VBox>

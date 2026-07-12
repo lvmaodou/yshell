@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.*?>
+<?import java.lang.*?>
+<VBox xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.yshell.controller.EditorViewController"
+      fx:id="root">
+    <styleClass>
+        <String fx:value="editor-view"/>
+    </styleClass>
+
+    <!-- 标题栏（32px，可拖动）：左：文件路径；右：最小化 最大化 关闭 -->
+    <HBox>
+        <styleClass>
+            <String fx:value="editor-title-bar"/>
+        </styleClass>
+        <Label fx:id="titleLabel">
+            <styleClass>
+                <String fx:value="editor-title-label"/>
+            </styleClass>
+        </Label>
+        <Pane HBox.hgrow="ALWAYS"/>
+        <Button fx:id="btnMinimize">
+            <styleClass>
+                <String fx:value="button-window"/>
+                <String fx:value="window-btn"/>
+            </styleClass>
+            <graphic>
+                <FontIcon iconLiteral="fas-minus"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnMaximize">
+            <styleClass>
+                <String fx:value="button-window"/>
+                <String fx:value="window-btn"/>
+            </styleClass>
+            <graphic>
+                <FontIcon iconLiteral="far-square"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnClose">
+            <styleClass>
+                <String fx:value="button-close"/>
+                <String fx:value="window-btn-close"/>
+            </styleClass>
+            <graphic>
+                <FontIcon iconLiteral="fas-times"/>
+            </graphic>
+        </Button>
+    </HBox>
+
+    <!-- 只读模式警告条（默认隐藏） -->
+    <HBox fx:id="readOnlyBar" styleClass="editor-readonly-bar" managed="false" visible="false">
+        <FontIcon iconLiteral="fas-exclamation-triangle"/>
+        <Label styleClass="editor-readonly-text" text="只读模式：当前用户对该文件无写入权限，无法保存（可另存为其它路径）"/>
+    </HBox>
+
+    <!-- 工具栏（只显示图标 + tooltip） -->
+    <HBox>
+        <styleClass>
+            <String fx:value="editor-toolbar"/>
+        </styleClass>
+        <!-- 文件组 -->
+        <Button fx:id="btnNew" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="新建空白文件 (Ctrl+N)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-file"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnSave" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="保存到远程服务器 (Ctrl+S)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-save"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnSaveAs" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="另存为新文件，自动创建父目录 (Ctrl+Shift+S)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-paste"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnReload" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="放弃本地修改，重新从远程加载 (F5)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-sync"/>
+            </graphic>
+        </Button>
+
+        <Separator styleClass="tool-separator" orientation="VERTICAL"/>
+
+        <!-- 编辑组 -->
+        <Button fx:id="btnFind" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="查找/替换 (Ctrl+F)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-search"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnGotoLine" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="跳转到指定行 (Ctrl+G)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-long-arrow-alt-right"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnComment" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="切换行注释 (Ctrl+/)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-code"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnUndo" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="撤销 (Ctrl+Z)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-undo"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnRedo" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="重做 (Ctrl+Y)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-redo"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnFormat" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="格式化 JSON/YAML (Shift+Alt+F)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-magic"/>
+            </graphic>
+        </Button>
+
+        <Separator styleClass="tool-separator" orientation="VERTICAL"/>
+
+        <!-- 显示/偏好组 -->
+        <Button fx:id="btnWordWrap" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="切换自动换行 (Alt+Z)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-align-left"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnFontIncrease" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="增大字号 (Ctrl++)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-font"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnFontDecrease" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="减小字号 (Ctrl+-)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-font"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnTheme" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="切换编辑器深色/浅色主题" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-palette"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnReadOnlyLock" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="一键切换 编辑 ↔ 只读模式" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-lock"/>
+            </graphic>
+        </Button>
+
+        <Pane HBox.hgrow="ALWAYS"/>
+
+        <!-- 辅助组 -->
+        <Button fx:id="btnCopyPath" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="复制完整文件路径到剪贴板" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-copy"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnJumpTerm" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="在终端跳转到文件所在目录" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-terminal"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnRecent" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="最近打开过的文件" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-history"/>
+            </graphic>
+        </Button>
+        <Button fx:id="btnHelp" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="显示快捷键汇总 (F1)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-question-circle"/>
+            </graphic>
+        </Button>
+
+        <Separator styleClass="tool-separator" orientation="VERTICAL"/>
+
+        <!-- 右侧 Tab 控制 -->
+        <Button fx:id="btnCloseTab" styleClass="tool-btn">
+            <tooltip>
+                <Tooltip text="关闭当前标签页 (Ctrl+W)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-times"/>
+            </graphic>
+        </Button>
+    </HBox>
+
+    <!-- TabPane：多文件 Tab 页签承载区 -->
+    <TabPane fx:id="tabPane" styleClass="editor-tabpane" VBox.vgrow="ALWAYS" tabClosingPolicy="ALL_TABS">
+    </TabPane>
+
+    <!-- 底部状态栏：所有信息由 Java 端动态设置；这里一律不写死默认值 -->
+    <HBox styleClass="editor-statusbar">
+        <Label fx:id="statusFileInfo" styleClass="status-item"/>
+        <Label fx:id="statusPermission" styleClass="status-item" visible="false" managed="false"/>
+        <Label fx:id="statusOwner" styleClass="status-item" visible="false" managed="false"/>
+        <Pane HBox.hgrow="ALWAYS"/>
+        <Label fx:id="statusModified" styleClass="status-item" visible="false" managed="false"/>
+        <Label fx:id="statusEncoding" styleClass="status-item"/>
+        <Label fx:id="statusLineEnd" styleClass="status-item"/>
+        <Label fx:id="statusLanguage" styleClass="status-item"/>
+        <Label fx:id="statusSize" styleClass="status-item"/>
+        <Pane HBox.hgrow="ALWAYS"/>
+        <Label fx:id="statusWordWrap" styleClass="status-item"/>
+        <Label fx:id="statusCursor" styleClass="status-cursor"/>
+        <Label fx:id="statusReadonly" styleClass="status-readonly"/>
+    </HBox>
+
+</VBox>

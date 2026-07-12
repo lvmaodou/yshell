@@ -1,0 +1,430 @@
+.left-panel {
+    -fx-background-color: -fx-bg-primary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 0 1px 0 0;
+    -fx-min-width: 300px;
+}
+
+.server-item {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 8px 8px 8px 8px;
+    -fx-spacing: 16px;
+    -fx-alignment: center-left;
+    -fx-min-height: 32;
+}
+
+.server-icon {
+    -fx-background-color: -fx-text-success;
+    -fx-min-width: 14px;
+    -fx-max-width: 14px;
+    -fx-min-height: 14px;
+    -fx-max-height: 14px;
+    -fx-background-radius: 50%;
+    -fx-alignment: center;
+}
+
+.server-icon.disconnected {
+    -fx-background-color: -fx-text-muted;
+}
+
+.server-label {
+    -fx-font-size: 11px;
+}
+
+.system-info-scroll {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-width: 0;
+}
+
+.connection-info-pane {
+    -fx-background-color: -fx-bg-secondary;
+}
+
+.left-connection-title {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 0 0 1px 0px;
+    -fx-alignment: center-left;
+    -fx-spacing: 6px;
+    -fx-padding: 6px 10px 6px 9px;
+    -fx-min-height: 32px;
+    -fx-pref-height: 32px;
+}
+
+.left-connection-title-label {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+}
+
+.left-connection-title-btn {
+    -fx-min-width: 22px;
+    -fx-max-width: 22px;
+    -fx-min-height: 22px;
+    -fx-max-height: 22px;
+    -fx-padding: 0;
+}
+
+.left-connection-tree-view .tree-cell {
+    -fx-font-size: 12px;
+    -fx-padding: 2;
+}
+
+.left-connection-cell-content {
+    -fx-alignment: center-left;
+    -fx-padding: 3px 6px;
+}
+
+.left-connection-name {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 12px;
+}
+
+.left-connection-tree-view .tree-disclosure-node {
+    -fx-padding: 6px;
+    -fx-alignment: center;
+}
+
+.left-connection-tree-view .tree-disclosure-node .arrow {
+    -fx-shape: "M7,10L12,15L17,10Z";
+    -fx-scale-y: 1;
+    -fx-rotate: -90;
+}
+
+.left-connection-tree-view .tree-cell:expanded > .tree-disclosure-node .arrow {
+    -fx-rotate: 0;
+}
+
+.info-section {
+    -fx-padding: 0 0 8 0;
+}
+
+.info-header {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-padding: 4px 6px;
+    -fx-background-radius: 3px;
+    -fx-margin-bottom: 4px;
+}
+
+.info-header Label {
+    -fx-font-size: 11px;
+}
+
+.info-row {
+    -fx-spacing: 8px;
+    -fx-padding: 4px 6px;
+    -fx-alignment: CENTER_LEFT;
+    -fx-justify-content: space-between;
+}
+
+.info-label {
+    -fx-text-fill: -fx-text-muted;
+    -fx-font-size: 11px;
+    -fx-min-width: 60px;
+    -fx-max-width: 60px;
+}
+
+.info-value {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 11px;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.progress-bar-container {
+    -fx-pref-width: 10000px;
+    -fx-pref-height: 18px;
+    -fx-min-height: 18px;
+}
+
+.progress-track {
+    -fx-pref-height: 18px;
+    -fx-background-color: -fx-progress-track;
+    -fx-background-radius: 6px;
+}
+
+.progress-fill-cpu,
+.progress-fill-memory,
+.progress-fill-swap {
+    -fx-background-radius: 6px;
+    -fx-min-height: 18px;
+    -fx-max-height: 18px;
+    -fx-pref-height: 18px;
+}
+
+.progress-fill-cpu,
+.fill-progress-cpu {
+    -fx-background-color: -fx-progress-cpu;
+}
+
+.progress-fill-memory,
+.fill-progress-memory {
+    -fx-background-color: -fx-progress-memory;
+}
+
+.progress-fill-swap,
+.fill-progress-swap {
+    -fx-background-color: -fx-progress-swap;
+}
+
+.fill-progress-track {
+    -fx-background-color: -fx-progress-track;
+}
+
+.fill-progress-disk {
+    -fx-background-color: -fx-progress-disk;
+}
+
+.progress-bar-text {
+    -fx-alignment: CENTER_LEFT;
+    -fx-spacing: 8px;
+    -fx-padding: 0 5px;
+}
+
+.progress-text-left {
+    -fx-text-fill: -fx-text-inverse;
+    -fx-alignment: CENTER_LEFT;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+.progress-text-right {
+    -fx-text-fill: -fx-text-inverse;
+    -fx-alignment: CENTER_RIGHT;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+.process-running {
+    -fx-text-fill: -fx-text-success;
+}
+
+.process-table {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-font-size: 11px;
+}
+
+
+.process-table .column-header {
+    -fx-padding: 3px 4px;
+}
+
+.process-table .column-header .label {
+    -fx-font-size: 11px;
+    -fx-font-weight: normal;
+    -fx-alignment: CENTER_LEFT;
+}
+
+
+.process-table .table-row-cell {
+    -fx-cell-size: 24px;
+}
+
+
+.process-table .table-cell {
+    -fx-font-size: 11px;
+    -fx-padding: 0 0 0 4px;
+}
+
+.proc-bar-cpu,
+.proc-bar-mem {
+    -fx-background-color: -fx-progress-track;
+    -fx-background-radius: 3px;
+    -fx-min-height: 16px;
+    -fx-max-height: 16px;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.proc-bar-cpu > Region {
+    -fx-background-radius: 3px;
+    -fx-min-height: 16px;
+    -fx-max-height: 16px;
+    -fx-min-width: 0;
+}
+
+.proc-bar-cpu > Label {
+    -fx-text-fill: -fx-text-inverse;
+    -fx-font-size: 10px;
+}
+
+.proc-bar-mem > Region {
+    -fx-background-radius: 3px;
+    -fx-min-height: 16px;
+    -fx-max-height: 16px;
+    -fx-min-width: 0;
+}
+
+.proc-bar-mem > Label {
+    -fx-text-fill: -fx-text-inverse;
+    -fx-font-size: 10px;
+}
+
+
+.disk-table {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-font-size: 11px;
+}
+
+
+.disk-table .column-header {
+    -fx-padding: 3px 4px;
+}
+
+.disk-table .column-header .label {
+    -fx-font-size: 11px;
+    -fx-font-weight: normal;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.disk-table .table-row-cell {
+    -fx-cell-size: 24px;
+}
+
+.disk-table .table-cell {
+    -fx-font-size: 11px;
+    -fx-padding: 0 0 0 4px;
+}
+
+
+.disk-bar-cell {
+    -fx-background-color: -fx-progress-track;
+    -fx-background-radius: 3px;
+    -fx-min-height: 16px;
+    -fx-max-height: 16px;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.disk-bar-cell > Region {
+    -fx-background-radius: 3px;
+    -fx-min-height: 16px;
+    -fx-max-height: 16px;
+    -fx-min-width: 0;
+}
+
+.disk-bar-size-text {
+    -fx-text-fill: -fx-text-inverse;
+    -fx-font-size: 10px;
+}
+
+.network-info-row {
+    -fx-spacing: 0;
+    -fx-padding: 4px 6px;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.network-item {
+    -fx-spacing: 4px;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 2px 0;
+}
+
+.network-item .info-label {
+    -fx-min-width: 32px;
+    -fx-max-width: 32px;
+}
+
+.upload-speed {
+    -fx-text-fill: -fx-text-success;
+}
+
+.download-speed {
+    -fx-text-fill: -fx-text-info;
+}
+
+.nic-select {
+    -fx-text-fill: -fx-text-primary;
+    -fx-border-width: 1px;
+    -fx-border-radius: 3px;
+    -fx-font-size: 11px;
+    -fx-padding: 2px 6px;
+}
+
+.nic-select:hover {
+}
+
+.chart-container {
+    -fx-padding: 4px;
+}
+
+.chart-line {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-background-radius: 3px;
+    -fx-min-height: 86px;
+    -fx-max-height: 86px;
+}
+
+.latency-value {
+    -fx-text-fill: -fx-text-success;
+}
+
+.current-user {
+    -fx-text-fill: -fx-text-info;
+}
+
+
+.user-table {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-font-size: 11px;
+}
+
+.user-table .column-header {
+    -fx-padding: 3px 4px;
+}
+
+.user-table .column-header .label {
+    -fx-font-size: 11px;
+    -fx-font-weight: normal;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.user-table .table-row-cell {
+    -fx-cell-size: 24px;
+}
+
+.user-table .table-cell {
+    -fx-font-size: 11px;
+    -fx-padding: 0 0 0 4px;
+}
+
+.process-table .table-row-cell:hover,
+.disk-table .table-row-cell:hover,
+.user-table .table-row-cell:hover {
+    -fx-background-color: transparent;
+}
+
+/* Icon Styles */
+.icon-folder,
+.icon-folder FontIcon,
+.icon-folder .ikonli-font-icon {
+    -fx-icon-color: -fx-icon-folder;
+}
+
+.icon-connection-windows,
+.icon-connection-windows FontIcon,
+.icon-connection-windows .ikonli-font-icon {
+    -fx-icon-color: -fx-icon-connection-windows;
+}
+
+.icon-connection-linux,
+.icon-connection-linux FontIcon,
+.icon-connection-linux .ikonli-font-icon {
+    -fx-icon-color: -fx-icon-connection-linux;
+}
+
+.icon-network,
+.icon-network FontIcon,
+.icon-network .ikonli-font-icon {
+    -fx-icon-color: -fx-icon-network;
+}
+
+#processSleepingValue {
+    -fx-text-fill: -fx-text-muted;
+}
+
+.left-connection-tree-view {
+    -fx-border-color: transparent;
+}

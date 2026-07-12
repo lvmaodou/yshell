@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+<?import java.lang.*?>
+<BorderPane xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="root"
+            fx:controller="com.yshell.controller.ProxyEditorController"
+            maxWidth="380">
+    <styleClass>
+        <String fx:value="sub-dialog"/>
+    </styleClass>
+    <top>
+        <HBox>
+            <styleClass>
+                <String fx:value="sub-dialog-header"/>
+            </styleClass>
+            <Label fx:id="dialogTitle" text="新建代理服务器">
+                <styleClass>
+                    <String fx:value="sub-dialog-title"/>
+                </styleClass>
+            </Label>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnClose" onAction="#closeDialog">
+                <styleClass>
+                    <String fx:value="button-close"/>
+                    <String fx:value="sub-dialog-close"/>
+                </styleClass>
+                <graphic>
+                    <FontIcon iconLiteral="fas-times" iconSize="12"/>
+                </graphic>
+            </Button>
+        </HBox>
+    </top>
+
+    <center>
+        <VBox styleClass="sub-dialog-body">
+            <VBox styleClass="form-section-inline">
+                <HBox styleClass="form-row-inline">
+                    <Label text="名称:">
+                        <styleClass>
+                            <String fx:value="form-label-inline"/>
+                        </styleClass>
+                    </Label>
+                    <TextField fx:id="fieldName" promptText="输入代理名称" HBox.hgrow="ALWAYS"/>
+                </HBox>
+
+                <HBox styleClass="form-row-inline">
+                    <Label text="类型:">
+                        <styleClass>
+                            <String fx:value="form-label-inline"/>
+                        </styleClass>
+                    </Label>
+                    <ComboBox fx:id="fieldType" HBox.hgrow="ALWAYS"/>
+                </HBox>
+
+                <HBox styleClass="form-row-inline">
+                    <Label text="主机:">
+                        <styleClass>
+                            <String fx:value="form-label-inline"/>
+                        </styleClass>
+                    </Label>
+                    <TextField fx:id="fieldHost" promptText="代理服务器地址" HBox.hgrow="ALWAYS"/>
+                </HBox>
+
+                <HBox styleClass="form-row-inline">
+                    <Label text="端口:">
+                        <styleClass>
+                            <String fx:value="form-label-inline"/>
+                        </styleClass>
+                    </Label>
+                    <TextField fx:id="fieldPort" promptText="代理服务器端口" HBox.hgrow="ALWAYS"/>
+                </HBox>
+
+                <HBox styleClass="form-row-inline">
+                    <Label text="用户名:">
+                        <styleClass>
+                            <String fx:value="form-label-inline"/>
+                        </styleClass>
+                    </Label>
+                    <TextField fx:id="fieldUsername" promptText="可选，留空则不使用认证" HBox.hgrow="ALWAYS"/>
+                </HBox>
+
+                <HBox styleClass="form-row-inline">
+                    <Label text="密码:">
+                        <styleClass>
+                            <String fx:value="form-label-inline"/>
+                        </styleClass>
+                    </Label>
+                    <PasswordField fx:id="fieldPassword" promptText="可选" HBox.hgrow="ALWAYS"/>
+                </HBox>
+            </VBox>
+        </VBox>
+    </center>
+
+    <bottom>
+        <HBox>
+            <styleClass>
+                <String fx:value="sub-dialog-footer"/>
+            </styleClass>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button text="取消" onAction="#closeDialog">
+                <styleClass>
+                    <String fx:value="btn-form"/>
+                    <String fx:value="button-cancel"/>
+                </styleClass>
+            </Button>
+            <Region prefWidth="16"/>
+            <Button text="确定" onAction="#onOk">
+                <styleClass>
+                    <String fx:value="btn-form"/>
+                    <String fx:value="button-primary"/>
+                </styleClass>
+            </Button>
+        </HBox>
+    </bottom>
+</BorderPane>

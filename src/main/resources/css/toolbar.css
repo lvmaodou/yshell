@@ -1,0 +1,57 @@
+.toolbar {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default;
+    -fx-padding: 0 0 0 0px;
+    -fx-border-width: 0 0 1px 0;
+    -fx-min-height: 36px;
+    -fx-max-height: 36px;
+}
+
+.top-toolbar-left {
+    -fx-background-color: transparent;
+    -fx-alignment: CENTER;
+    -fx-spacing: 6px;
+}
+
+.logo {
+    -fx-background-color: transparent;
+    -fx-padding: 4px 8px;
+    -fx-alignment: CENTER_LEFT;
+    -fx-spacing: 6px;
+}
+
+.logo-icon {
+    -fx-min-width: 16px;
+    -fx-max-width: 16px;
+    -fx-min-height: 16px;
+    -fx-max-height: 16px;
+}
+
+.logo-text {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+}
+
+.toolbar-menu {
+    -fx-alignment: CENTER_LEFT;
+    -fx-spacing: 6px;
+    -fx-padding: 4px 8px;
+    -fx-font-size: 12px;
+}
+
+.top-toolbar-right {
+    -fx-background-color: transparent;
+    -fx-alignment: CENTER;
+    -fx-spacing: 6px;
+}
+
+.top-toolbar-right .window-btn {
+    -fx-min-width: 36px;
+    -fx-max-width: 36px;
+    -fx-min-height: 36px;
+    -fx-max-height: 36px;
+    -fx-font-size: 14px;
+    -fx-padding: 0;
+    -fx-alignment: CENTER;
+}

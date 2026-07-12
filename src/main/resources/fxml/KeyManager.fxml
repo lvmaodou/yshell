@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+<?import java.lang.*?>
+<BorderPane xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="root"
+            fx:controller="com.yshell.controller.KeyManagerController"
+            stylesheets="@../css/key-manager.css">
+    <styleClass>
+        <String fx:value="key-manager"/>
+    </styleClass>
+    <top>
+        <HBox>
+            <styleClass>
+                <String fx:value="key-header"/>
+            </styleClass>
+            <Label text="密钥管理">
+                <styleClass>
+                    <String fx:value="key-title"/>
+                </styleClass>
+            </Label>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnClose" onAction="#closeDialog">
+                <styleClass>
+                    <String fx:value="button-close"/>
+                    <String fx:value="key-close"/>
+                </styleClass>
+                <graphic>
+                    <FontIcon iconLiteral="fas-times" iconSize="12"/>
+                </graphic>
+            </Button>
+        </HBox>
+    </top>
+
+    <center>
+        <VBox>
+            <TableView fx:id="keyTableView" VBox.vgrow="ALWAYS">
+                <styleClass>
+                    <String fx:value="key-table"/>
+                </styleClass>
+                <columns>
+                    <TableColumn fx:id="colName" text="名称" prefWidth="180"/>
+                    <TableColumn fx:id="colType" text="类型" prefWidth="120"/>
+                    <TableColumn fx:id="colLength" text="长度" prefWidth="90"/>
+                </columns>
+                <columnResizePolicy>
+                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                </columnResizePolicy>
+            </TableView>
+
+            <HBox spacing="8">
+                <styleClass>
+                    <String fx:value="key-footer"/>
+                </styleClass>
+                <Button fx:id="btnCopyPublic" text="复制公钥">
+                    <styleClass>
+                        <String fx:value="key-btn"/>
+                        <String fx:value="button-cancel"/>
+                    </styleClass>
+                </Button>
+                <Button fx:id="btnInstallPublic" text="安装到当前会话">
+                    <styleClass>
+                        <String fx:value="key-btn"/>
+                        <String fx:value="button-cancel"/>
+                    </styleClass>
+                </Button>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button fx:id="btnImport" text="导入">
+                    <styleClass>
+                        <String fx:value="key-btn"/>
+                        <String fx:value="button-cancel"/>
+                    </styleClass>
+                </Button>
+                <Button fx:id="btnProperties" text="属性">
+                    <styleClass>
+                        <String fx:value="key-btn"/>
+                        <String fx:value="button-cancel"/>
+                    </styleClass>
+                </Button>
+                <Button fx:id="btnEdit" text="编辑">
+                    <styleClass>
+                        <String fx:value="key-btn"/>
+                        <String fx:value="button-cancel"/>
+                    </styleClass>
+                </Button>
+                <Button fx:id="btnGenerate" text="生成">
+                    <styleClass>
+                        <String fx:value="key-btn"/>
+                        <String fx:value="button-primary"/>
+                    </styleClass>
+                </Button>
+                <Button fx:id="btnDelete" text="删除">
+                    <styleClass>
+                        <String fx:value="key-btn"/>
+                        <String fx:value="button-danger"/>
+                    </styleClass>
+                </Button>
+            </HBox>
+        </VBox>
+    </center>
+</BorderPane>

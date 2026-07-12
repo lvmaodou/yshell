@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.yshell.terminal.JediTermFxTerminal?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.*?>
+<?import java.lang.*?>
+<VBox fx:id="rootPane" xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.yshell.controller.TerminalPanelController">
+    <styleClass>
+        <String fx:value="terminal-panel"/>
+    </styleClass>
+
+    <StackPane VBox.vgrow="ALWAYS">
+        <!-- 真终端区域：JediTerm-core + JavaFX Canvas 渲染 -->
+        <JediTermFxTerminal fx:id="terminal" styleClass="terminal-canvas"/>
+        <HBox fx:id="searchBox" styleClass="terminal-search-box" visible="false"
+              StackPane.alignment="TOP_RIGHT">
+            <StackPane.margin>
+                <Insets top="8" right="20"/>
+            </StackPane.margin>
+            <TextField fx:id="searchInput" promptText="查找">
+                <styleClass>
+                    <String fx:value="terminal-search-input"/>
+                </styleClass>
+            </TextField>
+            <Label fx:id="searchCount" text="0/0" styleClass="terminal-search-count"/>
+            <Button fx:id="btnFindPrev">
+                <styleClass>
+                    <String fx:value="terminal-search-btn"/>
+                </styleClass>
+                <tooltip>
+                    <Tooltip text="上一个匹配" showDelay="200ms"/>
+                </tooltip>
+                <graphic>
+                    <FontIcon iconLiteral="fas-chevron-up"/>
+                </graphic>
+            </Button>
+            <Button fx:id="btnFindNext">
+                <styleClass>
+                    <String fx:value="terminal-search-btn"/>
+                </styleClass>
+                <tooltip>
+                    <Tooltip text="下一个匹配" showDelay="200ms"/>
+                </tooltip>
+                <graphic>
+                    <FontIcon iconLiteral="fas-chevron-down"/>
+                </graphic>
+            </Button>
+            <Button fx:id="btnSearchClose">
+                <styleClass>
+                    <String fx:value="terminal-search-btn"/>
+                </styleClass>
+                <tooltip>
+                    <Tooltip text="关闭查找" showDelay="200ms"/>
+                </tooltip>
+                <graphic>
+                    <FontIcon iconLiteral="fas-times"/>
+                </graphic>
+            </Button>
+        </HBox>
+    </StackPane>
+
+    <HBox fx:id="toolbars" styleClass="toolbars">
+        <!-- 连接：发起/重新连接 SSH 会话 -->
+        <Button fx:id="btnConnect">
+            <styleClass>
+                <String fx:value="footer-icon-btn"/>
+            </styleClass>
+            <tooltip>
+                <Tooltip text="连接" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-plug"/>
+            </graphic>
+        </Button>
+        <!-- 复制：复制选中内容到剪贴板 (ctrl+shift+c) -->
+        <Button fx:id="btnCopy">
+            <styleClass>
+                <String fx:value="footer-icon-btn"/>
+            </styleClass>
+            <tooltip>
+                <Tooltip text="复制(ctrl+c)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-copy"/>
+            </graphic>
+        </Button>
+        <!-- 粘贴：从剪贴板粘贴到终端 (ctrl+shift+v) -->
+        <Button fx:id="btnPaste">
+            <styleClass>
+                <String fx:value="footer-icon-btn"/>
+            </styleClass>
+            <tooltip>
+                <Tooltip text="粘贴(ctrl+v)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-paste"/>
+            </graphic>
+        </Button>
+        <!-- 查找：在终端历史中搜索文�?-->
+        <Button fx:id="btnSearch">
+            <styleClass>
+                <String fx:value="footer-icon-btn"/>
+            </styleClass>
+            <tooltip>
+                <Tooltip text="查找(ctrl+f)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-search"/>
+            </graphic>
+        </Button>
+        <!-- 连接属性：查看/管理当前 SSH 连接信息 -->
+        <Button fx:id="btnConnProps">
+            <styleClass>
+                <String fx:value="footer-icon-btn"/>
+            </styleClass>
+            <tooltip>
+                <Tooltip text="连接属性" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-cog"/>
+            </graphic>
+        </Button>
+        <!-- 关闭底栏：关闭底部工具栏/终端容器 -->
+        <Button fx:id="btnClose">
+            <styleClass>
+                <String fx:value="footer-icon-btn"/>
+            </styleClass>
+            <tooltip>
+                <Tooltip text="可视区" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon fx:id="btnCloseIcon" iconLiteral="fas-chevron-down"/>
+            </graphic>
+        </Button>
+        <!-- 全屏：切换全屏显示-->
+        <Button fx:id="btnFull">
+            <styleClass>
+                <String fx:value="footer-icon-btn"/>
+            </styleClass>
+            <tooltip>
+                <Tooltip text="全屏" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon fx:id="btnFullIcon" iconLiteral="fas-expand"/>
+            </graphic>
+        </Button>
+        <!-- 清屏：清空终端屏幕显示(ctrl+l) -->
+        <Button fx:id="btnClear">
+            <styleClass>
+                <String fx:value="footer-icon-btn"/>
+            </styleClass>
+            <tooltip>
+                <Tooltip text="清屏(ctrl+l)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-eraser"/>
+            </graphic>
+        </Button>
+        <!-- 中断：向远端发送Ctrl+C 中断信号 (ctrl+d/c) -->
+        <Button fx:id="btnInterrupt">
+            <styleClass>
+                <String fx:value="footer-icon-btn"/>
+            </styleClass>
+            <tooltip>
+                <Tooltip text="中断(ctrl+c未选中内容生效)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-ban"/>
+            </graphic>
+        </Button>
+        <!-- 增大字体：仅当前终端临时生效 -->
+        <Button fx:id="btnFontIncrease">
+            <styleClass>
+                <String fx:value="footer-icon-btn"/>
+            </styleClass>
+            <tooltip>
+                <Tooltip text="增大字体(Ctrl+滚轮向上)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-plus"/>
+            </graphic>
+        </Button>
+        <!-- 减小字体：仅当前终端临时生效 -->
+        <Button fx:id="btnFontDecrease">
+            <styleClass>
+                <String fx:value="footer-icon-btn"/>
+            </styleClass>
+            <tooltip>
+                <Tooltip text="减小字体(Ctrl+滚轮向下)" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-minus"/>
+            </graphic>
+        </Button>
+    </HBox>
+</VBox>

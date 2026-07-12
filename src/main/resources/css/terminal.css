@@ -1,0 +1,76 @@
+.terminal-panel {
+    -fx-background-color: -fx-bg-primary;
+    -fx-fill-height: true;
+}
+
+.terminal-canvas {
+    -fx-background-insets: 0;
+    -fx-padding: 6px 8px;
+    -fx-font-family: 'Consolas', 'JetBrains Mono', 'Cascadia Code', 'Monaco', monospace;
+}
+
+.toolbars {
+    -fx-background-color: -fx-terminal-bg;
+    -fx-alignment: center-right;
+}
+
+.toolbars-full {
+    -fx-background-color: -fx-terminal-bg;
+    -fx-alignment: center-right;
+    -fx-padding: 0 0 20 0;
+}
+
+.terminal-panel .footer-icon-btn {
+    -fx-padding: 4 7 4 7;
+    -fx-content-display: graphic-only;
+    -fx-font-size: 13px;
+    -fx-min-width: 32;
+    -fx-min-height: 28;
+}
+
+.terminal-panel .footer-icon-btn:disabled {
+    -fx-opacity: 0.4;
+}
+
+.terminal-search-box {
+    -fx-alignment: center;
+    -fx-spacing: 5;
+    -fx-max-width: 300;
+    -fx-max-height: 30;
+}
+
+.terminal-search-input {
+    -fx-pref-width: 190;
+    -fx-min-height: 26;
+    -fx-padding: 3 7;
+}
+
+.terminal-search-count {
+    -fx-min-width: 46;
+    -fx-alignment: center;
+    -fx-font-size: 12px;
+}
+
+.terminal-search-btn {
+    -fx-padding: 4 5;
+    -fx-min-width: 24;
+    -fx-min-height: 24;
+    -fx-content-display: graphic-only;
+}
+
+.terminal-search-btn:disabled {
+    -fx-opacity: 0.35;
+}
+
+/* Icon Styles */
+.icon-status-success,
+.icon-status-success FontIcon,
+.icon-status-success .ikonli-font-icon {
+    -fx-icon-color: -fx-icon-status-success;
+}
+
+.icon-status-error,
+.icon-status-error FontIcon,
+.icon-status-error .ikonli-font-icon {
+    -fx-icon-color: -fx-icon-status-error;
+}

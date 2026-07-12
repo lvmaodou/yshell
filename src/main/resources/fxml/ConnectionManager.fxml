@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.*?>
+<?import java.lang.*?>
+<BorderPane xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="root"
+            fx:controller="com.yshell.controller.ConnectionManagerController">
+    <styleClass>
+        <String fx:value="connection-dialog"/>
+    </styleClass>
+    <top>
+        <HBox>
+            <styleClass>
+                <String fx:value="conn-dialog-header"/>
+            </styleClass>
+            <Label text="连接管理">
+                <styleClass>
+                    <String fx:value="conn-dialog-title"/>
+                </styleClass>
+            </Label>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnClose">
+                <styleClass>
+                    <String fx:value="button-close"/>
+                    <String fx:value="conn-dialog-close"/>
+                </styleClass>
+                <graphic>
+                    <FontIcon iconLiteral="fas-times" iconSize="12"/>
+                </graphic>
+            </Button>
+        </HBox>
+    </top>
+
+    <center>
+        <VBox>
+            <styleClass>
+                <String fx:value="conn-tree"/>
+            </styleClass>
+            <HBox>
+                <styleClass>
+                    <String fx:value="conn-toolbar"/>
+                </styleClass>
+                <HBox styleClass="toolbar-left">
+                    <ComboBox fx:id="searchType" styleClass="search-select"/>
+                    <HBox>
+                        <styleClass>
+                            <String fx:value="hbox-input"/>
+                            <String fx:value="search-input-wrap"/>
+                        </styleClass>
+                        <FontIcon iconLiteral="fas-search" iconSize="12">
+                            <styleClass>
+                                <String fx:value="icon-search"/>
+                            </styleClass>
+                        </FontIcon>
+                        <TextField fx:id="searchInput" promptText="搜索"
+                                   onAction="#filterTree">
+                            <styleClass>
+                                <String fx:value="search-input"/>
+                            </styleClass>
+                        </TextField>
+                        <Button fx:id="btnClearSearch" styleClass="search-clear-btn" contentDisplay="GRAPHIC_ONLY"
+                                focusTraversable="false" visible="false" managed="false">
+                            <graphic>
+                                <FontIcon iconLiteral="fas-times" iconSize="10"/>
+                            </graphic>
+                            <tooltip>
+                                <Tooltip text="清空搜索" showDelay="200ms"/>
+                            </tooltip>
+                        </Button>
+                    </HBox>
+                </HBox>
+                <HBox styleClass="toolbar-center">
+                    <Button fx:id="btnNewConn" styleClass="tree-action-btn" contentDisplay="GRAPHIC_ONLY"
+                            focusTraversable="false">
+                        <graphic>
+                            <FontIcon iconLiteral="fas-plus" iconSize="12"/>
+                        </graphic>
+                        <tooltip>
+                            <Tooltip text="新建连接" showDelay="200ms"/>
+                        </tooltip>
+                    </Button>
+                    <Button fx:id="btnNewFolder" styleClass="tree-action-btn" contentDisplay="GRAPHIC_ONLY"
+                            focusTraversable="false">
+                        <graphic>
+                            <FontIcon iconLiteral="fas-folder-plus" iconSize="12"/>
+                        </graphic>
+                        <tooltip>
+                            <Tooltip text="新建文件夹" showDelay="200ms"/>
+                        </tooltip>
+                    </Button>
+                    <Button fx:id="btnExpandAll" styleClass="tree-action-btn" contentDisplay="GRAPHIC_ONLY"
+                            focusTraversable="false">
+                        <graphic>
+                            <FontIcon iconLiteral="fas-expand" iconSize="12"/>
+                        </graphic>
+                        <tooltip>
+                            <Tooltip text="展开全部" showDelay="200ms"/>
+                        </tooltip>
+                    </Button>
+                    <Button fx:id="btnCollapseAll" styleClass="tree-action-btn" contentDisplay="GRAPHIC_ONLY"
+                            focusTraversable="false">
+                        <graphic>
+                            <FontIcon iconLiteral="fas-compress" iconSize="12"/>
+                        </graphic>
+                        <tooltip>
+                            <Tooltip text="折叠全部" showDelay="200ms"/>
+                        </tooltip>
+                    </Button>
+                </HBox>
+                <HBox styleClass="toolbar-right" HBox.hgrow="ALWAYS">
+                    <CheckBox fx:id="closeAfterConnect" text="连接后关闭列表"
+                              selected="true">
+                        <styleClass>
+                            <String fx:value="show-pwd-checkbox"/>
+                        </styleClass>
+                    </CheckBox>
+                </HBox>
+            </HBox>
+
+            <ScrollPane fitToWidth="true" fitToHeight="true" VBox.vgrow="ALWAYS">
+                <TreeView fx:id="connTreeView">
+                    <styleClass>
+                        <String fx:value="conn-tree-view"/>
+                    </styleClass>
+                </TreeView>
+            </ScrollPane>
+        </VBox>
+    </center>
+</BorderPane>

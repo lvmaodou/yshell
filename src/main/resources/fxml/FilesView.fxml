@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.*?>
+<?import java.lang.*?>
+<VBox xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.yshell.controller.FilesViewController"
+      stylesheets="@../css/files-view.css">
+    <styleClass>
+        <String fx:value="files-view"/>
+    </styleClass>
+    <HBox>
+        <styleClass>
+            <String fx:value="files-toolbar"/>
+        </styleClass>
+        <TextField fx:id="pathInput" promptText="输入路径..." onAction="#onPathEnter">
+            <styleClass>
+                <String fx:value="path-input"/>
+            </styleClass>
+        </TextField>
+        <HBox styleClass="action-buttons">
+            <Button fx:id="btnRefresh">
+                <styleClass>
+                    <String fx:value="nav-btn"/>
+                </styleClass>
+                <graphic>
+                    <FontIcon iconLiteral="fas-sync" iconSize="12"/>
+                </graphic>
+                <tooltip>
+                    <Tooltip text="刷新" showDelay="200ms"/>
+                </tooltip>
+            </Button>
+            <Button fx:id="btnNavUp">
+                <styleClass>
+                    <String fx:value="nav-btn"/>
+                </styleClass>
+                <graphic>
+                    <FontIcon iconLiteral="fas-level-up-alt" iconSize="12"/>
+                </graphic>
+                <tooltip>
+                    <Tooltip text="返回上一级" showDelay="200ms"/>
+                </tooltip>
+            </Button>
+            <Button fx:id="btnDownload">
+                <styleClass>
+                    <String fx:value="nav-btn"/>
+                </styleClass>
+                <graphic>
+                    <FontIcon iconLiteral="fas-download" iconSize="12"/>
+                </graphic>
+                <tooltip>
+                    <Tooltip text="下载" showDelay="200ms"/>
+                </tooltip>
+            </Button>
+            <Button fx:id="btnUpload">
+                <styleClass>
+                    <String fx:value="nav-btn"/>
+                </styleClass>
+                <graphic>
+                    <FontIcon iconLiteral="fas-upload" iconSize="12"/>
+                </graphic>
+                <tooltip>
+                    <Tooltip text="上传" showDelay="200ms"/>
+                </tooltip>
+            </Button>
+            <Button fx:id="btnJumpPath">
+                <styleClass>
+                    <String fx:value="nav-btn"/>
+                </styleClass>
+                <graphic>
+                    <FontIcon iconLiteral="fas-external-link-alt" iconSize="12"/>
+                </graphic>
+                <tooltip>
+                    <Tooltip text="在终端跳转" showDelay="200ms"/>
+                </tooltip>
+            </Button>
+        </HBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button fx:id="btnTransferQueue">
+            <styleClass>
+                <String fx:value="transfer-queue-btn"/>
+            </styleClass>
+            <graphic>
+                <FontIcon iconLiteral="fas-exchange-alt" iconSize="12"/>
+            </graphic>
+            <tooltip>
+                <Tooltip text="传输队列" showDelay="200ms"/>
+            </tooltip>
+        </Button>
+        <Button fx:id="btnCompressedTransferQueue">
+            <styleClass>
+                <String fx:value="transfer-queue-btn"/>
+            </styleClass>
+            <graphic>
+                <FontIcon iconLiteral="fas-file-archive" iconSize="12"/>
+            </graphic>
+            <tooltip>
+                <Tooltip text="压缩传输队列" showDelay="200ms"/>
+            </tooltip>
+        </Button>
+    </HBox>
+
+    <HBox VBox.vgrow="ALWAYS">
+        <TreeView fx:id="folderTree">
+            <styleClass>
+                <String fx:value="folder-tree"/>
+            </styleClass>
+        </TreeView>
+
+        <VBox HBox.hgrow="ALWAYS">
+            <styleClass>
+                <String fx:value="file-list-area"/>
+            </styleClass>
+            <TableView fx:id="fileTable" styleClass="file-table" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="colName" text="名称" minWidth="180" prefWidth="280"
+                                 style="-fx-alignment: CENTER-LEFT;"/>
+                    <TableColumn fx:id="colSize" text="大小" minWidth="120" prefWidth="120"
+                                 style="-fx-alignment: CENTER-LEFT;"/>
+                    <TableColumn fx:id="colType" text="类型" minWidth="110" prefWidth="110"
+                                 style="-fx-alignment: CENTER-LEFT;"/>
+                    <TableColumn fx:id="colDate" text="修改日期" minWidth="150" prefWidth="150"
+                                 style="-fx-alignment: CENTER-LEFT;"/>
+                    <TableColumn fx:id="colPerm" text="权限" minWidth="120" prefWidth="120"
+                                 style="-fx-alignment: CENTER-LEFT;"/>
+                    <TableColumn fx:id="colOwner" text="所有者" minWidth="110" prefWidth="110"
+                                 style="-fx-alignment: CENTER-LEFT;"/>
+                </columns>
+            </TableView>
+        </VBox>
+    </HBox>
+</VBox>

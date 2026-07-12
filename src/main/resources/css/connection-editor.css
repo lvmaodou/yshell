@@ -1,0 +1,349 @@
+.connection-editor {
+    -fx-background-color: -fx-bg-primary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 1;
+    -fx-padding: 0;
+}
+
+.conn-edit-header {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-border-color: -fx-border-default;
+    -fx-padding: 8, 6px;
+    -fx-border-width: 0 0 1 0;
+    -fx-alignment: center;
+}
+
+.connection-editor .conn-edit-title {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+}
+
+.connection-editor .conn-edit-close {
+    -fx-min-width: 18px;
+    -fx-max-width: 18px;
+    -fx-min-height: 18px;
+    -fx-max-height: 18px;
+}
+
+
+.conn-modal-body {
+    -fx-padding: 0;
+}
+
+
+.conn-type-tabs-horizontal {
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 0 0 1 0;
+}
+
+.conn-type-tab-horizontal {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: -fx-text-primary;
+    -fx-padding: 8 20 8 20;
+    -fx-border-width: 0 0 2 0;
+    -fx-font-size: 13;
+    -fx-spacing: 6;
+}
+
+.conn-type-tab-horizontal.active {
+    -fx-background-color: -fx-tab-active-bg;
+    -fx-border-width: 0 0 2 0;
+}
+
+
+.conn-form-content {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: transparent;
+    -fx-hbar-policy: never;
+}
+
+
+.conn-content {
+    -fx-padding: 16;
+    -fx-spacing: 16;
+}
+
+
+.form-section {
+    -fx-spacing: 8;
+}
+
+.form-section-title {
+    -fx-text-fill: -fx-text-muted;
+    -fx-border-color: -fx-border-default;
+    -fx-font-size: 12;
+    -fx-font-weight: 600;
+    -fx-padding: 0 0 4 0;
+    -fx-border-width: 0 0 1 0;
+}
+
+.form-row {
+    -fx-spacing: 12;
+    -fx-padding: 12 0 0 0;
+}
+
+.form-group {
+    -fx-flex: 1;
+    -fx-spacing: 4;
+}
+
+.form-group label {
+    -fx-font-size: 11;
+}
+
+.form-group.half {
+    -fx-flex: 0.5;
+}
+
+.form-group TextField,
+.form-group PasswordField,
+.form-group ComboBox {
+    -fx-padding: 6 8 6 8;
+    -fx-border-width: 1;
+    -fx-font-size: 12;
+    -fx-pref-height: 32;
+}
+
+
+.form-group ComboBox .list-cell {
+    -fx-padding: 2px 4px 2px 4px;
+}
+
+
+.conn-checkbox-row {
+    -fx-spacing: 16;
+}
+
+.conn-checkbox-row CheckBox {
+    -fx-font-size: 12;
+    -fx-padding: 8 32 0 0;
+}
+
+
+.conn-form-actions {
+    -fx-border-color: -fx-border-default;
+    -fx-padding: 8 20;
+    -fx-border-width: 1 0 0 0;
+}
+
+.btn-form {
+    -fx-padding: 6 16 6 16;
+    -fx-font-size: 12;
+}
+
+.proxy-header {
+    -fx-padding: 8 12;
+    -fx-border-width: 0 0 1 0;
+}
+
+.proxy-header .label {
+    -fx-font-size: 11px;
+}
+
+.proxy-item {
+    -fx-padding: 8 12;
+    -fx-alignment: center;
+}
+
+.proxy-item .label {
+    -fx-font-size: 12px;
+}
+
+.proxy-item .proxy-radio {
+    -fx-padding: 0 16 0 0;
+}
+
+.proxy-item .proxy-radio .radio {
+    -fx-min-width: 12px;
+    -fx-min-height: 12px;
+    -fx-pref-width: 12px;
+    -fx-pref-height: 12px;
+    -fx-max-width: 12px;
+    -fx-max-height: 12px;
+}
+
+.tunnel-table,
+.proxy-table {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 1;
+    -fx-fixed-cell-size: 28;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.tunnel-table .column-header,
+.proxy-table .column-header,
+.tunnel-table .column-header-background,
+.proxy-table .column-header-background {
+    -fx-padding: 0;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.tunnel-table .column-header .label,
+.proxy-table .column-header .label {
+    -fx-font-size: 11px;
+    -fx-font-weight: normal;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 0 12;
+}
+
+
+.tunnel-table .table-row-cell,
+.proxy-table .table-row-cell {
+    -fx-background-insets: 0;
+    -fx-cell-size: 28;
+}
+
+
+.tunnel-table .table-cell,
+.proxy-table .table-cell {
+    -fx-font-size: 12px;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 0 12;
+}
+
+
+.tunnel-table .scroll-bar,
+.proxy-table .scroll-bar {
+    -fx-opacity: 0;
+}
+
+.tunnel-table .scroll-bar:hover,
+.proxy-table .scroll-bar:hover {
+    -fx-opacity: 1;
+}
+
+
+.empty-state-label {
+    -fx-text-fill: -fx-text-muted;
+    -fx-font-size: 12px;
+    -fx-padding: 20;
+}
+
+
+.sub-dialog {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 1;
+    -fx-background-radius: 6 6 0 0;
+    -fx-padding: 0;
+}
+
+.sub-dialog-header {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-border-color: -fx-border-default;
+    -fx-padding: 6 8px;
+    -fx-border-width: 0 0 1 0;
+    -fx-alignment: center-left;
+}
+
+.sub-dialog-title {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+}
+
+.sub-dialog-close {
+    -fx-min-width: 24px;
+    -fx-max-width: 24px;
+    -fx-min-height: 24px;
+    -fx-max-height: 24px;
+}
+
+.sub-dialog-body {
+    -fx-padding: 8 20 8 20;
+}
+
+.sub-dialog-footer {
+    -fx-border-color: -fx-border-default;
+    -fx-padding: 4 20;
+    -fx-border-width: 1 0 0 0;
+}
+
+.sub-dialog-footer .btn-form {
+    -fx-padding: 5 16;
+    -fx-font-size: 12px;
+}
+
+
+.form-section-inline {
+    -fx-spacing: 8;
+}
+
+.form-row-inline {
+    -fx-spacing: 10;
+    -fx-alignment: center-left;
+}
+
+.form-label-inline {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 12px;
+    -fx-pref-width: 70px;
+    -fx-min-width: 70px;
+    -fx-max-width: 70px;
+}
+
+.form-row-inline TextField,
+.form-row-inline PasswordField,
+.form-row-inline ComboBox {
+    -fx-padding: 5 8;
+    -fx-border-width: 1;
+    -fx-font-size: 12px;
+    -fx-pref-height: 30;
+}
+
+.form-row-inline ComboBox .list-cell {
+    -fx-padding: 2px 4px;
+}
+
+.dialog-pane.ssh-key-selection-dialog .content {
+    -fx-padding: 14 18 14 18;
+}
+
+.dialog-pane.ssh-key-selection-dialog .button-bar {
+    -fx-padding: 4 20 16 20;
+}
+
+.ssh-key-selection-content {
+    -fx-padding: 0 0 10 0;
+}
+
+.ssh-key-selection-list {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 1;
+    -fx-fixed-cell-size: 46;
+    -fx-pref-width: 380px;
+    -fx-max-width: 380px;
+}
+
+.ssh-key-selection-list .list-cell {
+    -fx-padding: 6 10;
+}
+
+.ssh-key-selection-list .scroll-bar:horizontal {
+    -fx-opacity: 0;
+    -fx-max-height: 0;
+    -fx-pref-height: 0;
+}
+
+.ssh-key-option {
+    -fx-spacing: 2;
+}
+
+.ssh-key-option-title {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-pref-width: 340px;
+    -fx-max-width: 340px;
+}
+
+.ssh-key-option-detail {
+    -fx-text-fill: -fx-text-muted;
+    -fx-font-size: 11px;
+    -fx-pref-width: 340px;
+    -fx-max-width: 340px;
+}

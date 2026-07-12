@@ -1,0 +1,485 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+<?import java.lang.*?>
+<BorderPane xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="root"
+            fx:controller="com.yshell.controller.ConnectionEditorController">
+    <styleClass>
+        <String fx:value="connection-editor"/>
+    </styleClass>
+    <top>
+        <HBox>
+            <styleClass>
+                <String fx:value="conn-edit-header"/>
+            </styleClass>
+            <Label fx:id="dialogTitle" text="新建连接">
+                <styleClass>
+                    <String fx:value="conn-edit-title"/>
+                </styleClass>
+            </Label>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnClose" onAction="#closeDialog">
+                <styleClass>
+                    <String fx:value="button-close"/>
+                    <String fx:value="conn-edit-close"/>
+                </styleClass>
+                <graphic>
+                    <FontIcon iconLiteral="fas-times" iconSize="12"/>
+                </graphic>
+            </Button>
+        </HBox>
+    </top>
+
+    <center>
+        <VBox styleClass="conn-modal-body">
+            <HBox>
+                <styleClass>
+                    <String fx:value="conn-type-tabs-horizontal"/>
+                </styleClass>
+                <Button fx:id="tabSsh" text="SSH连接">
+                    <styleClass>
+                        <String fx:value="conn-type-tab-horizontal"/>
+                        <String fx:value="active"/>
+                    </styleClass>
+                </Button>
+                <Button fx:id="tabRdp" text="Windows远程">
+                    <styleClass>
+                        <String fx:value="conn-type-tab-horizontal"/>
+                    </styleClass>
+                </Button>
+            </HBox>
+
+            <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS">
+                <styleClass>
+                    <String fx:value="conn-form-content"/>
+                </styleClass>
+                <VBox>
+                    <!-- SSH Settings -->
+                    <VBox fx:id="sshSettings" styleClass="conn-content">
+                        <VBox styleClass="form-section">
+                            <Label text="常规设置">
+                                <styleClass>
+                                    <String fx:value="form-section-title"/>
+                                </styleClass>
+                            </Label>
+                            <HBox styleClass="form-row" spacing="12">
+                                <VBox styleClass="form-group" HBox.hgrow="ALWAYS">
+                                    <Label text="名称 *"/>
+                                    <TextField fx:id="sshConnName" promptText="连接的标识名称"/>
+                                </VBox>
+                                <VBox styleClass="form-group">
+                                    <styleClass>
+                                        <String fx:value="half"/>
+                                    </styleClass>
+                                    <Label text="端口 *"/>
+                                    <TextField fx:id="sshConnPort" text="22"/>
+                                </VBox>
+                            </HBox>
+
+                            <HBox styleClass="form-row">
+                                <VBox styleClass="form-group" HBox.hgrow="ALWAYS">
+                                    <Label text="主机 *"/>
+                                    <TextField fx:id="sshConnHost" promptText="目标服务器IP地址或域名"/>
+                                </VBox>
+                            </HBox>
+
+                            <HBox styleClass="form-row">
+                                <VBox styleClass="form-group" HBox.hgrow="ALWAYS">
+                                    <Label text="备注"/>
+                                    <TextField fx:id="sshConnNotes" promptText="连接的描述信息"/>
+                                </VBox>
+                            </HBox>
+                        </VBox>
+
+                        <VBox styleClass="form-section">
+                            <Label text="认证设置">
+                                <styleClass>
+                                    <String fx:value="form-section-title"/>
+                                </styleClass>
+                            </Label>
+                            <HBox styleClass="form-row">
+                                <VBox styleClass="form-group">
+                                    <styleClass>
+                                        <String fx:value="half"/>
+                                    </styleClass>
+                                    <Label text="方法"/>
+                                    <ComboBox fx:id="sshAuthMethod"/>
+                                </VBox>
+                                <VBox styleClass="form-group" HBox.hgrow="ALWAYS">
+                                    <Label text="用户名 *"/>
+                                    <TextField fx:id="sshConnUsername" promptText="登录服务器的用户名"/>
+                                </VBox>
+                            </HBox>
+
+                            <VBox fx:id="sshPasswordRow">
+                                <HBox styleClass="form-row">
+                                    <VBox styleClass="form-group" HBox.hgrow="ALWAYS">
+                                        <Label text="密码 *"/>
+                                        <PasswordField fx:id="sshConnPassword" promptText="登录密码"/>
+                                    </VBox>
+                                </HBox>
+                            </VBox>
+
+                            <VBox fx:id="sshPrivateKeyRow" visible="false" managed="false">
+                                <VBox styleClass="form-group">
+                                    <Label text="私钥"/>
+                                    <HBox spacing="8" alignment="CENTER_LEFT">
+                                        <TextField fx:id="sshPrivateKeyPath" promptText="密钥文件路径"
+                                                   HBox.hgrow="ALWAYS"/>
+                                        <Button fx:id="sshBtnBrowseKey" text="浏览...">
+                                            <styleClass>
+                                                <String fx:value="button-cancel"/>
+                                                <String fx:value="btn-form"/>
+                                            </styleClass>
+                                        </Button>
+                                    </HBox>
+                                </VBox>
+                            </VBox>
+                        </VBox>
+
+                        <VBox styleClass="form-section">
+                            <Label text="高级设置">
+                                <styleClass>
+                                    <String fx:value="form-section-title"/>
+                                </styleClass>
+                            </Label>
+                            <HBox styleClass="conn-checkbox-row">
+                                <CheckBox fx:id="sshSmartAccel" text="弱网优化(非必要不建议开启)"/>
+                                <CheckBox fx:id="sshExecChannel" text="启用Exec Channel（系统监控需开启获取信息）"
+                                          selected="true"/>
+                            </HBox>
+                        </VBox>
+
+                        <VBox styleClass="form-section">
+                            <Label text="终端设置">
+                                <styleClass>
+                                    <String fx:value="form-section-title"/>
+                                </styleClass>
+                            </Label>
+                            <HBox styleClass="form-row">
+                                <VBox styleClass="form-group">
+                                    <styleClass>
+                                        <String fx:value="half"/>
+                                    </styleClass>
+                                    <Label text="字符编码"/>
+                                    <ComboBox fx:id="sshCharEncoding"/>
+                                </VBox>
+                                <VBox styleClass="form-group">
+                                    <styleClass>
+                                        <String fx:value="half"/>
+                                    </styleClass>
+                                    <Label text="Backspace退格键"/>
+                                    <ComboBox fx:id="sshBackspace"/>
+                                </VBox>
+                                <VBox styleClass="form-group">
+                                    <styleClass>
+                                        <String fx:value="half"/>
+                                    </styleClass>
+                                    <Label text="Delete删除键"/>
+                                    <ComboBox fx:id="sshDelete"/>
+                                </VBox>
+                            </HBox>
+                        </VBox>
+
+                        <VBox styleClass="form-section">
+                            <Label text="代理服务器">
+                                <styleClass>
+                                    <String fx:value="form-section-title"/>
+                                </styleClass>
+                            </Label>
+                            <HBox styleClass="form-row">
+                                <VBox styleClass="form-group" HBox.hgrow="ALWAYS">
+                                    <Label text="选择代理方式:"/>
+                                </VBox>
+                            </HBox>
+
+                            <!-- SSH Proxy List -->
+                            <TableView fx:id="sshProxyTable" prefHeight="170">
+                                <styleClass>
+                                    <String fx:value="proxy-table"/>
+                                </styleClass>
+                                <columns>
+                                    <TableColumn fx:id="proxyColCheck" minWidth="36" maxWidth="36" resizable="false"/>
+                                    <TableColumn fx:id="proxyColName" text="名称"/>
+                                    <TableColumn fx:id="proxyColType" text="类型"/>
+                                    <TableColumn fx:id="proxyColHost" text="主机"/>
+                                    <TableColumn fx:id="proxyColPort" text="端口"/>
+                                </columns>
+                                <columnResizePolicy>
+                                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                                </columnResizePolicy>
+                            </TableView>
+
+                            <HBox styleClass="form-row">
+                                <Button fx:id="sshEditProxy" text="编辑">
+                                    <styleClass>
+                                        <String fx:value="btn-form"/>
+                                        <String fx:value="button-cancel"/>
+                                    </styleClass>
+                                </Button>
+                                <Button fx:id="sshAddProxy" text="添加">
+                                    <styleClass>
+                                        <String fx:value="btn-form"/>
+                                        <String fx:value="button-primary"/>
+                                    </styleClass>
+                                </Button>
+                                <Button fx:id="sshDeleteProxy" text="删除">
+                                    <styleClass>
+                                        <String fx:value="btn-form"/>
+                                        <String fx:value="button-danger"/>
+                                    </styleClass>
+                                </Button>
+                            </HBox>
+                        </VBox>
+
+                        <VBox styleClass="form-section">
+                            <Label text="隧道设置">
+                                <styleClass>
+                                    <String fx:value="form-section-title"/>
+                                </styleClass>
+                            </Label>
+                            <TableView fx:id="sshTunnelTable" prefHeight="170">
+                                <styleClass>
+                                    <String fx:value="tunnel-table"/>
+                                </styleClass>
+                                <columns>
+                                    <TableColumn fx:id="tunnelColName" text="名称"/>
+                                    <TableColumn fx:id="tunnelColType" text="类型"/>
+                                    <TableColumn fx:id="tunnelColListen" text="监听端口"/>
+                                    <TableColumn fx:id="tunnelColTargetAddr" text="目标地址"/>
+                                    <TableColumn fx:id="tunnelColTargetPort" text="目标端口"/>
+                                </columns>
+                                <columnResizePolicy>
+                                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                                </columnResizePolicy>
+                                <placeholder>
+                                    <Label text="暂无隧道配置">
+                                        <styleClass>
+                                            <String fx:value="empty-state-label"/>
+                                        </styleClass>
+                                    </Label>
+                                </placeholder>
+                            </TableView>
+
+                            <HBox styleClass="form-row">
+                                <Button fx:id="sshEditTunnel" text="编辑">
+                                    <styleClass>
+                                        <String fx:value="btn-form"/>
+                                        <String fx:value="button-cancel"/>
+                                    </styleClass>
+                                </Button>
+                                <Button fx:id="sshAddTunnel" text="添加">
+                                    <styleClass>
+                                        <String fx:value="btn-form"/>
+                                        <String fx:value="button-primary"/>
+                                    </styleClass>
+                                </Button>
+                                <Button fx:id="sshDeleteTunnel" text="删除">
+                                    <styleClass>
+                                        <String fx:value="btn-form"/>
+                                        <String fx:value="button-danger"/>
+                                    </styleClass>
+                                </Button>
+                            </HBox>
+                        </VBox>
+                    </VBox>
+
+                    <!-- RDP Settings -->
+                    <VBox fx:id="rdpSettings" visible="false" styleClass="conn-content" managed="false">
+                        <VBox styleClass="form-section">
+                            <Label text="常规设置">
+                                <styleClass>
+                                    <String fx:value="form-section-title"/>
+                                </styleClass>
+                            </Label>
+                            <HBox styleClass="form-row">
+                                <VBox styleClass="form-group" HBox.hgrow="ALWAYS">
+                                    <Label text="名称 *"/>
+                                    <TextField fx:id="rdpConnName" promptText="连接的标识名称"/>
+                                </VBox>
+                                <VBox styleClass="form-group">
+                                    <styleClass>
+                                        <String fx:value="half"/>
+                                    </styleClass>
+                                    <Label text="端口 *"/>
+                                    <TextField fx:id="rdpConnPort" text="3389"/>
+                                </VBox>
+                            </HBox>
+
+                            <HBox styleClass="form-row">
+                                <VBox styleClass="form-group" HBox.hgrow="ALWAYS">
+                                    <Label text="主机 *"/>
+                                    <TextField fx:id="rdpConnHost" promptText="目标Windows服务器IP地址或域名"/>
+                                </VBox>
+                            </HBox>
+
+                            <HBox styleClass="form-row">
+                                <VBox styleClass="form-group" HBox.hgrow="ALWAYS">
+                                    <Label text="备注"/>
+                                    <TextField fx:id="rdpConnNotes" promptText="连接的描述信息"/>
+                                </VBox>
+                            </HBox>
+                        </VBox>
+
+                        <VBox styleClass="form-section">
+                            <Label text="认证设置">
+                                <styleClass>
+                                    <String fx:value="form-section-title"/>
+                                </styleClass>
+                            </Label>
+                            <HBox styleClass="form-row">
+                                <VBox styleClass="form-group">
+                                    <styleClass>
+                                        <String fx:value="half"/>
+                                    </styleClass>
+                                    <Label text="方法"/>
+                                    <ComboBox fx:id="rdpAuthMethod"/>
+                                </VBox>
+                                <VBox styleClass="form-group" HBox.hgrow="ALWAYS">
+                                    <Label text="用户名 *"/>
+                                    <TextField fx:id="rdpConnUsername" promptText="Windows登录用户名"/>
+                                </VBox>
+                            </HBox>
+
+                            <HBox styleClass="form-row">
+                                <VBox styleClass="form-group" HBox.hgrow="ALWAYS">
+                                    <Label text="密码 *"/>
+                                    <PasswordField fx:id="rdpConnPassword" promptText="Windows登录密码"/>
+                                </VBox>
+                            </HBox>
+                        </VBox>
+
+                        <VBox styleClass="form-section">
+                            <Label text="显示设置">
+                                <styleClass>
+                                    <String fx:value="form-section-title"/>
+                                </styleClass>
+                            </Label>
+                            <VBox styleClass="form-group">
+                                <Label text="分辨率"/>
+                                <HBox spacing="18">
+                                    <ComboBox fx:id="rdpResolution"/>
+                                    <HBox fx:id="rdpCustomSizeRow" visible="false" managed="false" spacing="16"
+                                          alignment="CENTER_LEFT">
+                                        <Label text="宽:"/>
+                                        <TextField fx:id="rdpCustomWidth" prefWidth="70" promptText="宽度"/>
+                                        <Label text="高:"/>
+                                        <TextField fx:id="rdpCustomHeight" prefWidth="70" promptText="高度"/>
+                                    </HBox>
+                                </HBox>
+                            </VBox>
+
+                            <HBox styleClass="conn-checkbox-row">
+                                <CheckBox fx:id="rdpFullscreen" text="全屏显示"/>
+                            </HBox>
+                        </VBox>
+
+                        <VBox styleClass="form-section">
+                            <Label text="映射设置">
+                                <styleClass>
+                                    <String fx:value="form-section-title"/>
+                                </styleClass>
+                            </Label>
+                            <HBox styleClass="conn-checkbox-row">
+                                <CheckBox fx:id="rdpDriveMapping" text="本地驱动器（映射本地驱动器到远程桌面）"
+                                          selected="true"/>
+                            </HBox>
+                        </VBox>
+
+                        <VBox styleClass="form-section">
+                            <Label text="高级设置">
+                                <styleClass>
+                                    <String fx:value="form-section-title"/>
+                                </styleClass>
+                            </Label>
+                            <HBox styleClass="conn-checkbox-row">
+                                <CheckBox fx:id="rdpSmartAccel" text="弱网优化(非必要不建议开启)"/>
+                            </HBox>
+                        </VBox>
+
+                        <VBox styleClass="form-section">
+                            <Label text="代理服务器">
+                                <styleClass>
+                                    <String fx:value="form-section-title"/>
+                                </styleClass>
+                            </Label>
+                            <HBox styleClass="form-row">
+                                <VBox styleClass="form-group" HBox.hgrow="ALWAYS">
+                                    <Label text="选择代理方式:"/>
+                                </VBox>
+                            </HBox>
+
+                            <!-- RDP Proxy List -->
+                            <TableView fx:id="rdpProxyTable" prefHeight="170">
+                                <styleClass>
+                                    <String fx:value="proxy-table"/>
+                                </styleClass>
+                                <columns>
+                                    <TableColumn fx:id="rdpProxyColCheck" minWidth="36" maxWidth="36"
+                                                 resizable="false"/>
+                                    <TableColumn fx:id="rdpProxyColName" text="名称"/>
+                                    <TableColumn fx:id="rdpProxyColType" text="类型"/>
+                                    <TableColumn fx:id="rdpProxyColHost" text="主机"/>
+                                    <TableColumn fx:id="rdpProxyColPort" text="端口"/>
+                                </columns>
+                                <columnResizePolicy>
+                                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                                </columnResizePolicy>
+                            </TableView>
+
+                            <HBox styleClass="form-row">
+                                <Button fx:id="rdpEditProxy" text="编辑">
+                                    <styleClass>
+                                        <String fx:value="btn-form"/>
+                                        <String fx:value="button-cancel"/>
+                                    </styleClass>
+                                </Button>
+                                <Button fx:id="rdpAddProxy" text="添加">
+                                    <styleClass>
+                                        <String fx:value="btn-form"/>
+                                        <String fx:value="button-primary"/>
+                                    </styleClass>
+                                </Button>
+                                <Button fx:id="rdpDeleteProxy" text="删除">
+                                    <styleClass>
+                                        <String fx:value="btn-form"/>
+                                        <String fx:value="button-danger"/>
+                                    </styleClass>
+                                </Button>
+                            </HBox>
+                        </VBox>
+                    </VBox>
+                </VBox>
+            </ScrollPane>
+
+            <HBox>
+                <styleClass>
+                    <String fx:value="conn-form-actions"/>
+                </styleClass>
+                <Button fx:id="btnDelete" text="删除" visible="false">
+                    <styleClass>
+                        <String fx:value="btn-form"/>
+                        <String fx:value="button-danger"/>
+                    </styleClass>
+                </Button>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button fx:id="btnCancel" text="取消" onAction="#closeDialog">
+                    <styleClass>
+                        <String fx:value="btn-form"/>
+                        <String fx:value="button-cancel"/>
+                    </styleClass>
+                </Button>
+                <Region prefWidth="16"/>
+                <Button fx:id="btnSave" text="保存">
+                    <styleClass>
+                        <String fx:value="btn-form"/>
+                        <String fx:value="button-primary"/>
+                    </styleClass>
+                </Button>
+            </HBox>
+        </VBox>
+    </center>
+</BorderPane>

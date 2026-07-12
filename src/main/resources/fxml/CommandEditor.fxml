@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+<?import java.lang.*?>
+<BorderPane xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="root"
+            fx:controller="com.yshell.controller.CommandEditorController"
+            stylesheets="@../css/command-editor.css">
+    <styleClass>
+        <String fx:value="command-editor"/>
+    </styleClass>
+    <top>
+        <HBox>
+            <styleClass>
+                <String fx:value="cmd-edit-header"/>
+            </styleClass>
+            <Label fx:id="dialogTitle" text="新建命令">
+                <styleClass>
+                    <String fx:value="cmd-edit-title"/>
+                </styleClass>
+            </Label>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnClose" onAction="#closeDialog">
+                <styleClass>
+                    <String fx:value="button-close"/>
+                    <String fx:value="cmd-edit-close"/>
+                </styleClass>
+                <graphic>
+                    <FontIcon iconLiteral="fas-times" iconSize="12"/>
+                </graphic>
+            </Button>
+        </HBox>
+    </top>
+
+    <center>
+        <VBox>
+            <styleClass>
+                <String fx:value="cmd-edit-body"/>
+            </styleClass>
+            <VBox styleClass="cmd-edit-form" VBox.vgrow="ALWAYS">
+                <VBox styleClass="cmd-edit-field">
+                    <Label text="命令名称 *">
+                        <styleClass>
+                            <String fx:value="cmd-edit-label"/>
+                        </styleClass>
+                    </Label>
+                    <TextField fx:id="cmdName"
+                               promptText="输入收藏名称"
+                               styleClass="cmd-edit-input"/>
+                </VBox>
+
+                <VBox styleClass="cmd-edit-field">
+                    <Label text="命令内容 *">
+                        <styleClass>
+                            <String fx:value="cmd-edit-label"/>
+                        </styleClass>
+                    </Label>
+                    <TextArea fx:id="cmdCommand"
+                              promptText="输入要执行的命令"
+                              prefRowCount="6"
+                              wrapText="true"
+                              styleClass="cmd-edit-textarea"/>
+                </VBox>
+
+                <VBox styleClass="cmd-edit-field">
+                    <Label text="描述">
+                        <styleClass>
+                            <String fx:value="cmd-edit-label"/>
+                        </styleClass>
+                    </Label>
+                    <TextField fx:id="cmdDesc"
+                               promptText="描述"
+                               styleClass="cmd-edit-input"/>
+                </VBox>
+            </VBox>
+        </VBox>
+    </center>
+
+    <bottom>
+        <HBox>
+            <styleClass>
+                <String fx:value="cmd-edit-actions"/>
+            </styleClass>
+            <Button fx:id="btnDelete" text="删除" visible="false" managed="false">
+                <styleClass>
+                    <String fx:value="cmd-edit-button"/>
+                    <String fx:value="button-danger"/>
+                </styleClass>
+            </Button>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnCancel" text="取消" onAction="#closeDialog">
+                <styleClass>
+                    <String fx:value="cmd-edit-button"/>
+                    <String fx:value="button-cancel"/>
+                </styleClass>
+            </Button>
+            <Button fx:id="btnSave" text="保存">
+                <styleClass>
+                    <String fx:value="cmd-edit-button"/>
+                    <String fx:value="button-primary"/>
+                </styleClass>
+            </Button>
+        </HBox>
+    </bottom>
+</BorderPane>
+
+

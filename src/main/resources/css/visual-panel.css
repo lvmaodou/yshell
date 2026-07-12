@@ -1,0 +1,40 @@
+.visual-panel {
+    -fx-background-color: -fx-bg-primary;
+}
+
+.visual-tab-bar {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 4px 12px 4px 4px;
+    -fx-spacing: 4px;
+}
+
+.visual-tab {
+    -fx-padding: 4px 12px;
+    -fx-font-size: 11px;
+}
+
+.content-area {
+    -fx-background-color: -fx-bg-primary;
+    -fx-pref-width: 100%;
+    -fx-pref-height: 100%;
+}
+
+.content-area > VBox {
+    -fx-pref-width: 100%;
+    -fx-pref-height: 100%;
+    -fx-max-width: 99999;
+    -fx-max-height: 99999;
+    -fx-min-width: 0;
+    -fx-min-height: 0;
+}
+
+.content-area > * {
+    -fx-pref-width: 100%;
+    -fx-pref-height: 100%;
+    -fx-max-width: 99999;
+    -fx-max-height: 99999;
+    -fx-min-width: 0;
+    -fx-min-height: 0;
+}

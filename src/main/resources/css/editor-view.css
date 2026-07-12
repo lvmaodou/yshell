@@ -1,0 +1,161 @@
+.editor-view {
+    -fx-background-color: -fx-bg-primary;
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    -fx-font-size: 13px;
+}
+
+.editor-title-bar {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-padding: 0 4 0 12;
+    -fx-alignment: center-left;
+    -fx-min-height: 32;
+    -fx-max-height: 32;
+}
+
+.editor-title-label {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 13px;
+    -fx-label-padding: 0 8 0 8;
+    -fx-min-width: 400;
+}
+
+.editor-view .window-btn {
+    -fx-border-width: 0;
+    -fx-content-display: graphic-only;
+    -fx-padding: 4 16 4 16;
+    -fx-min-width: 40;
+    -fx-min-height: 28;
+}
+
+.editor-view .window-btn-close {
+    -fx-content-display: graphic-only;
+    -fx-padding: 4 16 4 16;
+}
+
+.editor-readonly-bar {
+    -fx-background-color: -fx-button-danger-bg;
+    -fx-text-fill: -fx-text-error;
+    -fx-padding: 0 12 0 12;
+    -fx-alignment: center-left;
+    -fx-font-size: 12px;
+    -fx-max-height: 22;
+    -fx-min-height: 22;
+    -fx-spacing: 6;
+}
+
+.editor-readonly-bar FontIcon {
+    -fx-icon-color: -fx-text-primary;
+}
+
+.editor-readonly-text {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 12px;
+}
+
+.editor-toolbar {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-padding: 2 4 2 4;
+    -fx-spacing: 2;
+    -fx-min-height: 34;
+    -fx-max-height: 34;
+}
+
+.editor-view .tool-btn {
+    -fx-padding: 4 7 4 7;
+    -fx-content-display: graphic-only;
+    -fx-font-size: 13px;
+    -fx-min-width: 32;
+    -fx-min-height: 28;
+}
+
+.editor-view .tool-btn:disabled {
+    -fx-opacity: 0.4;
+}
+
+.tool-separator {
+    -fx-padding: 2 4 2 4;
+    -fx-orientation: vertical;
+}
+
+.tool-separator .line {
+    -fx-border-style: solid;
+    -fx-border-width: 0 1 0 0;
+}
+
+/* ===== TabPane ===== */
+.editor-tabpane {
+    -fx-tab-min-height: 26;
+    -fx-tab-max-height: 26;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.editor-tabpane .tab-header-area {
+    -fx-padding: 0;
+}
+
+.editor-tabpane .tab-header-background {
+    -fx-background-color: transparent;
+}
+
+.editor-tabpane .tab {
+    -fx-background-radius: 2;
+    -fx-background-color: -fx-tab-bg;
+    -fx-padding: 4 4 4 12;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.editor-tabpane .tab:selected,
+.editor-tabpane .tab:focused,
+.editor-tabpane .tab:selected:focused {
+    -fx-background-color: -fx-tab-active-bg;
+    -fx-background-radius: 2, 2;
+}
+
+.editor-tabpane .tab .tab-label {
+    -fx-font-size: 12px;
+    -fx-padding: 0 6 0 0;
+}
+
+.editor-tabpane .tab .tab-close-button {
+    -fx-background-color: -fx-text-inverse;
+}
+
+.editor-tabpane .tab:hover .tab-close-button {
+    -fx-background-color: -fx-button-danger-bg;
+}
+
+.editor-statusbar {
+    -fx-background-color: -fx-text-info;
+    -fx-padding: 2 12 2 14;
+    -fx-font-size: 12px;
+    -fx-max-height: 24;
+    -fx-min-height: 24;
+    -fx-spacing: 14;
+}
+
+.status-item {
+    -fx-text-fill: -fx-text-inverse;
+    -fx-padding: 0 6 0 0;
+    -fx-font-size: 12px;
+}
+
+.status-cursor {
+    -fx-text-fill: -fx-text-inverse;
+    -fx-padding: 0 0 0 6;
+    -fx-font-size: 12px;
+}
+
+.status-readonly {
+    -fx-text-fill: -fx-text-inverse;
+    -fx-padding: 0 6 0 12;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.tooltip {
+    -fx-font-size: 12px;
+    -fx-padding: 4 8 4 8;
+}

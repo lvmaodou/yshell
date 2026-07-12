@@ -1,0 +1,179 @@
+.files-view {
+    -fx-background-color: -fx-bg-primary;
+}
+
+/* File Icon Styles */
+.file-icon-txt,
+.file-icon-txt FontIcon,
+.file-icon-txt .ikonli-font-icon {
+    -fx-icon-color: -fx-file-icon-txt;
+}
+
+.file-icon-log,
+.file-icon-log FontIcon,
+.file-icon-log .ikonli-font-icon {
+    -fx-icon-color: -fx-file-icon-log;
+}
+
+.file-icon-bashrc,
+.file-icon-bashrc FontIcon,
+.file-icon-bashrc .ikonli-font-icon {
+    -fx-icon-color: -fx-file-icon-bashrc;
+}
+
+.file-icon-md,
+.file-icon-md FontIcon,
+.file-icon-md .ikonli-font-icon {
+    -fx-icon-color: -fx-file-icon-md;
+}
+
+.file-icon-yaml,
+.file-icon-yaml FontIcon,
+.file-icon-yaml .ikonli-font-icon {
+    -fx-icon-color: -fx-file-icon-yaml;
+}
+
+.file-icon-css,
+.file-icon-css FontIcon,
+.file-icon-css .ikonli-font-icon {
+    -fx-icon-color: -fx-file-icon-css;
+}
+
+.file-icon-java,
+.file-icon-java FontIcon,
+.file-icon-java .ikonli-font-icon {
+    -fx-icon-color: -fx-file-icon-java;
+}
+
+.file-icon-html,
+.file-icon-html FontIcon,
+.file-icon-html .ikonli-font-icon {
+    -fx-icon-color: -fx-file-icon-html;
+}
+
+.file-icon-py,
+.file-icon-py FontIcon,
+.file-icon-py .ikonli-font-icon {
+    -fx-icon-color: -fx-file-icon-py;
+}
+
+.file-icon-js,
+.file-icon-js FontIcon,
+.file-icon-js .ikonli-font-icon {
+    -fx-icon-color: -fx-file-icon-js;
+}
+
+.file-icon-xml,
+.file-icon-xml FontIcon,
+.file-icon-xml .ikonli-font-icon {
+    -fx-icon-color: -fx-file-icon-xml;
+}
+
+.file-icon-json,
+.file-icon-json FontIcon,
+.file-icon-json .ikonli-font-icon {
+    -fx-icon-color: -fx-file-icon-json;
+}
+
+.file-icon-sh,
+.file-icon-sh FontIcon,
+.file-icon-sh .ikonli-font-icon {
+    -fx-icon-color: -fx-file-icon-sh;
+}
+
+.file-icon-folder,
+.file-icon-folder FontIcon,
+.file-icon-folder .ikonli-font-icon {
+    -fx-icon-color: -fx-file-icon-folder;
+}
+
+.files-toolbar {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 5px 3px;
+    -fx-alignment: center-left;
+    -fx-spacing: 8px;
+}
+
+.path-input {
+    -fx-padding: 4px 8px;
+    -fx-font-size: 11px;
+    -fx-min-width: 200px;
+    -fx-pref-width: 600px;
+    -fx-min-height: 26px;
+    -fx-max-height: 26px;
+}
+
+.action-buttons {
+    -fx-spacing: 4px;
+    -fx-alignment: center-right;
+}
+
+.nav-btn {
+    -fx-min-width: 26px;
+    -fx-max-width: 26px;
+    -fx-min-height: 26px;
+    -fx-max-height: 26px;
+    -fx-border-width: 1px;
+    -fx-alignment: center;
+    -fx-padding: 0;
+}
+
+.transfer-queue-btn {
+    -fx-min-width: 42px;
+    -fx-min-height: 26px;
+    -fx-max-height: 26px;
+    -fx-border-width: 1px;
+    -fx-alignment: center;
+    -fx-padding: 0;
+}
+
+.folder-tree {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 0 1px 0 0;
+    -fx-min-width: 240;
+}
+
+.folder-tree .tree-cell {
+    -fx-padding: 3px 8px;
+    -fx-font-size: 11px;
+}
+
+.file-list-area {
+    -fx-background-color: -fx-bg-primary;
+    -fx-fill-height: true;
+    -fx-fill-width: true;
+}
+
+.file-table {
+    -fx-column-resize-policy: constrained-resize;
+    -fx-alternate-row-fill-visible: false;
+}
+
+.file-table .show-hide-columns-button {
+    -fx-border-width: 0 0 1px 0;
+}
+
+.file-table .column-header {
+    -fx-padding: 4px 8px;
+    -fx-font-size: 11px;
+    -fx-alignment: center-left;
+}
+
+.file-table .column-header .label {
+    -fx-alignment: center-left;
+    -fx-padding: 0;
+}
+
+.file-table .table-row-cell,
+.file-table .table-row-cell:odd {
+    -fx-padding: 0;
+    -fx-font-size: 11px;
+}
+
+.file-table .table-cell {
+    -fx-alignment: center-left;
+    -fx-padding: 4px 8px;
+}

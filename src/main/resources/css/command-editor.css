@@ -1,0 +1,87 @@
+.command-editor {
+    -fx-background-color: -fx-bg-primary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 1;
+    -fx-padding: 0;
+}
+
+.cmd-edit-header {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 8 14;
+    -fx-alignment: center-left;
+    -fx-min-height: 40px;
+    -fx-pref-height: 40px;
+    -fx-max-height: 40px;
+}
+
+.cmd-edit-title {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+}
+
+.cmd-edit-close {
+    -fx-min-width: 24px;
+    -fx-max-width: 24px;
+    -fx-min-height: 24px;
+    -fx-max-height: 24px;
+    -fx-padding: 0;
+}
+
+.cmd-edit-body {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-padding: 18 20 16 20;
+}
+
+.cmd-edit-form {
+    -fx-spacing: 14;
+}
+
+.cmd-edit-field {
+    -fx-spacing: 6;
+}
+
+.cmd-edit-label {
+    -fx-text-fill: -fx-text-muted;
+    -fx-font-size: 11px;
+}
+
+.cmd-edit-input,
+.cmd-edit-textarea {
+    -fx-border-width: 1;
+    -fx-font-size: 12px;
+}
+
+.cmd-edit-input {
+    -fx-pref-height: 32px;
+    -fx-padding: 6 8;
+}
+
+.cmd-edit-textarea {
+    -fx-pref-height: 136px;
+    -fx-padding: 0;
+}
+
+.cmd-edit-textarea .content {
+    -fx-padding: 8;
+}
+
+.cmd-edit-actions {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default;
+    -fx-padding: 10 20;
+    -fx-spacing: 8;
+    -fx-border-width: 1 0 0 0;
+    -fx-alignment: center-left;
+    -fx-min-height: 52px;
+    -fx-pref-height: 52px;
+}
+
+.cmd-edit-button {
+    -fx-min-width: 76px;
+    -fx-pref-height: 30px;
+    -fx-padding: 6 16;
+    -fx-font-size: 12px;
+}

@@ -1,0 +1,403 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import java.lang.*?>
+<VBox xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.yshell.controller.DockerViewController"
+      stylesheets="@../css/docker-view.css">
+    <styleClass>
+        <String fx:value="docker-view"/>
+    </styleClass>
+    <HBox styleClass="docker-layout" VBox.vgrow="ALWAYS">
+        <VBox>
+            <styleClass>
+                <String fx:value="docker-sidebar"/>
+            </styleClass>
+            <VBox styleClass="docker-nav">
+                <HBox fx:id="navContainers">
+                    <styleClass>
+                        <String fx:value="hbox-interactive"/>
+                        <String fx:value="hbox-navigation"/>
+                        <String fx:value="nav-item"/>
+                        <String fx:value="active"/>
+                    </styleClass>
+                    <Label text="📦" styleClass="nav-icon"/>
+                    <Label text="容器" styleClass="nav-text"/>
+                    <Label text="5">
+                        <styleClass>
+                            <String fx:value="nav-count"/>
+                        </styleClass>
+                    </Label>
+                </HBox>
+                <HBox fx:id="navImages">
+                    <styleClass>
+                        <String fx:value="hbox-interactive"/>
+                        <String fx:value="hbox-navigation"/>
+                        <String fx:value="nav-item"/>
+                    </styleClass>
+                    <Label text="🖼️" styleClass="nav-icon"/>
+                    <Label text="镜像" styleClass="nav-text"/>
+                    <Label text="12">
+                        <styleClass>
+                            <String fx:value="nav-count"/>
+                        </styleClass>
+                    </Label>
+                </HBox>
+                <HBox fx:id="navNetworks">
+                    <styleClass>
+                        <String fx:value="hbox-interactive"/>
+                        <String fx:value="hbox-navigation"/>
+                        <String fx:value="nav-item"/>
+                    </styleClass>
+                    <Label text="🔗" styleClass="nav-icon"/>
+                    <Label text="网络" styleClass="nav-text"/>
+                    <Label text="4">
+                        <styleClass>
+                            <String fx:value="nav-count"/>
+                        </styleClass>
+                    </Label>
+                </HBox>
+                <HBox fx:id="navVolumes">
+                    <styleClass>
+                        <String fx:value="hbox-interactive"/>
+                        <String fx:value="hbox-navigation"/>
+                        <String fx:value="nav-item"/>
+                    </styleClass>
+                    <Label text="💾" styleClass="nav-icon"/>
+                    <Label text="卷" styleClass="nav-text"/>
+                    <Label text="6">
+                        <styleClass>
+                            <String fx:value="nav-count"/>
+                        </styleClass>
+                    </Label>
+                </HBox>
+            </VBox>
+            <VBox>
+                <styleClass>
+                    <String fx:value="docker-stats"/>
+                </styleClass>
+                <HBox>
+                    <styleClass>
+                        <String fx:value="stat-item"/>
+                    </styleClass>
+                    <Label text="Docker版本"/>
+                    <Label text="25.0.3">
+                        <styleClass>
+                            <String fx:value="stat-value"/>
+                        </styleClass>
+                    </Label>
+                </HBox>
+                <HBox>
+                    <styleClass>
+                        <String fx:value="stat-item"/>
+                    </styleClass>
+                    <Label text="运行中容器"/>
+                    <Label text="3">
+                        <styleClass>
+                            <String fx:value="stat-value"/>
+                        </styleClass>
+                    </Label>
+                </HBox>
+                <HBox>
+                    <styleClass>
+                        <String fx:value="stat-item"/>
+                    </styleClass>
+                    <Label text="镜像总数"/>
+                    <Label text="12">
+                        <styleClass>
+                            <String fx:value="stat-value"/>
+                        </styleClass>
+                    </Label>
+                </HBox>
+            </VBox>
+        </VBox>
+        <VBox HBox.hgrow="ALWAYS">
+            <styleClass>
+                <String fx:value="docker-content"/>
+            </styleClass>
+            <HBox>
+                <styleClass>
+                    <String fx:value="docker-toolbar"/>
+                </styleClass>
+                <Button text="↻">
+                    <styleClass>
+                        <String fx:value="tool-btn"/>
+                    </styleClass>
+                </Button>
+                <Button text="新建容器">
+                    <styleClass>
+                        <String fx:value="tool-btn"/>
+                        <String fx:value="button-primary"/>
+                    </styleClass>
+                </Button>
+                <TextField promptText="搜索容器...">
+                    <styleClass>
+                        <String fx:value="search-box"/>
+                    </styleClass>
+                </TextField>
+            </HBox>
+            <ScrollPane styleClass="docker-table-scroll" fitToWidth="true" VBox.vgrow="ALWAYS">
+                <VBox>
+                    <HBox>
+                        <styleClass>
+                            <String fx:value="table-header"/>
+                        </styleClass>
+                        <Label text="名称">
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="name"/>
+                            </styleClass>
+                        </Label>
+                        <Label text="ID" styleClass="table-col"/>
+                        <Label text="状态">
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="status"/>
+                            </styleClass>
+                        </Label>
+                        <Label text="端口" styleClass="table-col"/>
+                        <Label text="大小" styleClass="table-col"/>
+                        <Label text="创建时间" styleClass="table-col"/>
+                        <Label text="操作">
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="actions"/>
+                            </styleClass>
+                        </Label>
+                    </HBox>
+
+                    <HBox styleClass="table-row">
+                        <Label text="nginx-proxy">
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="name"/>
+                            </styleClass>
+                        </Label>
+                        <Label text="a1b2c3d4e5f6" styleClass="table-col"/>
+                        <HBox>
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="status"/>
+                            </styleClass>
+                            <Label text="running">
+                                <styleClass>
+                                    <String fx:value="status-badge"/>
+                                    <String fx:value="running"/>
+                                </styleClass>
+                            </Label>
+                        </HBox>
+                        <Label text="80:80, 443:443" styleClass="table-col"/>
+                        <Label text="156.2 MB" styleClass="table-col"/>
+                        <Label text="2025-06-01" styleClass="table-col"/>
+                        <HBox>
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="actions"/>
+                            </styleClass>
+                            <Button text="⏹">
+                                <styleClass>
+                                    <String fx:value="action-btn"/>
+                                </styleClass>
+                            </Button>
+                            <Button text="📋">
+                                <styleClass>
+                                    <String fx:value="action-btn"/>
+                                </styleClass>
+                            </Button>
+                            <Button text="🗑">
+                                <styleClass>
+                                    <String fx:value="action-btn"/>
+                                </styleClass>
+                            </Button>
+                        </HBox>
+                    </HBox>
+
+                    <HBox styleClass="table-row">
+                        <Label text="redis-master">
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="name"/>
+                            </styleClass>
+                        </Label>
+                        <Label text="b2c3d4e5f6a7" styleClass="table-col"/>
+                        <HBox>
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="status"/>
+                            </styleClass>
+                            <Label text="running">
+                                <styleClass>
+                                    <String fx:value="status-badge"/>
+                                    <String fx:value="running"/>
+                                </styleClass>
+                            </Label>
+                        </HBox>
+                        <Label text="6379:6379" styleClass="table-col"/>
+                        <Label text="105.4 MB" styleClass="table-col"/>
+                        <Label text="2025-05-28" styleClass="table-col"/>
+                        <HBox>
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="actions"/>
+                            </styleClass>
+                            <Button text="⏹">
+                                <styleClass>
+                                    <String fx:value="action-btn"/>
+                                </styleClass>
+                            </Button>
+                            <Button text="📋">
+                                <styleClass>
+                                    <String fx:value="action-btn"/>
+                                </styleClass>
+                            </Button>
+                            <Button text="🗑">
+                                <styleClass>
+                                    <String fx:value="action-btn"/>
+                                </styleClass>
+                            </Button>
+                        </HBox>
+                    </HBox>
+
+                    <HBox styleClass="table-row">
+                        <Label text="mysql-db">
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="name"/>
+                            </styleClass>
+                        </Label>
+                        <Label text="c3d4e5f6a7b8" styleClass="table-col"/>
+                        <HBox>
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="status"/>
+                            </styleClass>
+                            <Label text="running">
+                                <styleClass>
+                                    <String fx:value="status-badge"/>
+                                    <String fx:value="running"/>
+                                </styleClass>
+                            </Label>
+                        </HBox>
+                        <Label text="3306:3306" styleClass="table-col"/>
+                        <Label text="487.8 MB" styleClass="table-col"/>
+                        <Label text="2025-05-25" styleClass="table-col"/>
+                        <HBox>
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="actions"/>
+                            </styleClass>
+                            <Button text="⏹">
+                                <styleClass>
+                                    <String fx:value="action-btn"/>
+                                </styleClass>
+                            </Button>
+                            <Button text="📋">
+                                <styleClass>
+                                    <String fx:value="action-btn"/>
+                                </styleClass>
+                            </Button>
+                            <Button text="🗑">
+                                <styleClass>
+                                    <String fx:value="action-btn"/>
+                                </styleClass>
+                            </Button>
+                        </HBox>
+                    </HBox>
+
+                    <HBox styleClass="table-row">
+                        <Label text="node-app">
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="name"/>
+                            </styleClass>
+                        </Label>
+                        <Label text="d4e5f6a7b8c9" styleClass="table-col"/>
+                        <HBox>
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="status"/>
+                            </styleClass>
+                            <Label text="exited">
+                                <styleClass>
+                                    <String fx:value="status-badge"/>
+                                    <String fx:value="exited"/>
+                                </styleClass>
+                            </Label>
+                        </HBox>
+                        <Label text="-" styleClass="table-col"/>
+                        <Label text="245.6 MB" styleClass="table-col"/>
+                        <Label text="2025-05-20" styleClass="table-col"/>
+                        <HBox>
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="actions"/>
+                            </styleClass>
+                            <Button text="▶">
+                                <styleClass>
+                                    <String fx:value="action-btn"/>
+                                </styleClass>
+                            </Button>
+                            <Button text="📋">
+                                <styleClass>
+                                    <String fx:value="action-btn"/>
+                                </styleClass>
+                            </Button>
+                            <Button text="🗑">
+                                <styleClass>
+                                    <String fx:value="action-btn"/>
+                                </styleClass>
+                            </Button>
+                        </HBox>
+                    </HBox>
+
+                    <HBox styleClass="table-row">
+                        <Label text="nginx-test">
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="name"/>
+                            </styleClass>
+                        </Label>
+                        <Label text="e5f6a7b8c9d0" styleClass="table-col"/>
+                        <HBox>
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="status"/>
+                            </styleClass>
+                            <Label text="paused">
+                                <styleClass>
+                                    <String fx:value="status-badge"/>
+                                    <String fx:value="paused"/>
+                                </styleClass>
+                            </Label>
+                        </HBox>
+                        <Label text="8080:80" styleClass="table-col"/>
+                        <Label text="141.2 MB" styleClass="table-col"/>
+                        <Label text="2025-05-18" styleClass="table-col"/>
+                        <HBox>
+                            <styleClass>
+                                <String fx:value="table-col"/>
+                                <String fx:value="actions"/>
+                            </styleClass>
+                            <Button text="▶">
+                                <styleClass>
+                                    <String fx:value="action-btn"/>
+                                </styleClass>
+                            </Button>
+                            <Button text="📋">
+                                <styleClass>
+                                    <String fx:value="action-btn"/>
+                                </styleClass>
+                            </Button>
+                            <Button text="🗑">
+                                <styleClass>
+                                    <String fx:value="action-btn"/>
+                                </styleClass>
+                            </Button>
+                        </HBox>
+                    </HBox>
+                </VBox>
+            </ScrollPane>
+        </VBox>
+    </HBox>
+</VBox>

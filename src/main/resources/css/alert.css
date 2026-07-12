@@ -1,0 +1,232 @@
+.dialog-pane {
+    -fx-background-color: -fx-bg-dialog;
+    -fx-border-color: -fx-border-default;
+    -fx-background-insets: 0;
+    -fx-border-width: 1;
+    -fx-border-radius: 4;
+    -fx-padding: 0;
+    -fx-effect: dropshadow(three-pass-box, -fx-bg-shadow, 16, 0, 0, 6);
+}
+
+
+.dialog-pane .header-panel {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-border-color: -fx-border-default -fx-border-default transparent -fx-border-default;
+    -fx-padding: 6 18 6 18;
+    -fx-background-radius: 8 8 0 0;
+    -fx-border-width: 1 1 0 1;
+}
+
+.dialog-pane .header-panel .label {
+    -fx-font-size: 12px;
+    -fx-font-weight: normal;
+    -fx-font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+}
+
+.dialog-pane .header-panel .graphic-container {
+    -fx-padding: 0 10 0 0;
+}
+
+.dialog-pane .header-panel .graphic-container > .image-view {
+    -fx-fit-width: 22;
+    -fx-fit-height: 22;
+}
+
+.dialog-pane .content {
+    -fx-padding: 16 24;
+}
+
+.dialog-pane .content.label {
+    -fx-text-fill: -fx-text-secondary;
+    -fx-font-size: 12px;
+    -fx-font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    -fx-wrap-text: true;
+    -fx-max-width: 380px;
+}
+
+
+.dialog-pane .button-bar {
+    -fx-padding: 0 20 14 20;
+}
+
+.dialog-pane .button-bar > .container {
+    -fx-spacing: 10;
+    -fx-alignment: center-right;
+    -fx-padding: 4 0 0 0;
+}
+
+
+.dialog-pane .button {
+    -fx-font-size: 12px;
+    -fx-font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    -fx-padding: 6 20;
+    -fx-min-width: 70;
+    -fx-min-height: 32;
+}
+
+.dialog-pane .button:focused {
+    -fx-border-color: -fx-text-info;
+}
+
+.dialog-pane .button:default {
+    -fx-background-color: -fx-button-primary-bg;
+    -fx-text-fill: -fx-text-primary;
+    -fx-border-color: -fx-button-primary-bg;
+}
+
+.dialog-pane .button:default:hover,
+.dialog-pane .button.default:hover {
+    -fx-background-color: -fx-button-primary-hover;
+    -fx-border-color: -fx-button-primary-hover;
+}
+
+.dialog-pane.error .header-panel {
+    -fx-border-color: -fx-text-error -fx-text-error transparent -fx-text-error;
+}
+
+.dialog-pane.error .header-panel .label {
+    -fx-text-fill: -fx-text-error;
+}
+
+.dialog-pane.warning .header-panel {
+    -fx-border-color: -fx-text-warning -fx-text-warning transparent -fx-text-warning;
+}
+
+.dialog-pane.warning .header-panel .label {
+    -fx-text-fill: -fx-text-warning;
+}
+
+
+.dialog-pane.text-input .content {
+    -fx-padding: 20 24 8 24;
+}
+
+
+.dialog-pane.text-input .content.label {
+    -fx-text-fill: -fx-text-secondary;
+    -fx-font-size: 12px;
+    -fx-font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    -fx-padding: 0 0 6 0;
+}
+
+
+.dialog-pane.text-input .text-field,
+.dialog-pane.text-input .content .text-field {
+    -fx-highlight-fill: -fx-text-info;
+    -fx-highlight-text-fill: -fx-text-inverse;
+    -fx-background-insets: 0;
+    -fx-font-size: 12px;
+    -fx-font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    -fx-padding: 6 10;
+    -fx-pref-width: 320px;
+    -fx-pref-height: 32px;
+}
+
+.dialog-pane.text-input .text-field:disabled {
+    -fx-opacity: 0.55;
+}
+
+.dialog-pane.info-dialog > .content {
+    -fx-padding: 0;
+}
+
+.info-dialog-root {
+    -fx-background-color: -fx-bg-dialog;
+    -fx-pref-width: 390px;
+    -fx-max-width: 390px;
+}
+
+.info-dialog-title {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-border-color: transparent transparent -fx-border-default transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    -fx-padding: 11 16;
+    -fx-pref-width: 390px;
+    -fx-min-height: 40px;
+    -fx-alignment: center-left;
+}
+
+.info-dialog-content-card {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 1;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+    -fx-padding: 0;
+}
+
+.info-dialog-scroll {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-padding: 0;
+    -fx-pref-viewport-width: 344px;
+    -fx-min-viewport-height: 80px;
+    -fx-max-height: 280px;
+}
+
+.info-dialog-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.info-dialog-message {
+    -fx-padding: 12 14;
+    -fx-spacing: 10;
+}
+
+.info-dialog-paragraph,
+.info-dialog-section-body,
+.info-dialog-kv-value {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 12px;
+    -fx-font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    -fx-line-spacing: 2px;
+    -fx-wrap-text: true;
+}
+
+.info-dialog-section-title {
+    -fx-text-fill: -fx-text-info;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+}
+
+.info-dialog-section-body {
+    -fx-text-fill: -fx-text-secondary;
+}
+
+.info-dialog-kv-list {
+    -fx-spacing: 5;
+}
+
+.info-dialog-kv-row {
+    -fx-alignment: top-left;
+}
+
+.info-dialog-kv-key {
+    -fx-text-fill: -fx-text-secondary;
+    -fx-font-size: 12px;
+    -fx-font-family: "Consolas", "Microsoft YaHei", "Segoe UI", monospace;
+    -fx-min-width: 92px;
+    -fx-pref-width: 92px;
+}
+
+.info-dialog-kv-value {
+    -fx-text-fill: -fx-text-primary;
+}
+
+.info-dialog-scroll .scroll-bar:vertical {
+    -fx-pref-width: 8px;
+    -fx-padding: 2;
+}
+
+.info-dialog-footer {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 4 4 2 4;
+    -fx-alignment: center-right;
+}
