@@ -1,14 +1,14 @@
 # YShell - 开源 SSH 客户端
 
-<p align="center">
+<p align="left">
   <img src="src/main/resources/logo/yshell.png" alt="YShell Logo" width="120">
 </p>
 
-<p align="center">
+<p align="left">
   <strong>一款跨平台 SSH 客户端</strong>
 </p>
 
-<p align="center">
+<p align="left">
   基于 Java + JavaFX 构建，轻量、易用、功能丰富
 </p>
 
@@ -96,9 +96,9 @@
 
 | 功能 | 状态 | 描述 |
 |------|:----:|------|
-| AI 助手 | 📋 界面框架已完成 | 集成 AI API，智能命令建议、错误诊断 |
-| Docker 管理 | 📋 界面框架已完成 | 容器、镜像、网络、卷管理 |
-| Kubernetes 管理 | 📋 界面框架已完成 | Pods、Deployments、Services 等资源管理 |
+| AI 助手 | 📋 待开发 | 集成 AI API，智能命令建议、错误诊断 |
+| Docker 管理 | 📋 待开发 | 容器、镜像、网络、卷管理 |
+| Kubernetes 管理 | 📋 待开发 | Pods、Deployments、Services 等资源管理 |
 | 会话日志 |📋 待开发 | 记录终端输入输出，保存会话历史 |
 
 ---
