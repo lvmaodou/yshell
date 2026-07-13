@@ -27,7 +27,7 @@ import java.net.URI;
 public class HelpMenu extends Popup {
     private static final Logger LOGGER = LoggerFactory.getLogger(HelpMenu.class);
     private static final String APPLICATION_NAME = "YShell";
-    private static final String PROJECT_URL = "https://gitee.com/yuwenkai888/yshell";
+    private static final String PROJECT_URL = "https://github.com/lvmaodou/yshell";
     private final VBox menuContainer;
 
     public HelpMenu() {
@@ -39,7 +39,7 @@ public class HelpMenu extends Popup {
         addActionItem("软件信息", "fas-info-circle", this::showSoftwareInfo);
         addSeparator();
         addActionItem("常见问题", "fas-question-circle", this::showFAQ);
-        addActionItem("Gitee", "fab-git-alt", this::openOfficialWebsite);
+        addActionItem("Github", "fab-github", this::openOfficialWebsite);
         addActionItem("使用帮助", "fas-book", this::showHelp);
 
         getContent().add(menuContainer);

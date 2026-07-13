@@ -1,0 +1,221 @@
+{
+  "version" : "1.0.0",
+  "changelog" : "暂无更新日志",
+  "runtime" : {
+    "hash" : "97ad4ca871f520227e9053fc69b3f9c6244e9403afc9e1ff08e1137222b68542",
+    "size" : 140679158,
+    "platforms" : {
+      "windows" : {
+        "url" : "1.0.0/YShell-runtime-1.0.0-windows.zip",
+        "hash" : "cb2c74339dd8ea6e4f110bac5ca42e879ad54076bf4e806ec34aec75300b43a0",
+        "size" : 51510928
+      }
+    },
+    "java_version" : "20"
+  },
+  "app" : {
+    "files" : [ {
+      "path" : "app/.jpackage.xml",
+      "url" : "1.0.0/app/.jpackage.xml",
+      "hash" : "eecc6d5190e3f41e11604984b612aa2f81868b83137f9d0c18e228ebe95b0667",
+      "size" : 264
+    }, {
+      "path" : "app/lib/annotations-13.0.jar",
+      "url" : "1.0.0/app/lib/annotations-13.0.jar",
+      "hash" : "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+      "size" : 17536
+    }, {
+      "path" : "app/lib/commons-codec-1.19.0.jar",
+      "url" : "1.0.0/app/lib/commons-codec-1.19.0.jar",
+      "hash" : "5c3881e4f556855e9c532927ee0c9dfde94cc66760d5805c031a59887070af5f",
+      "size" : 374716
+    }, {
+      "path" : "app/lib/commons-compress-1.28.0.jar",
+      "url" : "1.0.0/app/lib/commons-compress-1.28.0.jar",
+      "hash" : "e1522945218456f3649a39bc4afd70ce4bd466221519dba7d378f2141a4642ca",
+      "size" : 1117221
+    }, {
+      "path" : "app/lib/commons-io-2.20.0.jar",
+      "url" : "1.0.0/app/lib/commons-io-2.20.0.jar",
+      "hash" : "df90bba0fe3cb586b7f164e78fe8f8f4da3f2dd5c27fa645f888100ccc25dd72",
+      "size" : 563971
+    }, {
+      "path" : "app/lib/commons-lang3-3.18.0.jar",
+      "url" : "1.0.0/app/lib/commons-lang3-3.18.0.jar",
+      "hash" : "4eeeae8d20c078abb64b015ec158add383ac581571cddc45c68f0c9ae0230720",
+      "size" : 702952
+    }, {
+      "path" : "app/lib/ikonli-core-12.3.1.jar",
+      "url" : "1.0.0/app/lib/ikonli-core-12.3.1.jar",
+      "hash" : "18dd0b3af5bbd7a64abef5af746ce49bbd66bd80f1fb89743d1e3a0f8b0fe56b",
+      "size" : 14473
+    }, {
+      "path" : "app/lib/ikonli-fontawesome5-pack-12.3.1.jar",
+      "url" : "1.0.0/app/lib/ikonli-fontawesome5-pack-12.3.1.jar",
+      "hash" : "1c24ca5c2e562afce8e5dd285334a04686e9ef5312b09eedc4a7b3d6e1711f41",
+      "size" : 302558
+    }, {
+      "path" : "app/lib/ikonli-javafx-12.3.1.jar",
+      "url" : "1.0.0/app/lib/ikonli-javafx-12.3.1.jar",
+      "hash" : "b71ef3f352c369e0e7f08c14ef89cabf8842f495a1e6c9949037d95ef4a90d8a",
+      "size" : 37509
+    }, {
+      "path" : "app/lib/jackson-annotations-2.15.2.jar",
+      "url" : "1.0.0/app/lib/jackson-annotations-2.15.2.jar",
+      "hash" : "04e21f94dcfee4b078fa5a5f53047b785aaba69d19de392f616e7a7fe5d3882f",
+      "size" : 75567
+    }, {
+      "path" : "app/lib/jackson-core-2.15.2.jar",
+      "url" : "1.0.0/app/lib/jackson-core-2.15.2.jar",
+      "hash" : "303c99e82b1faa91a0bae5d8fbeb56f7e2adf9b526a900dd723bf140d62bd4b4",
+      "size" : 549207
+    }, {
+      "path" : "app/lib/jackson-databind-2.15.2.jar",
+      "url" : "1.0.0/app/lib/jackson-databind-2.15.2.jar",
+      "hash" : "0eb2fdad6e40ab8832a78c9b22f58196dd970594e8d3d5a26ead87847c4f3a96",
+      "size" : 1620088
+    }, {
+      "path" : "app/lib/javafx-base-20-win.jar",
+      "url" : "1.0.0/app/lib/javafx-base-20-win.jar",
+      "hash" : "f3e9b702ee4c58856aa324e2722478267f401a6f22da2c40019bdcf1c647ee90",
+      "size" : 755188
+    }, {
+      "path" : "app/lib/javafx-base-20.jar",
+      "url" : "1.0.0/app/lib/javafx-base-20.jar",
+      "hash" : "6f72bdf8900268d8407e3c81f468290db6d29313ac68fe508a5735e84a825c02",
+      "size" : 302
+    }, {
+      "path" : "app/lib/javafx-controls-20-win.jar",
+      "url" : "1.0.0/app/lib/javafx-controls-20-win.jar",
+      "hash" : "390ac3c64186ea7e4f7339e4948630a410585b62219ead288054ee17c4f930d2",
+      "size" : 2577980
+    }, {
+      "path" : "app/lib/javafx-controls-20.jar",
+      "url" : "1.0.0/app/lib/javafx-controls-20.jar",
+      "hash" : "ef18e2ac8fb59ef86f2d08343337821acabae84fe98c025f1d5145c2c0347c7a",
+      "size" : 306
+    }, {
+      "path" : "app/lib/javafx-fxml-20-win.jar",
+      "url" : "1.0.0/app/lib/javafx-fxml-20-win.jar",
+      "hash" : "f2b54eee94038fd1ac48a5ced0ce2df89dff8b8815b593a7aa23f6213386bfc9",
+      "size" : 130174
+    }, {
+      "path" : "app/lib/javafx-fxml-20.jar",
+      "url" : "1.0.0/app/lib/javafx-fxml-20.jar",
+      "hash" : "6082c368ab6fcc73948b56e31e2f8a189e4cde51f75973d4424a45c09c24173a",
+      "size" : 302
+    }, {
+      "path" : "app/lib/javafx-graphics-20-win.jar",
+      "url" : "1.0.0/app/lib/javafx-graphics-20-win.jar",
+      "hash" : "5f92c109707e57c61b84c1b0b5ade1114a80125a43f93789c4ed1f5da84f4928",
+      "size" : 5886196
+    }, {
+      "path" : "app/lib/javafx-graphics-20.jar",
+      "url" : "1.0.0/app/lib/javafx-graphics-20.jar",
+      "hash" : "1ab49d24128a008d2691cda3e9f3b8029b662b580b06c1a41c8977603234ae86",
+      "size" : 306
+    }, {
+      "path" : "app/lib/javafx-media-20-win.jar",
+      "url" : "1.0.0/app/lib/javafx-media-20-win.jar",
+      "hash" : "4c42534c22871b3464a7f6ccae1543d6fc877d525acc21854b49dd38b36ba64a",
+      "size" : 1110011
+    }, {
+      "path" : "app/lib/javafx-media-20.jar",
+      "url" : "1.0.0/app/lib/javafx-media-20.jar",
+      "hash" : "b22b33acb1863f456ac8a830adb8d6ffef17c0b36df06d42343c9aa42a4ffc5f",
+      "size" : 303
+    }, {
+      "path" : "app/lib/javafx-web-20-win.jar",
+      "url" : "1.0.0/app/lib/javafx-web-20-win.jar",
+      "hash" : "aa89952f64b3782fd2d0e626081274f7f4b066259c1541ac4da37f0b883735cd",
+      "size" : 29157826
+    }, {
+      "path" : "app/lib/javafx-web-20.jar",
+      "url" : "1.0.0/app/lib/javafx-web-20.jar",
+      "hash" : "a91b55377e0a51195533921eff1db921f2ac2ac51cbb1ed5da6dcb30bef81bfb",
+      "size" : 301
+    }, {
+      "path" : "app/lib/jcl-over-slf4j-1.7.36.jar",
+      "url" : "1.0.0/app/lib/jcl-over-slf4j-1.7.36.jar",
+      "hash" : "ab57ca8fd223772c17365d121f59e94ecbf0ae59d08c03a3cb5b81071c019195",
+      "size" : 16555
+    }, {
+      "path" : "app/lib/jediterm-core-3.70.jar",
+      "url" : "1.0.0/app/lib/jediterm-core-3.70.jar",
+      "hash" : "d94732a512d4c328b1fd6ec9163428b2d4351a2828989e8240f1e575949d93d1",
+      "size" : 237404
+    }, {
+      "path" : "app/lib/jna-5.19.1.jar",
+      "url" : "1.0.0/app/lib/jna-5.19.1.jar",
+      "hash" : "4fb141dd8ef6b0585ffceea4bc49602fbc6312fa977e2c488794ea3e6aafecae",
+      "size" : 1950853
+    }, {
+      "path" : "app/lib/jna-platform-5.19.1.jar",
+      "url" : "1.0.0/app/lib/jna-platform-5.19.1.jar",
+      "hash" : "3b3864f5b449e9c3c24b16861524b622b086563f44e0cd8384c8efc5a6052f82",
+      "size" : 1416385
+    }, {
+      "path" : "app/lib/kotlin-stdlib-2.4.0.jar",
+      "url" : "1.0.0/app/lib/kotlin-stdlib-2.4.0.jar",
+      "hash" : "ccb14ff83fabcb11458b798dbc9824748ccdffeec79c9aba789e6ed1cda86b1c",
+      "size" : 1841929
+    }, {
+      "path" : "app/lib/logback-classic-1.5.13.jar",
+      "url" : "1.0.0/app/lib/logback-classic-1.5.13.jar",
+      "hash" : "08ef8336024b094be417f795e68c6c74479296d8141533327a3a4d06dee261ed",
+      "size" : 303550
+    }, {
+      "path" : "app/lib/logback-core-1.5.13.jar",
+      "url" : "1.0.0/app/lib/logback-core-1.5.13.jar",
+      "hash" : "233ff3ee9275acf4e00f4a11727b5c6b807e8f418c4c22ae2384cdbf3c81aa10",
+      "size" : 624691
+    }, {
+      "path" : "app/lib/slf4j-api-2.0.15.jar",
+      "url" : "1.0.0/app/lib/slf4j-api-2.0.15.jar",
+      "hash" : "5bfda32d723dde8ccef9db6bdc2537dabdb87321597c7e00e66a73a5777fbb24",
+      "size" : 69519
+    }, {
+      "path" : "app/lib/sshd-common-3.0.0-M4.jar",
+      "url" : "1.0.0/app/lib/sshd-common-3.0.0-M4.jar",
+      "hash" : "f3b4ff95edcc3eba3dd7dbb80eb3b5cea6bb1ef8b6a387705409f692b59d1cc3",
+      "size" : 999446
+    }, {
+      "path" : "app/lib/sshd-core-3.0.0-M4.jar",
+      "url" : "1.0.0/app/lib/sshd-core-3.0.0-M4.jar",
+      "hash" : "f6f0772b8dc03e5fb6ea440ae0e5f6e1ec419dfd0ee9df116b8b79b21b7086c2",
+      "size" : 1060415
+    }, {
+      "path" : "app/lib/sshd-sftp-3.0.0-M4.jar",
+      "url" : "1.0.0/app/lib/sshd-sftp-3.0.0-M4.jar",
+      "hash" : "2746aa47cf06c5bf6ff3f76dc57aed8f9e2f3717f03c20a4a2c1586ac6ebbff6",
+      "size" : 392676
+    }, {
+      "path" : "app/YShell.cfg",
+      "url" : "1.0.0/app/YShell.cfg",
+      "hash" : "0edaafaa569afc7b427ad82168d9be8e337454da6174653ebed7a1c068273a6a",
+      "size" : 1906
+    }, {
+      "path" : "app/YShell.jar",
+      "url" : "1.0.0/app/YShell.jar",
+      "hash" : "8fa49eac6afbe672051669d86cd4a6bc7dc6ed54e6d36831b09751cbb1b47c12",
+      "size" : 4625314
+    }, {
+      "path" : "updater/update.ps1",
+      "url" : "1.0.0/updater/update.ps1",
+      "hash" : "9d1c5decc46e45943595a006bd2ec85ea64e50ca254f0a012c1060ff5b05da72",
+      "size" : 3679
+    }, {
+      "path" : "YShell.exe",
+      "url" : "1.0.0/YShell.exe",
+      "hash" : "c83848330d812c026d37c707e6138378eef4e2506ba805352468bdec22b67347",
+      "size" : 461312
+    } ],
+    "delete" : [ ]
+  },
+  "launcher" : {
+    "platforms" : { },
+    "update_required" : false
+  },
+  "release_date" : "2026-07-13",
+  "min_updatable_version" : "1.0.0"
+}

@@ -20,7 +20,7 @@ import java.util.function.Consumer;
 
 public class UpdateManager {
 
-    private static final String UPDATE_SERVER_URL = "http://127.0.0.1:8888/yshell/";
+    private static final String UPDATE_SERVER_URL = "https://lvmaodou.github.io/yshell/update/";
     private static final String LATEST_JSON = "latest.json";
     private static final boolean ENABLE_MOCK = false;
     private static final String APP_DIR_NAME = "app";

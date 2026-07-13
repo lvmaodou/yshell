@@ -304,6 +304,28 @@
                                     </arguments>
                                 </configuration>
                             </execution>
+                            <execution>
+                                <id>publish-update-output</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>powershell.exe</executable>
+                                    <arguments>
+                                        <argument>-NoProfile</argument>
+                                        <argument>-ExecutionPolicy</argument>
+                                        <argument>Bypass</argument>
+                                        <argument>-File</argument>
+                                        <argument>build/publish-update-output.ps1</argument>
+                                        <argument>-ReleaseDir</argument>
+                                        <argument>${jpackage.output}\${app.name}</argument>
+                                        <argument>-UpdateDir</argument>
+                                        <argument>${project.basedir}\update</argument>
+                                        <argument>-RemoveReleaseDir</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
                         </executions>
                     </plugin>
                 </plugins>
