@@ -110,16 +110,8 @@ public class ConnectionManager {
             connectRdp(connInfo);
             return;
         }
-        rdpConnectionTreeMode = false;
         boolean createTab = connId == null;
         connId = connId == null ? generateConnectionId(connInfo) : connId;
-        if (isCurrent) {
-            stopCurrentPolling();
-            if (leftPanelController != null) {
-                leftPanelController.showConnection(connId, connInfo);
-            }
-            this.currentConnectionId = connId;
-        }
 
         String finalConnId = connId;
         SshService sshService = new SshService(connInfo, new SshService.ConnectionCallback() {
@@ -140,6 +132,17 @@ public class ConnectionManager {
                     if (filesViewController != null) {
                         filesViewController.showForConnection(finalConnId);
                     }
+                    if (isCurrent) {
+                        rdpConnectionTreeMode = false;
+                        stopCurrentPolling();
+                        if (leftPanelController != null) {
+                            leftPanelController.showConnection(finalConnId, connInfo);
+                        }
+                        currentConnectionId = finalConnId;
+                        if (connectedService != null && connectedService.isExecAvailable()) {
+                            startPolling(finalConnId);
+                        }
+                    }
                     fireConnectionStateChanged();
                 });
 
@@ -147,12 +150,14 @@ public class ConnectionManager {
 
             @Override
             public void onConnectionFailed(String error) {
+                String message = normalizeConnectionError(error);
                 Platform.runLater(() -> {
+                    connections.remove(finalConnId);
                     TerminalPanelController terminalPanel = getTerminalPanelController(finalConnId);
                     if (terminalPanel != null) {
                         terminalPanel.appendOutput("连接失败: " + error + "\n");
                     }
-                    fireConnectionStateChanged();
+                    DialogHelper.showError("连接失败", connectionDisplayName(connInfo) + "\n" + message);
                 });
             }
 
@@ -192,10 +197,6 @@ public class ConnectionManager {
 
         connections.put(connId, sshService);
         sshService.connect();
-        if (isCurrent && sshService.isExecAvailable()) {
-            startPolling(finalConnId);
-        }
-        fireConnectionStateChanged();
     }
 
     private boolean isRdpConnection(ConnInfo connInfo) {
@@ -204,10 +205,10 @@ public class ConnectionManager {
     }
 
     private void connectRdp(ConnInfo connInfo) {
-        rdpConnectionTreeMode = false;
         executor.submit(() -> {
             try {
                 RdpService.connect(connInfo);
+                rdpConnectionTreeMode = false;
                 RecentConnectionRepository.getInstance().record(connInfo);
             } catch (Exception e) {
                 LOGGER.error("RDP connect failed", e);
@@ -349,6 +350,23 @@ public class ConnectionManager {
 
     public Map<String, SshService> getAllConnections() {
         return new ConcurrentHashMap<>(connections);
+    }
+
+    private String normalizeConnectionError(String error) {
+        return error == null || error.isBlank() ? "未知错误" : error;
+    }
+
+    private String connectionDisplayName(ConnInfo connInfo) {
+        if (connInfo == null) {
+            return "";
+        }
+        String name = connInfo.getName();
+        String host = connInfo.getHost();
+        int port = connInfo.getPort() > 0 ? connInfo.getPort() : 22;
+        if (name != null && !name.isBlank()) {
+            return name + " (" + (host != null ? host : "") + ":" + port + ")";
+        }
+        return (host != null && !host.isBlank() ? host : "SSH") + ":" + port;
     }
 
 

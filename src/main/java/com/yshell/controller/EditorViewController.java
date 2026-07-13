@@ -298,6 +298,7 @@ public class EditorViewController {
 
             controller.createBlankTab();
         } catch (IOException e) {
+            DialogHelper.showError("错误", "无法创建编辑器窗口: " + e.getMessage());
             LOGGER.error("创建编辑器窗口失败: {}", e.getMessage());
         }
     }

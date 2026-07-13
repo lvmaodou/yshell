@@ -558,6 +558,10 @@ public class PanelManager {
         return systemInfoVisible;
     }
 
+    public boolean isForceConnectionInfoVisible() {
+        return forceConnectionInfoVisible;
+    }
+
     public boolean isSystemInfoPanelVisible() {
         return systemInfoVisible && !forceConnectionInfoVisible;
     }

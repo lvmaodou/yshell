@@ -4,6 +4,7 @@ import com.yshell.theme.ThemeManager;
 import com.yshell.ui.ApplicationIcons;
 import com.yshell.ui.DropdownMenu;
 import com.yshell.ui.HelpMenu;
+import com.yshell.ui.DialogHelper;
 import com.yshell.ui.WindowDragResize;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -234,6 +235,7 @@ public class ToolbarController {
             ThemeManager.getInstance().unregisterScene(dialogScene);
         } catch (IOException e) {
             LOGGER.error("openConnectionDialog error", e);
+            DialogHelper.showError("错误", "无法打开连接管理器: " + e.getMessage());
         }
     }
 
@@ -277,6 +279,7 @@ public class ToolbarController {
             dialogStage.show();
         } catch (IOException e) {
             LOGGER.error("openCommandManager error", e);
+            DialogHelper.showError("错误", "无法打开命令管理器: " + e.getMessage());
         }
     }
 
@@ -314,6 +317,7 @@ public class ToolbarController {
             ThemeManager.getInstance().unregisterScene(dialogScene);
         } catch (IOException e) {
             LOGGER.error("openKeyManager error", e);
+            DialogHelper.showError("错误", "无法打开密钥管理器: " + e.getMessage());
         }
     }
 
@@ -348,6 +352,7 @@ public class ToolbarController {
             ThemeManager.getInstance().unregisterScene(dialogScene);
         } catch (IOException e) {
             LOGGER.error("openSettings error", e);
+            DialogHelper.showError("错误", "无法打开设置窗口: " + e.getMessage());
         }
     }
 

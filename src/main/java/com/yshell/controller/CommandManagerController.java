@@ -392,6 +392,7 @@ public class CommandManagerController {
             stage.showAndWait();
             ThemeManager.getInstance().unregisterScene(scene);
         } catch (IOException e) {
+            DialogHelper.showError("错误", "无法加载命令编辑器: " + e.getMessage());
             LOGGER.error("加载命令编辑器失败", e);
         }
     }

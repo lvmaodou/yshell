@@ -334,6 +334,7 @@ public class ConnectionManagerController {
 
             stage.showAndWait();
         } catch (IOException e) {
+            DialogHelper.showError("错误", "无法加载连接编辑器: " + e.getMessage());
             LOGGER.error("加载连接编辑器 FXML 失败", e);
         }
     }

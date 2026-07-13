@@ -30,6 +30,19 @@
     -fx-padding: 0;
 }
 
+.connection-tab.active {
+    -fx-background-color: -fx-tab-active-bg;
+}
+
+.connection-tab.active .tab-number,
+.connection-tab.active .tab-label {
+    -fx-text-fill: -fx-text-inverse;
+}
+
+.connection-tab.active .tab-close .ikonli-font-icon {
+    -fx-icon-color: -fx-text-inverse;
+}
+
 .tab-status-dot {
     -fx-min-width: 8;
     -fx-max-width: 8;
