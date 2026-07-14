@@ -69,8 +69,36 @@ public class DockerService {
         return run(sshService, "docker " + action + " " + shellQuote(id));
     }
 
+    public SshService.CommandResult containerRun(SshService sshService, String image) {
+        return run(sshService, "docker run -d " + shellQuote(image));
+    }
+
     public SshService.CommandResult containerLogs(SshService sshService, String id) {
         return run(sshService, "docker logs --tail 300 " + shellQuote(id));
+    }
+
+    public SshService.CommandResult containerInspect(SshService sshService, String id) {
+        return run(sshService, "docker inspect " + shellQuote(id));
+    }
+
+    public SshService.CommandResult containerStats(SshService sshService, String id) {
+        return run(sshService, "docker stats --no-stream --no-trunc " + shellQuote(id));
+    }
+
+    public SshService.CommandResult containerTop(SshService sshService, String id) {
+        return run(sshService, "docker top " + shellQuote(id));
+    }
+
+    public SshService.CommandResult containerDiff(SshService sshService, String id) {
+        return run(sshService, "docker diff " + shellQuote(id));
+    }
+
+    public SshService.CommandResult containerRename(SshService sshService, String id, String name) {
+        return run(sshService, "docker rename " + shellQuote(id) + " " + shellQuote(name));
+    }
+
+    public SshService.CommandResult containerCopy(SshService sshService, String source, String target) {
+        return run(sshService, "docker cp " + shellQuote(source) + " " + shellQuote(target));
     }
 
     public SshService.CommandResult imageAction(SshService sshService, String action, String id) {

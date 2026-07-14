@@ -7,6 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -89,6 +91,82 @@ public class DockerSessionManager {
         }, workerExecutor);
     }
 
+    public CompletableFuture<SshService.CommandResult> containerRun(String connId, ConnInfo connInfo, String image) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.containerRun(session, image),
+                "Run Docker container failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> containerLogs(String connId, ConnInfo connInfo, String id) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.containerLogs(session, id),
+                "Read Docker container logs failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> containerInspect(String connId, ConnInfo connInfo, String id) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.containerInspect(session, id),
+                "Inspect Docker container failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> containerStats(String connId, ConnInfo connInfo, String id) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.containerStats(session, id),
+                "Read Docker container stats failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> containerTop(String connId, ConnInfo connInfo, String id) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.containerTop(session, id),
+                "Read Docker container processes failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> containerDiff(String connId, ConnInfo connInfo, String id) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.containerDiff(session, id),
+                "Read Docker container changes failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> containerRename(String connId, ConnInfo connInfo, String id, String name) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.containerRename(session, id, name),
+                "Rename Docker container failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> containerCopy(String connId, ConnInfo connInfo, String source, String target) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.containerCopy(session, source, target),
+                "Copy Docker container file failed");
+    }
+
+    public CompletableFuture<DockerBatchResult> containerBatchAction(String connId, ConnInfo connInfo, String action, List<String> ids) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<String> targets = ids == null ? List.of() : ids.stream()
+                    .filter(id -> id != null && !id.isBlank())
+                    .toList();
+            if (targets.isEmpty()) {
+                return new DockerBatchResult(0, 0, List.of());
+            }
+            try {
+                SshService session = ensureSession(connId, connInfo);
+                List<String> failures = new ArrayList<>();
+                int succeeded = 0;
+                for (String id : targets) {
+                    SshService.CommandResult result = dockerService.containerAction(session, action, id);
+                    if (result.isSuccess()) {
+                        succeeded++;
+                    } else {
+                        failures.add(id + ": " + firstNonBlank(result.stderr(), firstNonBlank(result.stdout(), "执行失败")));
+                    }
+                }
+                return new DockerBatchResult(targets.size(), succeeded, failures);
+            } catch (Exception e) {
+                return new DockerBatchResult(targets.size(), 0,
+                        List.of(e.getMessage() == null ? "Docker batch operation failed" : e.getMessage()));
+            }
+        }, workerExecutor);
+    }
+
     public void closeSession(String connId) {
         if (connId == null) {
             return;
@@ -116,6 +194,24 @@ public class DockerSessionManager {
         sessions.keySet().forEach(this::closeSession);
         workerExecutor.shutdownNow();
         sshExecutor.shutdownNow();
+    }
+
+    private CompletableFuture<SshService.CommandResult> runDockerCommand(String connId,
+                                                                         ConnInfo connInfo,
+                                                                         DockerCommand command,
+                                                                         String fallbackMessage) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return command.execute(ensureSession(connId, connInfo));
+            } catch (Exception e) {
+                return new SshService.CommandResult(-1, "",
+                        e.getMessage() == null ? fallbackMessage : e.getMessage(), false);
+            }
+        }, workerExecutor);
+    }
+
+    private String firstNonBlank(String first, String second) {
+        return first != null && !first.isBlank() ? first : second == null ? "" : second;
     }
 
     private SshService ensureSession(String connId, ConnInfo connInfo) throws IOException {
@@ -166,6 +262,17 @@ public class DockerSessionManager {
             sessions.put(connId, session);
             return session;
         }
+    }
+
+    public record DockerBatchResult(int total, int succeeded, List<String> failures) {
+        public boolean isSuccess() {
+            return failures == null || failures.isEmpty();
+        }
+    }
+
+    @FunctionalInterface
+    private interface DockerCommand {
+        SshService.CommandResult execute(SshService session);
     }
 
     private static final class NamedDaemonThreadFactory implements ThreadFactory {

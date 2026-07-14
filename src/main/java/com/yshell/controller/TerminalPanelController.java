@@ -337,6 +337,24 @@ public class TerminalPanelController {
         terminal.appendBytesToScreen(output.getBytes(StandardCharsets.UTF_8));
     }
 
+    public boolean executeShellCommand(String command) {
+        if (command == null || command.isBlank() || currentShellService == null) {
+            return false;
+        }
+        String text = command.endsWith("\n") || command.endsWith("\r") ? command : command + "\n";
+        if (currentShellService.isShellOpen()) {
+            writeCommandToShell(text);
+            return true;
+        }
+        return false;
+    }
+
+    private void writeCommandToShell(String command) {
+        PanelManager.getInstance().toggleInteractivePanel(true);
+        currentShellService.writeToShell(command.getBytes(StandardCharsets.UTF_8));
+        Platform.runLater(terminal::requestFocus);
+    }
+
     /**
      * 本地清屏。不再依赖远端 shell 支持 "clear\n"，因此切 Tab / 未连接时都能生效。
      */

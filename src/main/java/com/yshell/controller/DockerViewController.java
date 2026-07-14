@@ -5,7 +5,9 @@ import com.yshell.model.docker.DockerSnapshot;
 import com.yshell.service.ConnectionManager;
 import com.yshell.service.DockerService;
 import com.yshell.service.DockerSessionManager;
+import com.yshell.service.SshService;
 import com.yshell.terminal.Imm32;
+import com.yshell.ui.DialogHelper;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -351,9 +353,9 @@ public class DockerViewController {
         if (showCacheFirst && cached != null) {
             applySnapshot(cached);
             setStatus("显示缓存，正在刷新...");
-        } else if (cached == null) {
+        } else {
             rows.clear();
-            setStatus("正在获取 Docker 信息...");
+            setStatus(cached == null ? "正在获取 Docker 信息..." : "正在刷新 Docker 信息...");
         }
 
         long serial = ++refreshSerial;
@@ -401,7 +403,8 @@ public class DockerViewController {
                             firstNonBlank(container.image(), "-"),
                             firstNonBlank(container.state(), container.status()),
                             firstNonBlank(container.ports(), "-"),
-                            firstNonBlank(container.createdAt(), "-")
+                            firstNonBlank(container.createdAt(), "-"),
+                            container.id()
                     )));
             case IMAGES -> currentSnapshot.images().forEach(image ->
                     rows.add(new DockerRow(
@@ -411,7 +414,8 @@ public class DockerViewController {
                             firstNonBlank(image.size(), "-"),
                             firstNonBlank(image.tag(), "-"),
                             firstNonBlank(image.used(), "-"),
-                            firstNonBlank(image.createdSince(), image.createdAt())
+                            firstNonBlank(image.createdSince(), image.createdAt()),
+                            image.id()
                     )));
             case NETWORKS -> currentSnapshot.networks().forEach(network ->
                     rows.add(new DockerRow(
@@ -420,7 +424,9 @@ public class DockerViewController {
                             shortId(network.id()),
                             network.driver(),
                             network.scope(),
-                            "IPv6=" + firstNonBlank(network.ipv6(), "false")
+                            "IPv6=" + firstNonBlank(network.ipv6(), "false"),
+                            "",
+                            network.id()
                     )));
             case VOLUMES -> currentSnapshot.volumes().forEach(volume ->
                     rows.add(new DockerRow(
@@ -429,7 +435,9 @@ public class DockerViewController {
                             firstNonBlank(volume.used(), "-"),
                             firstNonBlank(volume.createdAt(), "-"),
                             firstNonBlank(volume.mountpoint(), "-"),
-                            ""
+                            "",
+                            "",
+                            volume.name()
                     )));
         }
         applySearchFilter();
@@ -485,7 +493,6 @@ public class DockerViewController {
     private List<Operation> operationsFor(Section section) {
         return switch (section) {
             case CONTAINERS -> List.of(
-                    new Operation("创建/运行", "fas-plus", false),
                     new Operation("启动", "fas-play", true),
                     new Operation("停止", "fas-stop", true),
                     new Operation("重启", "fas-redo", true),
@@ -495,6 +502,7 @@ public class DockerViewController {
             );
             case IMAGES -> List.of(
                     new Operation("拉取", "fas-download", false),
+                    new Operation("运行容器", "fas-play", true),
                     new Operation("删除", "fas-trash", true),
                     new Operation("推送", "fas-upload", true),
                     new Operation("打标签", "fas-tag", true),
@@ -532,8 +540,8 @@ public class DockerViewController {
     private List<String> singleActionsFor(Section section) {
         return switch (section) {
             case CONTAINERS ->
-                    List.of("详情", "日志", "进入容器", "资源占用", "进程", "端口映射", "文件变更", "提交为镜像", "重命名", "拷贝文件");
-            case IMAGES -> List.of("详情", "历史", "构建自此镜像", "导出");
+                    List.of("详情", "日志", "进入容器", "资源占用", "进程", "文件变更", "重命名", "拷贝文件");
+            case IMAGES -> List.of("详情", "运行容器", "历史", "构建自此镜像", "导出");
             case NETWORKS -> List.of("详情", "网络类型", "连接容器", "断开容器");
             case VOLUMES -> List.of("详情", "备份", "恢复");
             case CONFIG -> List.of();
@@ -672,12 +680,370 @@ public class DockerViewController {
     }
 
     private void executeBatchOperation(String operation) {
-        int selected = selectedRows().size();
-        showInfo(operation, "功能待实现" + (selected > 0 ? "\n已选择 " + selected + " 项。" : ""));
+        if (activeSection == Section.IMAGES && "运行容器".equals(operation)) {
+            runContainersFromImages();
+            return;
+        }
+        if (activeSection != Section.CONTAINERS) {
+            DialogHelper.showInfo(operation, "功能待实现" + (!selectedRows().isEmpty() ? "\n已选择 " + selectedRows().size() + " 项。" : ""));
+            return;
+        }
+        switch (operation) {
+            case "启动" -> runContainerBatch("start", operation, false);
+            case "停止" -> runContainerBatch("stop", operation, true);
+            case "重启" -> runContainerBatch("restart", operation, true);
+            case "删除" -> runContainerBatch("rm", operation, true);
+            case "暂停" -> runContainerBatch("pause", operation, false);
+            case "恢复" -> runContainerBatch("unpause", operation, false);
+            default -> DialogHelper.showInfo(operation, "功能待实现");
+        }
     }
 
     private void executeSingleOperation(String operation, DockerRow row) {
-        showInfo(operation, "功能待实现\n\n" + row.name());
+        if (row == null) {
+            return;
+        }
+        if (row.kind() == Section.IMAGES && "运行容器".equals(operation)) {
+            runContainerFromImage(row);
+            return;
+        }
+        if (row.kind() != Section.CONTAINERS) {
+            DialogHelper.showInfo(operation, "功能待实现\n\n" + row.name());
+            return;
+        }
+        DockerConnectionContext context = requireDockerConnection(operation);
+        if (context == null) {
+            return;
+        }
+        if (!supportsContainerSingleAction(operation, row)) {
+            DialogHelper.showWarning(operation, "当前容器状态不支持该操作");
+            return;
+        }
+        switch (operation) {
+            case "详情" -> showContainerCommandResult(operation, row,
+                    sessionManager.containerInspect(context.connId(), context.connInfo(), row.commandTarget()));
+            case "日志" -> showContainerCommandResult(operation, row,
+                    sessionManager.containerLogs(context.connId(), context.connInfo(), row.commandTarget()));
+            case "进入容器" -> enterContainer(row);
+            case "资源占用" -> showContainerCommandResult(operation, row,
+                    sessionManager.containerStats(context.connId(), context.connInfo(), row.commandTarget()));
+            case "进程" -> showContainerCommandResult(operation, row,
+                    sessionManager.containerTop(context.connId(), context.connInfo(), row.commandTarget()));
+            case "文件变更" -> showContainerCommandResult(operation, row,
+                    sessionManager.containerDiff(context.connId(), context.connInfo(), row.commandTarget()));
+            case "重命名" -> renameContainer(row);
+            case "拷贝文件" -> copyContainerFile(row);
+            default -> DialogHelper.showInfo(operation, "功能待实现\n\n" + row.name());
+        }
+    }
+
+    private void runContainerFromImage(DockerRow row) {
+        DockerConnectionContext context = requireDockerConnection("运行容器");
+        if (context == null) {
+            return;
+        }
+        String image = DialogHelper.showTextInput("运行容器", null, "镜像", imageReference(row));
+        if (image == null) {
+            return;
+        }
+        setStatus("正在创建容器...");
+        sessionManager.containerRun(context.connId(), context.connInfo(), image).thenAccept(result ->
+                Platform.runLater(() -> {
+                    if (result.isSuccess()) {
+                        setStatus("容器已创建");
+                        refreshForCurrentConnection(false);
+                    } else {
+                        setStatus("创建容器失败");
+                        DialogHelper.showError("运行容器", commandMessage(result));
+                    }
+                }));
+    }
+
+    private void runContainersFromImages() {
+        DockerConnectionContext context = requireDockerConnection("运行容器");
+        if (context == null) {
+            return;
+        }
+        List<DockerRow> selected = selectedRows().stream()
+                .filter(row -> row.kind() == Section.IMAGES)
+                .toList();
+        if (selected.isEmpty()) {
+            DialogHelper.showWarning("运行容器", "请先选择镜像");
+            return;
+        }
+        if (selected.size() == 1) {
+            runContainerFromImage(selected.get(0));
+            return;
+        }
+        if (!DialogHelper.showConfirm("运行容器", "确定要基于选中的 " + selected.size() + " 个镜像分别创建容器吗？")) {
+            return;
+        }
+        List<String> images = selected.stream()
+                .map(this::imageReference)
+                .filter(image -> image != null && !image.isBlank())
+                .toList();
+        setStatus("正在创建容器...");
+        runImageBatch(context, images, 0, 0, new ArrayList<>());
+    }
+
+    private void runImageBatch(DockerConnectionContext context, List<String> images, int index,
+                               int succeeded, List<String> failures) {
+        if (index >= images.size()) {
+            Platform.runLater(() -> {
+                setStatus("运行容器完成：" + succeeded + "/" + images.size());
+                if (!failures.isEmpty()) {
+                    DialogHelper.showWarning("运行容器", String.join("\n", failures));
+                }
+                refreshForCurrentConnection(false);
+            });
+            return;
+        }
+        String image = images.get(index);
+        sessionManager.containerRun(context.connId(), context.connInfo(), image).thenAccept(result -> {
+            int nextSucceeded = result.isSuccess() ? succeeded + 1 : succeeded;
+            List<String> nextFailures = failures;
+            if (!result.isSuccess()) {
+                nextFailures = new ArrayList<>(failures);
+                nextFailures.add(image + ": " + commandMessage(result));
+            }
+            runImageBatch(context, images, index + 1, nextSucceeded, nextFailures);
+        });
+    }
+
+    private void runContainerBatch(String dockerAction, String title, boolean confirm) {
+        DockerConnectionContext context = requireDockerConnection(title);
+        if (context == null) {
+            return;
+        }
+        List<DockerRow> selected = selectedRows().stream()
+                .filter(row -> row.kind() == Section.CONTAINERS)
+                .toList();
+        if (selected.isEmpty()) {
+            DialogHelper.showWarning(title, "请先选择容器");
+            return;
+        }
+        List<DockerRow> runnable = selected.stream()
+                .filter(row -> supportsContainerBatchAction(dockerAction, row))
+                .toList();
+        List<DockerRow> skipped = selected.stream()
+                .filter(row -> !supportsContainerBatchAction(dockerAction, row))
+                .toList();
+        if (runnable.isEmpty()) {
+            DialogHelper.showWarning(title, "所选容器当前状态不支持该操作");
+            return;
+        }
+        if (confirm && !DialogHelper.showConfirm(title, "确定要" + title + "选中的 " + selected.size() + " 个容器吗？")) {
+            return;
+        }
+        List<String> ids = runnable.stream().map(DockerRow::commandTarget).toList();
+        setStatus("正在" + title + "容器...");
+        sessionManager.containerBatchAction(context.connId(), context.connInfo(), dockerAction, ids).thenAccept(result ->
+                Platform.runLater(() -> {
+                    if (result.isSuccess()) {
+                        setStatus(title + "完成：" + result.succeeded() + "/" + result.total());
+                        if (skipped.isEmpty()) {
+                            refreshForCurrentConnection(false);
+                            return;
+                        }
+                        DialogHelper.showWarning(title, batchMessage(result, skipped));
+                        refreshForCurrentConnection(false);
+                    } else {
+                        setStatus(title + "部分失败：" + result.succeeded() + "/" + result.total());
+                        DialogHelper.showWarning(title, batchMessage(result, skipped));
+                        refreshForCurrentConnection(false);
+                    }
+                }));
+    }
+
+    private void showContainerCommandResult(String title, DockerRow row, CompletableFuture<SshService.CommandResult> future) {
+        setStatus("正在读取" + title + "...");
+        future.thenAccept(result -> Platform.runLater(() -> {
+            if (result.isSuccess()) {
+                setStatus(title + "已读取");
+                showTextDialog(title, row.name(), commandMessage(result));
+            } else {
+                setStatus(title + "读取失败");
+                DialogHelper.showError(title, commandMessage(result));
+            }
+        }));
+    }
+
+    private void enterContainer(DockerRow row) {
+        DockerConnectionContext context = requireDockerConnection("进入容器");
+        if (context == null) {
+            return;
+        }
+        TerminalPanelController terminalController = ConnectionManager.getInstance().getTerminalPanelController(context.connId());
+        if (terminalController == null) {
+            DialogHelper.showWarning("进入容器", "当前连接没有可用终端");
+            return;
+        }
+        if (!terminalController.executeShellCommand("docker exec -it " + shellArg(row.commandTarget()) + " sh")) {
+            DialogHelper.showWarning("进入容器", "终端未就绪");
+        }
+    }
+
+    private void renameContainer(DockerRow row) {
+        DockerConnectionContext context = requireDockerConnection("重命名");
+        if (context == null) {
+            return;
+        }
+        String name = DialogHelper.showTextInput("重命名容器", null, "名称", row.name());
+        if (name == null || name.equals(row.name())) {
+            return;
+        }
+        setStatus("正在重命名容器...");
+        sessionManager.containerRename(context.connId(), context.connInfo(), row.commandTarget(), name).thenAccept(result ->
+                Platform.runLater(() -> handleMutationResult("重命名", result)));
+    }
+
+    private void copyContainerFile(DockerRow row) {
+        DockerConnectionContext context = requireDockerConnection("拷贝文件");
+        if (context == null) {
+            return;
+        }
+        String source = DialogHelper.showTextInput("拷贝文件", null,
+                "源路径", row.name() + ":/path/in/container");
+        if (source == null) {
+            return;
+        }
+        String target = DialogHelper.showTextInput("拷贝文件", null,
+                "目标路径", "/tmp/");
+        if (target == null) {
+            return;
+        }
+        setStatus("正在拷贝文件...");
+        sessionManager.containerCopy(context.connId(), context.connInfo(), source, target).thenAccept(result ->
+                Platform.runLater(() -> handleMutationResult("拷贝文件", result)));
+    }
+
+    private void handleMutationResult(String title, SshService.CommandResult result) {
+        if (result.isSuccess()) {
+            setStatus(title + "完成");
+            refreshForCurrentConnection(false);
+        } else {
+            setStatus(title + "失败");
+            DialogHelper.showError(title, commandMessage(result));
+        }
+    }
+
+    private DockerConnectionContext requireDockerConnection(String title) {
+        String connId = activeConnId();
+        ConnInfo connInfo = activeConnInfo();
+        if (connId == null || connInfo == null || !ConnectionManager.getInstance().isConnected(connId)) {
+            DialogHelper.showWarning(title, "未连接");
+            return null;
+        }
+        return new DockerConnectionContext(connId, connInfo);
+    }
+
+    private String activeConnId() {
+        return activeConnId == null ? ConnectionManager.getInstance().getCurrentConnectionId() : activeConnId;
+    }
+
+    private ConnInfo activeConnInfo() {
+        ConnectionManager connectionManager = ConnectionManager.getInstance();
+        SshService service = connectionManager.getConnectionById(activeConnId());
+        if (service != null) {
+            return service.getConnInfo();
+        }
+        return connectionManager.getCurrentConnection();
+    }
+
+    private String commandMessage(SshService.CommandResult result) {
+        if (result == null) {
+            return "执行失败";
+        }
+        String stdout = result.stdout() == null ? "" : result.stdout().trim();
+        String stderr = result.stderr() == null ? "" : result.stderr().trim();
+        String message = firstNonBlank(stdout, stderr);
+        if (!message.isBlank()) {
+            return message;
+        }
+        return result.isSuccess() ? "执行成功" : "执行失败";
+    }
+
+    private void showTextDialog(String title, String header, String content) {
+        TextArea area = new TextArea(content == null ? "" : content);
+        area.setEditable(false);
+        area.setWrapText(false);
+        area.setPrefColumnCount(100);
+        area.setPrefRowCount(24);
+        String dialogTitle = header == null || header.isBlank() ? title : title + " - " + header;
+        DialogHelper.<Void>showCustomDialog(dialogTitle, area, button -> null);
+    }
+
+    private String batchMessage(DockerSessionManager.DockerBatchResult result, List<DockerRow> skipped) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("成功 ").append(result.succeeded()).append(" / ").append(result.total());
+        if (skipped != null && !skipped.isEmpty()) {
+            builder.append("\n跳过 ").append(skipped.size()).append(" 项状态不支持");
+        }
+        if (result.failures() != null && !result.failures().isEmpty()) {
+            builder.append("\n\n失败项：\n");
+            for (String failure : result.failures()) {
+                builder.append(failure).append('\n');
+            }
+        }
+        return builder.toString().trim();
+    }
+
+    private String shellArg(String value) {
+        if (value == null) {
+            return "''";
+        }
+        return "'" + value.replace("'", "'\"'\"'") + "'";
+    }
+
+    private String imageReference(DockerRow row) {
+        if (row == null) {
+            return "";
+        }
+        String repository = row.name();
+        String tag = row.detail();
+        if (repository == null || repository.isBlank() || "-".equals(repository) || "<none>".equals(repository)) {
+            return row.commandTarget();
+        }
+        if (tag == null || tag.isBlank() || "-".equals(tag) || "<none>".equals(tag)) {
+            return repository;
+        }
+        return repository + ":" + tag;
+    }
+
+    private boolean supportsContainerBatchAction(String dockerAction, DockerRow row) {
+        String state = containerState(row);
+        return switch (dockerAction) {
+            case "start" -> !isRunningState(state) && !isPausedState(state);
+            case "stop" -> isRunningState(state) || isPausedState(state);
+            case "restart" -> isRunningState(state);
+            case "pause" -> isRunningState(state);
+            case "unpause" -> isPausedState(state);
+            case "rm" -> true;
+            default -> true;
+        };
+    }
+
+    private boolean supportsContainerSingleAction(String operation, DockerRow row) {
+        String state = containerState(row);
+        return switch (operation) {
+            case "进入容器", "资源占用", "进程" -> isRunningState(state);
+            default -> true;
+        };
+    }
+
+    private String containerState(DockerRow row) {
+        return row == null || row.detail() == null ? "" : row.detail().trim().toLowerCase(Locale.ROOT);
+    }
+
+    private boolean isRunningState(String state) {
+        return "running".equals(state) || state.startsWith("up");
+    }
+
+    private boolean isPausedState(String state) {
+        return "paused".equals(state);
+    }
+
+    private record DockerConnectionContext(String connId, ConnInfo connInfo) {
     }
 
     private void updateColumns() {
@@ -810,11 +1176,7 @@ public class DockerViewController {
     }
 
     private void showInfo(String title, String content) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        alert.showAndWait();
+        DialogHelper.showInfo(title, content);
     }
 
     private Button makeToolbarButton(String tooltipText, String iconLiteral, boolean requiresSelection, Runnable action) {
@@ -876,13 +1238,19 @@ public class DockerViewController {
         private final String detail;
         private final String extra;
         private final String more;
+        private final String commandTarget;
         private final SimpleBooleanProperty selected = new SimpleBooleanProperty(false);
 
         private DockerRow(Section kind, String name, String id, String status, String detail, String extra) {
-            this(kind, name, id, status, detail, extra, "");
+            this(kind, name, id, status, detail, extra, "", id);
         }
 
         private DockerRow(Section kind, String name, String id, String status, String detail, String extra, String more) {
+            this(kind, name, id, status, detail, extra, more, id);
+        }
+
+        private DockerRow(Section kind, String name, String id, String status, String detail, String extra,
+                          String more, String commandTarget) {
             this.kind = kind;
             this.name = name;
             this.id = id;
@@ -890,6 +1258,7 @@ public class DockerViewController {
             this.detail = detail;
             this.extra = extra;
             this.more = more;
+            this.commandTarget = commandTarget;
         }
 
         private Section kind() {
@@ -918,6 +1287,10 @@ public class DockerViewController {
 
         private String more() {
             return more;
+        }
+
+        private String commandTarget() {
+            return commandTarget == null || commandTarget.isBlank() ? id : commandTarget;
         }
 
         private SimpleBooleanProperty selectedProperty() {
