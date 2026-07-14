@@ -108,7 +108,7 @@
 
                 <VBox fx:id="configPane" styleClass="config-pane" managed="false" visible="false">
                     <HBox styleClass="config-header">
-                        <Label text="/etc/docker/daemon.json" styleClass="config-path"/>
+                        <Label fx:id="configPathLabel" text="/etc/docker/daemon.json" styleClass="config-path"/>
                         <Region HBox.hgrow="ALWAYS"/>
                         <Label text="保存后需重启 Docker 生效" styleClass="config-hint"/>
                     </HBox>

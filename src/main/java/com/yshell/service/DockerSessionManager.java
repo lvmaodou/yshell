@@ -2,14 +2,15 @@ package com.yshell.service;
 
 import com.yshell.model.ConnInfo;
 import com.yshell.model.docker.DockerSnapshot;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class DockerSessionManager {
@@ -36,19 +37,6 @@ public class DockerSessionManager {
         return connId == null ? null : snapshots.get(connId);
     }
 
-    public CompletableFuture<SshService> openSession(String connId, ConnInfo connInfo) {
-        if (connId == null || connInfo == null) {
-            return CompletableFuture.failedFuture(new IOException("Missing connection"));
-        }
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return ensureSession(connId, connInfo);
-            } catch (IOException e) {
-                throw new CompletionException(e);
-            }
-        }, workerExecutor);
-    }
-
     public CompletableFuture<DockerSnapshot> refreshSnapshot(String connId, ConnInfo connInfo) {
         if (connId == null || connInfo == null) {
             return CompletableFuture.completedFuture(DockerSnapshot.empty("Missing connection"));
@@ -64,6 +52,39 @@ public class DockerSessionManager {
                 DockerSnapshot fallback = DockerSnapshot.empty(e.getMessage() == null ? "Docker refresh failed" : e.getMessage());
                 snapshots.put(connId, fallback);
                 return fallback;
+            }
+        }, workerExecutor);
+    }
+
+    public CompletableFuture<DockerService.DockerConfigFile> loadConfigFile(String connId, ConnInfo connInfo) {
+        if (connId == null || connInfo == null) {
+            return CompletableFuture.completedFuture(new DockerService.DockerConfigFile("/etc/docker/daemon.json", "", "Missing connection"));
+        }
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return dockerService.loadConfigFile(ensureSession(connId, connInfo));
+            } catch (Exception e) {
+                return new DockerService.DockerConfigFile("/etc/docker/daemon.json", "", e.getMessage() == null ? "Load Docker config failed" : e.getMessage());
+            }
+        }, workerExecutor);
+    }
+
+    public CompletableFuture<SshService.CommandResult> saveConfigFile(String connId, ConnInfo connInfo, String path, String content) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return dockerService.saveConfigFile(ensureSession(connId, connInfo), path, content);
+            } catch (Exception e) {
+                return new SshService.CommandResult(-1, "", e.getMessage() == null ? "Save Docker config failed" : e.getMessage(), false);
+            }
+        }, workerExecutor);
+    }
+
+    public CompletableFuture<SshService.CommandResult> restartDocker(String connId, ConnInfo connInfo) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return dockerService.restartDocker(ensureSession(connId, connInfo));
+            } catch (Exception e) {
+                return new SshService.CommandResult(-1, "", e.getMessage() == null ? "Restart Docker failed" : e.getMessage(), false);
             }
         }, workerExecutor);
     }
@@ -156,7 +177,7 @@ public class DockerSessionManager {
         }
 
         @Override
-        public Thread newThread(Runnable r) {
+        public Thread newThread(@NotNull Runnable r) {
             Thread thread = new Thread(r, prefix + "-" + counter.getAndIncrement());
             thread.setDaemon(true);
             return thread;

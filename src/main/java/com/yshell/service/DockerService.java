@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
@@ -28,11 +29,11 @@ public class DockerService {
         }
 
         String version = versionResult.stdout();
-        String serverVersion = readTextField(version, "Server", "Version");
-        String apiVersion = readTextField(version, "Server", "ApiVersion");
-        String os = readTextField(version, "Server", "Os");
-        String arch = readTextField(version, "Server", "Arch");
-        String build = readTextField(version, "Server", "BuildTime");
+        String serverVersion = readTextField(version, "Version");
+        String apiVersion = readTextField(version, "ApiVersion");
+        String os = readTextField(version, "Os");
+        String arch = readTextField(version, "Arch");
+        String build = readTextField(version, "BuildTime");
 
         SshService.CommandResult infoResult = run(sshService, "docker info --format '{{json .}}'");
         JsonNode infoNode = parseJson(infoResult.stdout());
@@ -84,6 +85,41 @@ public class DockerService {
         return run(sshService, "docker " + action + " " + shellQuote(name));
     }
 
+    public DockerConfigFile loadConfigFile(SshService sshService) {
+        String path = detectDockerConfigPath(sshService);
+        String output = run(sshService,
+                "path=" + shellQuote(path) + "; "
+                        + "if [ -r \"$path\" ]; then cat \"$path\"; "
+                        + "elif sudo -n test -r \"$path\" 2>/dev/null; then sudo -n cat \"$path\"; "
+                        + "elif [ -e \"$path\" ]; then echo __YSHELL_CONFIG_PERMISSION_DENIED__; "
+                        + "else echo __YSHELL_CONFIG_MISSING__; fi").stdout();
+        String content = output == null ? "" : output;
+        if (content.contains("__YSHELL_CONFIG_PERMISSION_DENIED__")) {
+            return new DockerConfigFile(path, "", "没有权限读取配置文件");
+        }
+        if (content.contains("__YSHELL_CONFIG_MISSING__")) {
+            return new DockerConfigFile(path, "{\n  \n}\n", "");
+        }
+        return new DockerConfigFile(path, content, "");
+    }
+
+    public SshService.CommandResult saveConfigFile(SshService sshService, String path, String content) {
+        String encoded = Base64.getEncoder().encodeToString((content == null ? "" : content).getBytes(StandardCharsets.UTF_8));
+        String command = "path=" + shellQuote(path) + "; tmp=$(mktemp); "
+                + "printf %s " + shellQuote(encoded) + " | base64 -d > \"$tmp\" && "
+                + "(install -m 0644 \"$tmp\" \"$path\" 2>/dev/null || sudo -n install -m 0644 \"$tmp\" \"$path\"); "
+                + "rc=$?; rm -f \"$tmp\"; exit $rc";
+        return run(sshService, command);
+    }
+
+    public SshService.CommandResult restartDocker(SshService sshService) {
+        return run(sshService,
+                "systemctl restart docker 2>/dev/null "
+                        + "|| service docker restart 2>/dev/null "
+                        + "|| sudo -n systemctl restart docker 2>/dev/null "
+                        + "|| sudo -n service docker restart");
+    }
+
     private SshService.CommandResult run(SshService sshService, String command) {
         String fullCommand = "sh -lc " + shellQuote(command);
         SshService.CommandResult result = sshService.executeRemoteCommand(fullCommand, DEFAULT_TIMEOUT);
@@ -91,6 +127,16 @@ public class DockerService {
             LOGGER.debug("docker command stderr: {}", result.stderr());
         }
         return result;
+    }
+
+    private String detectDockerConfigPath(SshService sshService) {
+        String command = "args=$(ps -eo args | grep '[d]ockerd' | head -n 1); "
+                + "path=$(printf '%s\\n' \"$args\" | awk '{for (i=1;i<=NF;i++){if ($i==\"--config-file\" && i<NF){print $(i+1); exit} if ($i ~ /^--config-file=/){sub(/^--config-file=/,\"\",$i); print $i; exit}}}'); "
+                + "[ -n \"$path\" ] || [ ! -f \"$HOME/.config/docker/daemon.json\" ] || path=\"$HOME/.config/docker/daemon.json\"; "
+                + "[ -n \"$path\" ] || path=/etc/docker/daemon.json; "
+                + "printf '%s\\n' \"$path\"";
+        String path = firstLine(run(sshService, command).stdout());
+        return path.isBlank() ? "/etc/docker/daemon.json" : path;
     }
 
     private List<DockerContainer> parseContainers(String output) {
@@ -138,7 +184,7 @@ public class DockerService {
                     textValue(node, "CreatedAt"),
                     textValue(node, "Size"),
                     textValue(node, "Containers"),
-                    used ? "\u5df2\u4f7f\u7528" : "\u672a\u4f7f\u7528"
+                    used ? "在使用" : "未使用"
             ));
         });
         return rows;
@@ -202,7 +248,7 @@ public class DockerService {
                     firstNonBlank(textValue(node, "Driver"), textValue(inspectNode, "Driver")),
                     firstNonBlank(textValue(node, "Scope"), textValue(inspectNode, "Scope")),
                     mountpoint,
-                    textOrJsonValue(inspectNode, "Labels"),
+                    textOrJsonValue(inspectNode),
                     usageLabel(usedVolumes.contains(name)),
                     textValue(inspectNode, "CreatedAt")
             ));
@@ -254,9 +300,9 @@ public class DockerService {
         }
     }
 
-    private String readTextField(String json, String section, String field) {
+    private String readTextField(String json, String field) {
         JsonNode node = parseJson(json);
-        return textValue(node == null ? null : node.path(section), field);
+        return textValue(node == null ? null : node.path("Server"), field);
     }
 
     private String textValue(JsonNode node, String field) {
@@ -267,11 +313,11 @@ public class DockerService {
         return value.isMissingNode() || value.isNull() ? "" : value.asText("");
     }
 
-    private String textOrJsonValue(JsonNode node, String field) {
+    private String textOrJsonValue(JsonNode node) {
         if (node == null || node.isMissingNode() || node.isNull()) {
             return "";
         }
-        JsonNode value = node.path(field);
+        JsonNode value = node.path("Labels");
         if (value.isMissingNode() || value.isNull()) {
             return "";
         }
@@ -293,7 +339,7 @@ public class DockerService {
     }
 
     private String usageLabel(boolean used) {
-        return used ? "\u5df2\u4f7f\u7528" : "\u672a\u4f7f\u7528";
+        return used ? "在使用" : "未使用";
     }
 
     private String firstLine(String output) {
@@ -305,6 +351,9 @@ public class DockerService {
             return "''";
         }
         return "'" + value.replace("'", "'\"'\"'") + "'";
+    }
+
+    public record DockerConfigFile(String path, String content, String error) {
     }
 
     @FunctionalInterface

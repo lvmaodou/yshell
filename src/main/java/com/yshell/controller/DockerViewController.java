@@ -3,7 +3,9 @@ package com.yshell.controller;
 import com.yshell.model.ConnInfo;
 import com.yshell.model.docker.DockerSnapshot;
 import com.yshell.service.ConnectionManager;
+import com.yshell.service.DockerService;
 import com.yshell.service.DockerSessionManager;
+import com.yshell.terminal.Imm32;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -12,14 +14,15 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
+import javafx.geometry.Bounds;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
+import javafx.scene.input.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.ArrayList;
@@ -36,8 +39,10 @@ public class DockerViewController {
     private Section activeSection = Section.CONTAINERS;
     private DockerSnapshot currentSnapshot;
     private String activeConnId;
+    private String activeConfigPath = "/etc/docker/daemon.json";
     private boolean tabVisible;
     private long refreshSerial;
+    private long configSerial;
 
     @FXML
     private Button navContainers;
@@ -85,12 +90,15 @@ public class DockerViewController {
     @FXML
     private VBox configPane;
     @FXML
+    private Label configPathLabel;
+    @FXML
     private TextArea configEditor;
 
     @FXML
     public void initialize() {
         configureTable();
         configureActions();
+        configureConfigEditorIme();
         ConnectionManager.getInstance().addOnConnectionStateChangedListener(
                 () -> Platform.runLater(() -> Platform.runLater(this::onConnectionStateChanged)));
         switchSection(Section.CONTAINERS);
@@ -103,7 +111,7 @@ public class DockerViewController {
         }
         this.tabVisible = visible;
         if (visible) {
-            refreshForCurrentConnection(true);
+            refreshVisibleContent();
         } else if (activeConnId != null) {
             sessionManager.closeSession(activeConnId);
             setStatus("Docker 会话已关闭");
@@ -286,8 +294,29 @@ public class DockerViewController {
         navConfig.setOnAction(e -> switchSection(Section.CONFIG));
     }
 
+    private void configureConfigEditorIme() {
+        configEditor.focusedProperty().addListener((obs, oldValue, focused) -> {
+            if (focused) {
+                Platform.runLater(this::updateConfigEditorImePosition);
+            }
+        });
+        configEditor.setOnMouseClicked(event -> Platform.runLater(this::updateConfigEditorImePosition));
+        configEditor.addEventHandler(KeyEvent.KEY_PRESSED, event -> Platform.runLater(this::updateConfigEditorImePosition));
+        configEditor.addEventHandler(KeyEvent.KEY_RELEASED, event -> Platform.runLater(this::updateConfigEditorImePosition));
+        configEditor.addEventHandler(InputMethodEvent.INPUT_METHOD_TEXT_CHANGED,
+                event -> Platform.runLater(this::updateConfigEditorImePosition));
+    }
+
     private void onConnectionStateChanged() {
         if (tabVisible) {
+            refreshVisibleContent();
+        }
+    }
+
+    private void refreshVisibleContent() {
+        if (activeSection == Section.CONFIG) {
+            loadDockerConfig();
+        } else {
             refreshForCurrentConnection(true);
         }
     }
@@ -354,6 +383,11 @@ public class DockerViewController {
     private void renderRows() {
         rows.clear();
         updateColumns();
+        if (activeSection == Section.CONFIG) {
+            loadDockerConfig();
+            updateToolbarButtonState();
+            return;
+        }
         if (currentSnapshot == null) {
             updateToolbarButtonState();
             return;
@@ -397,11 +431,6 @@ public class DockerViewController {
                             firstNonBlank(volume.mountpoint(), "-"),
                             ""
                     )));
-            case CONFIG -> {
-                if (configEditor.getText().isBlank()) {
-                    configEditor.setText("{\n  \n}\n");
-                }
-            }
         }
         applySearchFilter();
         updateToolbarButtonState();
@@ -423,6 +452,13 @@ public class DockerViewController {
         configPane.setManaged(config);
         searchBox.setVisible(!config);
         searchBox.setManaged(!config);
+        if (config) {
+            Platform.runLater(() -> {
+                configEditor.requestFocus();
+                configEditor.positionCaret(configEditor.getText() == null ? 0 : configEditor.getText().length());
+                updateConfigEditorImePosition();
+            });
+        }
     }
 
     private void configureToolbar() {
@@ -430,10 +466,17 @@ public class DockerViewController {
             return;
         }
         List<Button> buttons = new ArrayList<>();
-        buttons.add(makeToolbarButton("刷新", "fas-sync", false, () -> refreshForCurrentConnection(false)));
+        buttons.add(makeToolbarButton("刷新", "fas-sync", false,
+                () -> {
+                    if (activeSection == Section.CONFIG) {
+                        loadDockerConfig();
+                    } else {
+                        refreshForCurrentConnection(false);
+                    }
+                }));
         for (Operation operation : operationsFor(activeSection)) {
             buttons.add(makeToolbarButton(operation.name(), operation.iconLiteral(), operation.requiresSelection(),
-                    () -> executeBatchOperation(operation.name())));
+                    () -> executeOperation(operation)));
         }
         toolbarActions.getChildren().setAll(buttons);
         updateToolbarButtonState();
@@ -495,6 +538,137 @@ public class DockerViewController {
             case VOLUMES -> List.of("详情", "备份", "恢复");
             case CONFIG -> List.of();
         };
+    }
+
+    private void executeOperation(Operation operation) {
+        if (activeSection == Section.CONFIG) {
+            if ("fas-save".equals(operation.iconLiteral())) {
+                saveDockerConfig();
+                return;
+            }
+            if ("fas-power-off".equals(operation.iconLiteral())) {
+                restartDocker();
+                return;
+            }
+        }
+        executeBatchOperation(operation.name());
+    }
+
+    private void loadDockerConfig() {
+        ConnectionManager connectionManager = ConnectionManager.getInstance();
+        String connId = connectionManager.getCurrentConnectionId();
+        ConnInfo connInfo = connectionManager.getCurrentConnection();
+        if (connId == null || connInfo == null || !connectionManager.isConnected(connId)) {
+            activeConfigPath = "/etc/docker/daemon.json";
+            configPathLabel.setText(activeConfigPath);
+            configEditor.clear();
+            setStatus("未连接");
+            return;
+        }
+        long serial = ++configSerial;
+        configPathLabel.setText(activeConfigPath);
+        configEditor.setText("正在读取 Docker 配置文件...");
+        sessionManager.loadConfigFile(connId, connInfo).thenAccept(config ->
+                Platform.runLater(() -> applyDockerConfig(serial, config)));
+    }
+
+    private void applyDockerConfig(long serial, DockerService.DockerConfigFile config) {
+        if (serial != configSerial || activeSection != Section.CONFIG) {
+            return;
+        }
+        activeConfigPath = firstNonBlank(config.path(), "/etc/docker/daemon.json");
+        configPathLabel.setText(activeConfigPath);
+        configEditor.setText(config.content() == null ? "" : config.content());
+        if (config.error() != null && !config.error().isBlank()) {
+            setStatus(config.error());
+        } else {
+            setStatus("Docker 配置文件已读取");
+        }
+        Platform.runLater(() -> {
+            configEditor.requestFocus();
+            configEditor.positionCaret(configEditor.getText() == null ? 0 : configEditor.getText().length());
+            updateConfigEditorImePosition();
+        });
+    }
+
+    private void updateConfigEditorImePosition() {
+        if (!com.sun.jna.Platform.isWindows()
+                || configEditor == null
+                || configEditor.getScene() == null
+                || !configEditor.isFocused()) {
+            return;
+        }
+        Point2D screenPoint = caretScreenPoint();
+        if (screenPoint == null) {
+            screenPoint = configEditor.localToScreen(12, 28);
+        }
+        if (screenPoint == null) {
+            return;
+        }
+        double scaleX = configEditor.getScene().getWindow() == null
+                ? 1.0
+                : configEditor.getScene().getWindow().getOutputScaleX();
+        double scaleY = configEditor.getScene().getWindow() == null
+                ? 1.0
+                : configEditor.getScene().getWindow().getOutputScaleY();
+        Imm32.setCompositionWindowPosition(
+                (int) (screenPoint.getX() * scaleX),
+                (int) (screenPoint.getY() * scaleY)
+        );
+    }
+
+    private Point2D caretScreenPoint() {
+        Node caret = configEditor.lookup(".caret");
+        if (caret == null) {
+            return null;
+        }
+        Bounds bounds = caret.localToScreen(caret.getBoundsInLocal());
+        if (bounds == null) {
+            return null;
+        }
+        return new Point2D(bounds.getMinX(), bounds.getMaxY());
+    }
+
+    private void saveDockerConfig() {
+        ConnectionManager connectionManager = ConnectionManager.getInstance();
+        String connId = connectionManager.getCurrentConnectionId();
+        ConnInfo connInfo = connectionManager.getCurrentConnection();
+        if (connId == null || connInfo == null || !connectionManager.isConnected(connId)) {
+            showInfo("保存配置", "未连接");
+            return;
+        }
+        String path = firstNonBlank(activeConfigPath, "/etc/docker/daemon.json");
+        setStatus("正在保存 Docker 配置...");
+        sessionManager.saveConfigFile(connId, connInfo, path, configEditor.getText()).thenAccept(result ->
+                Platform.runLater(() -> {
+                    if (result.isSuccess()) {
+                        setStatus("Docker 配置已保存");
+                    } else {
+                        setStatus("Docker 配置保存失败");
+                        showInfo("保存配置", firstNonBlank(result.stderr(), "保存失败"));
+                    }
+                }));
+    }
+
+    private void restartDocker() {
+        ConnectionManager connectionManager = ConnectionManager.getInstance();
+        String connId = connectionManager.getCurrentConnectionId();
+        ConnInfo connInfo = connectionManager.getCurrentConnection();
+        if (connId == null || connInfo == null || !connectionManager.isConnected(connId)) {
+            showInfo("重启 Docker", "未连接");
+            return;
+        }
+        setStatus("正在重启 Docker...");
+        sessionManager.restartDocker(connId, connInfo).thenAccept(result ->
+                Platform.runLater(() -> {
+                    if (result.isSuccess()) {
+                        setStatus("Docker 已重启");
+                        refreshForCurrentConnection(false);
+                    } else {
+                        setStatus("Docker 重启失败");
+                        showInfo("重启 Docker", firstNonBlank(result.stderr(), "重启失败"));
+                    }
+                }));
     }
 
     private void executeBatchOperation(String operation) {
@@ -651,7 +825,9 @@ public class DockerViewController {
         Button button = new Button();
         button.getStyleClass().add("tool-icon-btn");
         button.setGraphic(icon);
-        button.setTooltip(new Tooltip(tooltipText));
+        Tooltip tooltip = new Tooltip(tooltipText);
+        tooltip.setShowDelay(new Duration(200));
+        button.setTooltip(tooltip);
         button.setMinSize(30, 28);
         button.setPrefSize(30, 28);
         button.setMaxSize(30, 28);
