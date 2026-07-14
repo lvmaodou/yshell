@@ -19,7 +19,6 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -69,8 +68,6 @@ public class DockerViewController {
     @FXML
     private TextField searchBox;
     @FXML
-    private StackPane contentStack;
-    @FXML
     private TableView<DockerRow> dockerTable;
     @FXML
     private TableColumn<DockerRow, Boolean> colSelect;
@@ -84,6 +81,7 @@ public class DockerViewController {
     private TableColumn<DockerRow, String> colDetail;
     @FXML
     private TableColumn<DockerRow, String> colExtra;
+    private TableColumn<DockerRow, String> colMore;
     @FXML
     private VBox configPane;
     @FXML
@@ -94,9 +92,9 @@ public class DockerViewController {
         configureTable();
         configureActions();
         ConnectionManager.getInstance().addOnConnectionStateChangedListener(
-                () -> Platform.runLater(this::onConnectionStateChanged));
+                () -> Platform.runLater(() -> Platform.runLater(this::onConnectionStateChanged)));
         switchSection(Section.CONTAINERS);
-        showEmptyState("未连接");
+        showEmptyState();
     }
 
     public void setTabVisible(boolean visible) {
@@ -156,11 +154,15 @@ public class DockerViewController {
         colStatus.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().status()));
         colDetail.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().detail()));
         colExtra.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().extra()));
+        colMore = new TableColumn<>();
+        colMore.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().more()));
         colName.setCellFactory(column -> createSelectableCenteredCell());
         colId.setCellFactory(column -> createSelectableCenteredCell());
         colStatus.setCellFactory(column -> createSelectableCenteredCell());
         colDetail.setCellFactory(column -> createSelectableCenteredCell());
         colExtra.setCellFactory(column -> createSelectableCenteredCell());
+        colMore.setCellFactory(column -> createSelectableCenteredCell());
+        dockerTable.getColumns().add(colMore);
 
         dockerTable.getSelectionModel().getSelectedItems().addListener((ListChangeListener<DockerRow>) c -> syncSelectionState());
         dockerTable.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
@@ -263,8 +265,13 @@ public class DockerViewController {
             builder.append(row.name()).append('\t')
                     .append(row.id()).append('\t')
                     .append(row.status()).append('\t')
-                    .append(row.detail()).append('\t')
-                    .append(row.extra());
+                    .append(row.detail());
+            if (colExtra.isVisible()) {
+                builder.append('\t').append(row.extra());
+            }
+            if (row.kind() == Section.CONTAINERS || row.kind() == Section.IMAGES) {
+                builder.append('\t').append(row.more());
+            }
         }
         ClipboardContent content = new ClipboardContent();
         content.putString(builder.toString());
@@ -296,7 +303,7 @@ public class DockerViewController {
             }
             activeConnId = null;
             currentSnapshot = null;
-            showEmptyState("未连接");
+            showEmptyState();
             return;
         }
 
@@ -305,7 +312,9 @@ public class DockerViewController {
                 sessionManager.closeSession(activeConnId);
             }
             activeConnId = connId;
+            currentSnapshot = null;
             searchBox.clear();
+            showEmptyState();
             setStatus("正在连接 Docker...");
         }
 
@@ -355,17 +364,19 @@ public class DockerViewController {
                             Section.CONTAINERS,
                             firstNonBlank(container.name(), container.id()),
                             shortId(container.id()),
+                            firstNonBlank(container.image(), "-"),
                             firstNonBlank(container.state(), container.status()),
-                            firstNonBlank(container.image(), container.ports()),
-                            firstNonBlank(container.createdAt(), container.size())
+                            firstNonBlank(container.ports(), "-"),
+                            firstNonBlank(container.createdAt(), "-")
                     )));
             case IMAGES -> currentSnapshot.images().forEach(image ->
                     rows.add(new DockerRow(
                             Section.IMAGES,
-                            image.repository() + ":" + image.tag(),
+                            firstNonBlank(image.repository(), "-"),
                             shortId(image.id()),
                             firstNonBlank(image.size(), "-"),
-                            firstNonBlank(image.containers(), ""),
+                            firstNonBlank(image.tag(), "-"),
+                            firstNonBlank(image.used(), "-"),
                             firstNonBlank(image.createdSince(), image.createdAt())
                     )));
             case NETWORKS -> currentSnapshot.networks().forEach(network ->
@@ -381,9 +392,9 @@ public class DockerViewController {
                     rows.add(new DockerRow(
                             Section.VOLUMES,
                             volume.name(),
-                            volume.driver(),
-                            volume.scope(),
-                            volume.mountpoint(),
+                            firstNonBlank(volume.used(), "-"),
+                            firstNonBlank(volume.createdAt(), "-"),
+                            firstNonBlank(volume.mountpoint(), "-"),
                             ""
                     )));
             case CONFIG -> {
@@ -496,20 +507,36 @@ public class DockerViewController {
     }
 
     private void updateColumns() {
+        colMore.setVisible(activeSection == Section.CONTAINERS || activeSection == Section.IMAGES);
+        colExtra.setVisible(activeSection != Section.VOLUMES);
         switch (activeSection) {
             case CONTAINERS -> {
-                colName.setText("容器");
+                colName.setText("名称");
                 colId.setText("ID");
-                colStatus.setText("状态");
-                colDetail.setText("镜像 / 端口");
-                colExtra.setText("创建 / 大小");
+                colStatus.setText("镜像");
+                colDetail.setText("状态");
+                colExtra.setText("端口");
+                colMore.setText("创建时间");
+                colName.setPrefWidth(180);
+                colId.setPrefWidth(130);
+                colStatus.setPrefWidth(220);
+                colDetail.setPrefWidth(120);
+                colExtra.setPrefWidth(240);
+                colMore.setPrefWidth(180);
             }
             case IMAGES -> {
-                colName.setText("镜像");
+                colName.setText("名称");
                 colId.setText("ID");
                 colStatus.setText("大小");
-                colDetail.setText("容器数");
-                colExtra.setText("创建时间");
+                colDetail.setText("标签");
+                colExtra.setText("状态");
+                colMore.setText("创建时间");
+                colName.setPrefWidth(200);
+                colId.setPrefWidth(130);
+                colStatus.setPrefWidth(140);
+                colDetail.setPrefWidth(180);
+                colExtra.setPrefWidth(120);
+                colMore.setPrefWidth(180);
             }
             case NETWORKS -> {
                 colName.setText("网络");
@@ -517,13 +544,21 @@ public class DockerViewController {
                 colStatus.setText("驱动");
                 colDetail.setText("作用域");
                 colExtra.setText("属性");
+                colName.setPrefWidth(220);
+                colId.setPrefWidth(130);
+                colStatus.setPrefWidth(160);
+                colDetail.setPrefWidth(260);
+                colExtra.setPrefWidth(180);
             }
             case VOLUMES -> {
-                colName.setText("存储卷");
-                colId.setText("驱动");
-                colStatus.setText("作用域");
+                colName.setText("名称");
+                colId.setText("状态");
+                colStatus.setText("创建时间");
                 colDetail.setText("挂载点");
-                colExtra.setText("标签");
+                colName.setPrefWidth(220);
+                colId.setPrefWidth(120);
+                colStatus.setPrefWidth(180);
+                colDetail.setPrefWidth(420);
             }
             case CONFIG -> {
                 // Config mode uses the editor pane.
@@ -558,7 +593,8 @@ public class DockerViewController {
                 || contains(row.id(), query)
                 || contains(row.status(), query)
                 || contains(row.detail(), query)
-                || contains(row.extra(), query));
+                || contains(row.extra(), query)
+                || contains(row.more(), query));
     }
 
     private void updateToolbarButtonState() {
@@ -575,7 +611,7 @@ public class DockerViewController {
         }
     }
 
-    private void showEmptyState(String status) {
+    private void showEmptyState() {
         rows.clear();
         lblContainersCount.setText("0");
         lblImagesCount.setText("0");
@@ -583,7 +619,7 @@ public class DockerViewController {
         lblVolumesCount.setText("0");
         lblDockerVersion.setText("-");
         lblApiVersion.setText("-");
-        setStatus(status);
+        setStatus("未连接");
     }
 
     private List<DockerRow> selectedRows() {
@@ -636,7 +672,8 @@ public class DockerViewController {
         if (id == null || id.isBlank()) {
             return "";
         }
-        return id.length() <= 12 ? id : id.substring(0, 12);
+        String normalized = id.startsWith("sha256:") ? id.substring("sha256:".length()) : id;
+        return normalized.length() <= 12 ? normalized : normalized.substring(0, 12);
     }
 
     private String blankAsDash(String value) {
@@ -662,15 +699,21 @@ public class DockerViewController {
         private final String status;
         private final String detail;
         private final String extra;
+        private final String more;
         private final SimpleBooleanProperty selected = new SimpleBooleanProperty(false);
 
         private DockerRow(Section kind, String name, String id, String status, String detail, String extra) {
+            this(kind, name, id, status, detail, extra, "");
+        }
+
+        private DockerRow(Section kind, String name, String id, String status, String detail, String extra, String more) {
             this.kind = kind;
             this.name = name;
             this.id = id;
             this.status = status;
             this.detail = detail;
             this.extra = extra;
+            this.more = more;
         }
 
         private Section kind() {
@@ -695,6 +738,10 @@ public class DockerViewController {
 
         private String extra() {
             return extra;
+        }
+
+        private String more() {
+            return more;
         }
 
         private SimpleBooleanProperty selectedProperty() {

@@ -7,6 +7,7 @@ public record DockerImage(
         String createdSince,
         String createdAt,
         String size,
-        String containers
+        String containers,
+        String used
 ) {
 }

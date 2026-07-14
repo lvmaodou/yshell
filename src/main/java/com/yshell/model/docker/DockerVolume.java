@@ -5,6 +5,8 @@ public record DockerVolume(
         String driver,
         String scope,
         String mountpoint,
-        String labels
+        String labels,
+        String used,
+        String createdAt
 ) {
 }

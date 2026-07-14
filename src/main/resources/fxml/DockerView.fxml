@@ -94,7 +94,7 @@
                 <TextField fx:id="searchBox" promptText="搜索当前列表" styleClass="search-box"/>
             </HBox>
 
-            <StackPane fx:id="contentStack" VBox.vgrow="ALWAYS">
+            <StackPane VBox.vgrow="ALWAYS">
                 <TableView fx:id="dockerTable" styleClass="docker-table">
                     <columns>
                         <TableColumn fx:id="colSelect" prefWidth="42" sortable="false" resizable="false"/>
@@ -102,7 +102,7 @@
                         <TableColumn fx:id="colId" text="ID" prefWidth="130"/>
                         <TableColumn fx:id="colStatus" text="状态" prefWidth="160"/>
                         <TableColumn fx:id="colDetail" text="详情" prefWidth="260"/>
-                        <TableColumn fx:id="colExtra" text="附加信息" prefWidth="180"/>
+                        <TableColumn fx:id="colExtra" prefWidth="180"/>
                     </columns>
                 </TableView>
 
