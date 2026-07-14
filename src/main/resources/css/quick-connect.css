@@ -41,6 +41,7 @@
 .qc-name {
     -fx-text-fill: -fx-text-primary;
     -fx-font-size: 12;
+    -fx-padding: 0 0 0 4;
 }
 
 .qc-host,

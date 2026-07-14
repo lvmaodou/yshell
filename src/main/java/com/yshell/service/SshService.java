@@ -126,6 +126,12 @@ public class SshService {
         void onSystemInfoReceived(SystemInfo info);
     }
 
+    public record CommandResult(int exitCode, String stdout, String stderr, boolean timedOut) {
+        public boolean isSuccess() {
+            return exitCode == 0 && !timedOut;
+        }
+    }
+
     /**
      * 持久 shell 会话（带 PTY）的回调。
      * 一次连接、持续双向通信，对应终端的"实时交互"。
@@ -1182,8 +1188,13 @@ public class SshService {
     }
 
     private String executeCommandSync(String command, Duration timeout) {
+        CommandResult result = executeRemoteCommand(command, timeout);
+        return result.isSuccess() ? result.stdout().trim() : "";
+    }
+
+    public CommandResult executeRemoteCommand(String command, Duration timeout) {
         if (!isConnected()) {
-            return "";
+            return new CommandResult(-1, "", "Not connected", false);
         }
 
         boolean acquired = false;
@@ -1191,7 +1202,7 @@ public class SshService {
             execChannelSemaphore.acquire();
             acquired = true;
             if (!isConnected()) {
-                return "";
+                return new CommandResult(-1, "", "Not connected", false);
             }
             try (ChannelExec exec = clientSession.createExecChannel(command)) {
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -1215,29 +1226,35 @@ public class SshService {
                 if (!events.contains(ClientChannelEvent.CLOSED)) {
                     LOGGER.warn("Command timeout: {}", command);
                     exec.close(true);
-                    return "";
+                    return new CommandResult(-1,
+                            out.toString(StandardCharsets.UTF_8).trim(),
+                            err.toString(StandardCharsets.UTF_8).trim(),
+                            true);
                 }
 
                 String stdout = out.toString(StandardCharsets.UTF_8).trim();
                 String stderr = err.toString(StandardCharsets.UTF_8).trim();
+                Integer exitStatus = exec.getExitStatus();
 
                 if (!stderr.isEmpty()) {
                     LOGGER.debug("stderr empty for '{}': {}", command, stderr);
                 }
 
-                return stdout;
+                return new CommandResult(exitStatus == null ? -1 : exitStatus, stdout, stderr, false);
             }
 
         } catch (Exception e) {
             SshChannelOpenException openException = findChannelOpenException(e);
+            String errorMessage = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
             if (openException != null) {
                 int code = openException.getReasonCode();
                 LOGGER.warn("executeCommandSync channel open failed for '{}': reason={}({}), message={},host={}",
                         command, code, SshConstants.getOpenErrorCodeName(code), openException.getMessage(), connInfo.getHost());
+                errorMessage = openException.getMessage();
             } else {
                 LOGGER.error("executeCommandSync failed for '{}'", command, e);
             }
-            return "";
+            return new CommandResult(-1, "", errorMessage, false);
         } finally {
             if (acquired) {
                 execChannelSemaphore.release();

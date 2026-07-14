@@ -21,7 +21,7 @@
                 <String fx:value="active"/>
             </styleClass>
         </Label>
-        <Label fx:id="tabDocker" text="docker" managed="false" visible="false">
+        <Label fx:id="tabDocker" text="docker">
             <styleClass>
                 <String fx:value="label-tab"/>
                 <String fx:value="visual-tab"/>

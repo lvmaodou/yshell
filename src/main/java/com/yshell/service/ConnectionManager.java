@@ -260,6 +260,7 @@ public class ConnectionManager {
                 stopCurrentPolling();
                 currentConnectionId = null;
             }
+            DockerSessionManager.getInstance().clear(connId);
             service.disconnect();
             fireConnectionClosed(connId);
         }

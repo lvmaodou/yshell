@@ -10,55 +10,97 @@
 .docker-sidebar {
     -fx-background-color: -fx-bg-tertiary;
     -fx-border-color: -fx-border-default;
-    -fx-pref-width: 160px;
     -fx-border-width: 0 1px 0 0;
+    -fx-pref-width: 180px;
+    -fx-min-width: 180px;
+    -fx-max-width: 180px;
 }
 
 .docker-nav {
-    -fx-padding: 8px 0;
+    -fx-padding: 10px;
+    -fx-spacing: 6px;
 }
 
-.nav-item {
-    -fx-spacing: 8px;
-    -fx-padding: 6px 12px;
-    -fx-font-size: 12px;
+.nav-button {
     -fx-alignment: center-left;
+    -fx-content-display: graphic-only;
+    -fx-max-width: Infinity;
+    -fx-padding: 6px 8px;
+    -fx-font-size: 12px;
 }
 
-.nav-icon {
-    -fx-font-size: 14px;
+.nav-button-content {
+    -fx-alignment: center-left;
+    -fx-spacing: 8px;
+    -fx-min-width: 140px;
 }
 
-.nav-text {
-    -fx-flex: 1;
+.nav-label {
+    -fx-text-fill: -fx-text-primary;
+    -fx-min-width: 78px;
 }
 
 .nav-count {
+    -fx-background-radius: 999px;
+    -fx-border-radius: 999px;
+    -fx-alignment: center;
+    -fx-min-width: 28px;
+    -fx-pref-width: 34px;
+    -fx-padding: 1px 6px;
     -fx-font-size: 10px;
-    -fx-padding: 2px 6px;
+    -fx-text-fill: -fx-text-inverse;
 }
 
-.docker-stats {
+.count-containers {
+    -fx-background-color: -fx-text-success;
+}
+
+.count-images {
+    -fx-background-color: -fx-text-info;
+}
+
+.count-networks {
+    -fx-background-color: -fx-text-warning;
+}
+
+.count-volumes {
+    -fx-background-color: -fx-text-error;
+}
+
+.nav-button.active {
+    -fx-background-color: -fx-bg-selected;
+}
+
+.nav-button.active .label {
+    -fx-text-fill: -fx-text-inverse;
+}
+
+.docker-side-status {
     -fx-border-color: -fx-border-default;
-    -fx-padding: 12px;
     -fx-border-width: 1px 0 0 0;
+    -fx-padding: 10px;
+    -fx-spacing: 7px;
 }
 
-.stat-item {
-    -fx-text-fill: -fx-text-muted;
-    -fx-spacing: 8px;
-    -fx-padding: 4px 0;
-    -fx-font-size: 11px;
+.status-row {
     -fx-alignment: center-left;
-    -fx-justify-content: space-between;
+    -fx-spacing: 8px;
 }
 
-.stat-item .label {
-    -fx-text-fill: -fx-text-muted;
+.status-row .label {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 11px;
 }
 
-.stat-value {
+.status-value {
     -fx-text-fill: -fx-text-info;
+    -fx-font-size: 11px;
+}
+
+.status-message {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 11px;
+    -fx-wrap-text: true;
 }
 
 .docker-content {
@@ -70,96 +112,85 @@
     -fx-background-color: -fx-bg-secondary;
     -fx-border-color: -fx-border-default;
     -fx-border-width: 0 0 1px 0;
-    -fx-padding: 8px 12px;
+    -fx-padding: 4px 2px;
     -fx-spacing: 8px;
     -fx-alignment: center-left;
 }
 
-.tool-btn {
-    -fx-padding: 4px 8px;
-    -fx-font-size: 12px;
+.toolbar-actions {
+    -fx-alignment: center-left;
+    -fx-spacing: 6px;
+}
+
+.tool-icon-btn {
+    -fx-padding: 0;
+    -fx-min-width: 30px;
+    -fx-min-height: 28px;
+    -fx-pref-width: 30px;
+    -fx-pref-height: 28px;
+    -fx-max-width: 30px;
+    -fx-max-height: 28px;
+}
+
+.docker-tool-icon {
+    -fx-icon-color: -fx-text-primary;
 }
 
 .search-box {
-    -fx-border-width: 1px;
     -fx-font-size: 12px;
-    -fx-pref-width: 200px;
+    -fx-pref-width: 220px;
+    -fx-max-width: 220px;
 }
 
-.docker-table-scroll {
-    -fx-fill-height: true;
-}
-
-
-.table-header {
-    -fx-text-fill: -fx-text-muted;
-    -fx-padding: 8px 12px;
-    -fx-font-size: 11px;
-    -fx-spacing: 4px;
+.docker-table .column-header .label {
     -fx-alignment: center-left;
+    -fx-text-alignment: center;
+    -fx-padding: 0 0 0 4;
 }
 
-.table-header .label {
-    -fx-text-fill: -fx-text-muted;
+.docker-table .table-cell {
+    -fx-alignment: center-left;
+    -fx-padding: 0 0 0 4;
 }
 
-.table-col {
-    -fx-flex: 1;
-    -fx-min-width: 0;
+.docker-table-cell-text {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-border-width: 0;
+    -fx-padding: 0;
+    -fx-text-fill: -fx-text-primary;
+    -fx-highlight-fill: -fx-button-primary-bg;
+    -fx-highlight-text-fill: -fx-text-inverse;
 }
 
-.table-col.name {
-    -fx-pref-width: 150px;
-    -fx-flex: 2;
+.docker-table-cell-text:focused {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-border-width: 0;
 }
 
-.table-col.status {
-    -fx-pref-width: 100px;
+.config-pane {
+    -fx-background-color: -fx-bg-primary;
+    -fx-padding: 10px 12px 12px 12px;
+    -fx-spacing: 8px;
 }
 
-.table-col.actions {
-    -fx-pref-width: 80px;
+.config-header {
+    -fx-alignment: center-left;
+    -fx-spacing: 8px;
 }
 
-.table-row {
-    -fx-padding: 8px 12px;
-    -fx-border-width: 0 0 1px 0;
+.config-path {
+    -fx-text-fill: -fx-text-primary;
     -fx-font-size: 12px;
-    -fx-spacing: 4px;
-    -fx-alignment: center-left;
 }
 
-.table-row:hover {
+.config-hint {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 12px;
 }
 
-.status-badge {
-    -fx-padding: 2px 8px;
-    -fx-background-radius: 12px;
-    -fx-font-size: 10px;
-    -fx-font-weight: bold;
-}
-
-.status-badge.running {
-    -fx-text-fill: -fx-text-success;
-}
-
-.status-badge.exited {
-    -fx-text-fill: -fx-text-error;
-}
-
-.status-badge.paused {
-    -fx-text-fill: -fx-text-warning;
-}
-
-.status-badge.pending {
-    -fx-text-fill: -fx-text-warning;
-}
-
-.action-btn {
-    -fx-min-width: 24px;
-    -fx-max-width: 24px;
-    -fx-min-height: 24px;
-    -fx-max-height: 24px;
-    -fx-font-size: 10px;
-    -fx-alignment: center;
+.config-editor {
+    -fx-font-family: "Consolas", "Monospaced";
+    -fx-font-size: 12px;
 }

@@ -29,6 +29,9 @@ public class VisualPanelController {
     private VBox dockerView;
 
     @FXML
+    private DockerViewController dockerViewController;
+
+    @FXML
     private VBox k8sView;
 
     @FXML
@@ -51,14 +54,11 @@ public class VisualPanelController {
             tabAi.setOnMouseClicked(e -> switchTab("ai"));
         }
 
-        if (dockerView != null) {
-            dockerView.setVisible(false);
-        }
-        if (k8sView != null) {
-            k8sView.setVisible(false);
-        }
-        if (aiView != null) {
-            aiView.setVisible(false);
+        setViewVisible(dockerView, false);
+        setViewVisible(k8sView, false);
+        setViewVisible(aiView, false);
+        if (dockerViewController != null) {
+            dockerViewController.setTabVisible(false);
         }
     }
 
@@ -82,28 +82,39 @@ public class VisualPanelController {
         if (tabK8s != null) tabK8s.getStyleClass().remove("active");
         if (tabAi != null) tabAi.getStyleClass().remove("active");
 
-        if (filesView != null) filesView.setVisible(false);
-        if (dockerView != null) dockerView.setVisible(false);
-        if (k8sView != null) k8sView.setVisible(false);
-        if (aiView != null) aiView.setVisible(false);
+        setViewVisible(filesView, false);
+        setViewVisible(dockerView, false);
+        setViewVisible(k8sView, false);
+        setViewVisible(aiView, false);
+        if (dockerViewController != null) {
+            dockerViewController.setTabVisible("docker".equals(tabName));
+        }
 
         switch (tabName) {
             case "files":
                 if (tabFiles != null) tabFiles.getStyleClass().add("active");
-                if (filesView != null) filesView.setVisible(true);
+                setViewVisible(filesView, true);
                 break;
             case "docker":
                 if (tabDocker != null) tabDocker.getStyleClass().add("active");
-                if (dockerView != null) dockerView.setVisible(true);
+                setViewVisible(dockerView, true);
                 break;
             case "k8s":
                 if (tabK8s != null) tabK8s.getStyleClass().add("active");
-                if (k8sView != null) k8sView.setVisible(true);
+                setViewVisible(k8sView, true);
                 break;
             case "ai":
                 if (tabAi != null) tabAi.getStyleClass().add("active");
-                if (aiView != null) aiView.setVisible(true);
+                setViewVisible(aiView, true);
                 break;
         }
+    }
+
+    private void setViewVisible(VBox view, boolean visible) {
+        if (view == null) {
+            return;
+        }
+        view.setVisible(visible);
+        view.setManaged(visible);
     }
 }
