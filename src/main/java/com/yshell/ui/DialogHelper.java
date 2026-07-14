@@ -7,6 +7,7 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.DirectoryChooser;
@@ -30,6 +31,11 @@ import java.util.function.Function;
 public final class DialogHelper {
 
     private DialogHelper() {
+    }
+
+    public record CustomDialogButton<T>(String text,
+                                        ButtonBar.ButtonData buttonData,
+                                        Function<Dialog<T>, T> action) {
     }
 
     // ========== 错误提示 ==========
@@ -272,17 +278,55 @@ public final class DialogHelper {
                                                    Node content,
                                                    Function<ButtonType, T> resultConverter,
                                                    String... styleClasses) {
+        ButtonType okButton = new ButtonType("确定", ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelButton = ButtonType.CANCEL;
+        return showCustomDialog(title, content, List.of(
+                new CustomDialogButton<>("确定", okButton.getButtonData(),
+                        dialog -> resultConverter != null ? resultConverter.apply(okButton) : null),
+                new CustomDialogButton<>("取消", cancelButton.getButtonData(),
+                        dialog -> resultConverter != null ? resultConverter.apply(cancelButton) : null)
+        ), styleClasses);
+    }
+
+    public static <T> Optional<T> showCustomDialog(String title,
+                                                   Node content,
+                                                   List<CustomDialogButton<T>> buttons,
+                                                   String... styleClasses) {
         Dialog<T> dialog = new Dialog<>();
         dialog.setTitle(title);
-        dialog.setHeaderText(title);
+        dialog.setHeaderText(null);
 
-        ButtonType okButton = new ButtonType("确定", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(okButton, ButtonType.CANCEL);
-        dialog.getDialogPane().setContent(content);
-        dialog.setResultConverter(button -> resultConverter != null ? resultConverter.apply(button) : null);
+        Label titleLabel = new Label(title == null || title.isBlank() ? "对话框" : title);
+        titleLabel.getStyleClass().add("custom-dialog-title");
+
+        ScrollPane contentScroll = new ScrollPane(content == null ? new VBox() : content);
+        contentScroll.getStyleClass().add("custom-dialog-content");
+        contentScroll.setFitToWidth(true);
+        contentScroll.setFitToHeight(false);
+        contentScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        contentScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        VBox.setVgrow(contentScroll, Priority.ALWAYS);
+
+        HBox footer = new HBox(10);
+        footer.getStyleClass().add("custom-dialog-footer");
+        footer.setAlignment(Pos.CENTER_RIGHT);
+        List<CustomDialogButton<T>> dialogButtons = buttons == null || buttons.isEmpty()
+                ? List.of(new CustomDialogButton<>("确定", ButtonBar.ButtonData.OK_DONE, dialogRef -> null))
+                : buttons;
+        for (CustomDialogButton<T> buttonConfig : dialogButtons) {
+            Button button = createCustomDialogButton(dialog, buttonConfig);
+            footer.getChildren().add(button);
+        }
+
+        VBox root = new VBox(titleLabel, contentScroll, footer);
+        root.getStyleClass().add("custom-dialog-root");
+
+        DialogPane dialogPane = dialog.getDialogPane();
+        dialogPane.getButtonTypes().clear();
+        dialogPane.setContent(root);
+        dialogPane.getStyleClass().add("custom-dialog-pane");
 
         applyTheme(dialog);
-        styleDialogButtons(dialog);
         applyCustomDialogStyles(dialog, styleClasses);
         if (styleClasses != null && styleClasses.length > 0) {
             Arrays.stream(styleClasses)
@@ -291,6 +335,32 @@ public final class DialogHelper {
                     .forEach(dialog.getDialogPane().getStyleClass()::add);
         }
         return dialog.showAndWait();
+    }
+
+    private static <T> Button createCustomDialogButton(Dialog<T> dialog, CustomDialogButton<T> buttonConfig) {
+        String text = buttonConfig == null || buttonConfig.text() == null || buttonConfig.text().isBlank()
+                ? "确定"
+                : buttonConfig.text();
+        ButtonBar.ButtonData buttonData = buttonConfig == null || buttonConfig.buttonData() == null
+                ? ButtonBar.ButtonData.OK_DONE
+                : buttonConfig.buttonData();
+        Button button = new Button(text);
+        button.getStyleClass().add(isPrimaryButton(buttonData) ? "button-primary" : "button-cancel");
+        button.setDefaultButton(isPrimaryButton(buttonData));
+        button.setCancelButton(isCancelButton(buttonData));
+        button.setOnAction(event -> {
+            T result = buttonConfig == null || buttonConfig.action() == null
+                    ? null
+                    : buttonConfig.action().apply(dialog);
+            dialog.setResult(result);
+            Window window = button.getScene() == null ? null : button.getScene().getWindow();
+            if (window != null) {
+                window.hide();
+            } else {
+                dialog.hide();
+            }
+        });
+        return button;
     }
 
     public static List<Path> chooseFiles(Window owner, String title, Path initialDirectory,

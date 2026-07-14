@@ -126,6 +126,57 @@
     -fx-opacity: 0.55;
 }
 
+.dialog-pane.custom-dialog-pane > .content {
+    -fx-padding: 0;
+}
+
+.custom-dialog-root {
+    -fx-background-color: -fx-bg-dialog;
+    -fx-pref-width: 720px;
+    -fx-max-width: 920px;
+    -fx-max-height: 640px;
+}
+
+.custom-dialog-title {
+    -fx-background-color: -fx-bg-tertiary;
+    -fx-border-color: transparent transparent -fx-border-default transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    -fx-padding: 10 16;
+    -fx-min-height: 38px;
+    -fx-alignment: center-left;
+}
+
+.custom-dialog-content {
+    -fx-background-color: -fx-bg-dialog;
+    -fx-background: -fx-bg-dialog;
+    -fx-padding: 0;
+    -fx-pref-viewport-width: 688px;
+    -fx-min-viewport-height: 120px;
+    -fx-pref-viewport-height: 360px;
+    -fx-max-height: 520px;
+}
+
+.custom-dialog-content .text-area:focused {
+    -fx-border-color: transparent;
+}
+
+.custom-dialog-content > .viewport {
+    -fx-background-color: -fx-bg-dialog;
+}
+
+.custom-dialog-footer {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-border-color: -fx-border-default transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 5 18 3 18;
+    -fx-spacing: 10;
+    -fx-alignment: center-right;
+}
+
 .dialog-pane.info-dialog > .content {
     -fx-padding: 0;
 }

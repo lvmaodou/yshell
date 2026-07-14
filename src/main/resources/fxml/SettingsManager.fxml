@@ -40,6 +40,7 @@
                 <Button fx:id="navTerminal" text="终端" styleClass="nav-item"/>
                 <Button fx:id="navEditor" text="编辑器" styleClass="nav-item"/>
                 <Button fx:id="navTransfer" text="文件传输" styleClass="nav-item"/>
+                <Button fx:id="navDockerRegistry" text="Docker 仓库" styleClass="nav-item"/>
                 <Button fx:id="navShortcut" text="快捷键" styleClass="nav-item"/>
                 <Button fx:id="navMaintenance" text="数据与维护" styleClass="nav-item"/>
                 <Button fx:id="navAI" text="AI 助手" styleClass="nav-item" visible="false" managed="false"/>
@@ -148,6 +149,30 @@
                             <HBox styleClass="checkbox-row">
                                 <CheckBox fx:id="clearFinishedWhenDone" text="传输完成后自动清理已完成任务"
                                           styleClass="form-checkbox"/>
+                            </HBox>
+                        </VBox>
+                    </VBox>
+                </Tab>
+
+                <Tab text="Docker 仓库" closable="false">
+                    <VBox styleClass="tab-content">
+                        <VBox styleClass="form-section">
+                            <Label text="远程仓库" styleClass="form-section-title"/>
+                            <TableView fx:id="dockerRegistryTable" styleClass="shortcut-table" prefHeight="360">
+                                <columnResizePolicy>
+                                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                                </columnResizePolicy>
+                                <columns>
+                                    <TableColumn fx:id="registryNameColumn" text="名称" minWidth="140"/>
+                                    <TableColumn fx:id="registryAddressColumn" text="地址" minWidth="240"/>
+                                    <TableColumn fx:id="registryUsernameColumn" text="用户名" minWidth="140"/>
+                                    <TableColumn fx:id="registryPasswordColumn" text="密码" minWidth="120"/>
+                                </columns>
+                            </TableView>
+                            <HBox styleClass="button-row">
+                                <Button fx:id="btnAddRegistry" text="新增" styleClass="button-cancel"/>
+                                <Button fx:id="btnEditRegistry" text="编辑" styleClass="button-cancel"/>
+                                <Button fx:id="btnDeleteRegistry" text="删除" styleClass="button-cancel"/>
                             </HBox>
                         </VBox>
                     </VBox>

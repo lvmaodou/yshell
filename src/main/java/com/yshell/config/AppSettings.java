@@ -2,6 +2,8 @@ package com.yshell.config;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 public class AppSettings {
     public enum DuplicateStrategy {
@@ -190,6 +192,19 @@ public class AppSettings {
 
     public void setAiBaseUrl(String baseUrl) {
         config().ai.baseUrl = baseUrl == null ? "" : baseUrl;
+        store.save();
+    }
+
+    public List<AppConfig.DockerRegistry> getDockerRegistries() {
+        return config().docker.registries;
+    }
+
+    public void setDockerRegistries(List<AppConfig.DockerRegistry> registries) {
+        config().docker.registries = registries == null ? new ArrayList<>() : new ArrayList<>(registries);
+        store.save();
+    }
+
+    public void save() {
         store.save();
     }
 

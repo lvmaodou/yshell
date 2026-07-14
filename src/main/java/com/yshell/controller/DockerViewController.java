@@ -1,5 +1,7 @@
 package com.yshell.controller;
 
+import com.yshell.config.AppConfig;
+import com.yshell.config.AppSettings;
 import com.yshell.model.ConnInfo;
 import com.yshell.model.docker.DockerSnapshot;
 import com.yshell.service.ConnectionManager;
@@ -17,14 +19,15 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.geometry.Bounds;
+import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.*;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.util.Duration;
+import javafx.util.StringConverter;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.ArrayList;
@@ -502,7 +505,6 @@ public class DockerViewController {
             );
             case IMAGES -> List.of(
                     new Operation("拉取", "fas-download", false),
-                    new Operation("运行容器", "fas-play", true),
                     new Operation("删除", "fas-trash", true),
                     new Operation("推送", "fas-upload", true),
                     new Operation("打标签", "fas-tag", true),
@@ -541,7 +543,7 @@ public class DockerViewController {
         return switch (section) {
             case CONTAINERS ->
                     List.of("详情", "日志", "进入容器", "资源占用", "进程", "文件变更", "重命名", "拷贝文件");
-            case IMAGES -> List.of("详情", "运行容器", "历史", "构建自此镜像", "导出");
+            case IMAGES -> List.of("详情", "运行容器", "历史", "导出");
             case NETWORKS -> List.of("详情", "网络类型", "连接容器", "断开容器");
             case VOLUMES -> List.of("详情", "备份", "恢复");
             case CONFIG -> List.of();
@@ -680,8 +682,8 @@ public class DockerViewController {
     }
 
     private void executeBatchOperation(String operation) {
-        if (activeSection == Section.IMAGES && "运行容器".equals(operation)) {
-            runContainersFromImages();
+        if (activeSection == Section.IMAGES) {
+            executeImageBatchOperation(operation);
             return;
         }
         if (activeSection != Section.CONTAINERS) {
@@ -703,8 +705,8 @@ public class DockerViewController {
         if (row == null) {
             return;
         }
-        if (row.kind() == Section.IMAGES && "运行容器".equals(operation)) {
-            runContainerFromImage(row);
+        if (row.kind() == Section.IMAGES) {
+            executeImageSingleOperation(operation, row);
             return;
         }
         if (row.kind() != Section.CONTAINERS) {
@@ -759,54 +761,240 @@ public class DockerViewController {
                 }));
     }
 
-    private void runContainersFromImages() {
-        DockerConnectionContext context = requireDockerConnection("运行容器");
+    private void executeImageBatchOperation(String operation) {
+        switch (operation) {
+            case "拉取" -> pullImage();
+            case "删除" -> removeImages();
+            case "推送" -> pushImages();
+            case "打标签" -> tagImages();
+            case "清理无用镜像" -> pruneImages(true);
+            case "清理悬空镜像" -> pruneImages(false);
+            default -> DialogHelper.showInfo(operation, "功能待实现");
+        }
+    }
+
+    private void executeImageSingleOperation(String operation, DockerRow row) {
+        DockerConnectionContext context = requireDockerConnection(operation);
         if (context == null) {
             return;
         }
-        List<DockerRow> selected = selectedRows().stream()
-                .filter(row -> row.kind() == Section.IMAGES)
-                .toList();
-        if (selected.isEmpty()) {
-            DialogHelper.showWarning("运行容器", "请先选择镜像");
-            return;
+        switch (operation) {
+            case "详情" -> showImageCommandResult(operation, row,
+                    sessionManager.imageInspect(context.connId(), context.connInfo(), imageIdentifier(row)));
+            case "运行容器" -> runContainerFromImage(row);
+            case "历史" -> showImageCommandResult(operation, row,
+                    sessionManager.imageHistory(context.connId(), context.connInfo(), imageIdentifier(row)));
+            case "导出" -> saveImage(row);
+            default -> DialogHelper.showInfo(operation, "功能待实现\n\n" + row.name());
         }
-        if (selected.size() == 1) {
-            runContainerFromImage(selected.get(0));
-            return;
-        }
-        if (!DialogHelper.showConfirm("运行容器", "确定要基于选中的 " + selected.size() + " 个镜像分别创建容器吗？")) {
-            return;
-        }
-        List<String> images = selected.stream()
-                .map(this::imageReference)
-                .filter(image -> image != null && !image.isBlank())
-                .toList();
-        setStatus("正在创建容器...");
-        runImageBatch(context, images, 0, 0, new ArrayList<>());
     }
 
-    private void runImageBatch(DockerConnectionContext context, List<String> images, int index,
-                               int succeeded, List<String> failures) {
-        if (index >= images.size()) {
+    private void pullImage() {
+        DockerConnectionContext context = requireDockerConnection("拉取");
+        if (context == null) {
+            return;
+        }
+        String image = DialogHelper.showTextInput("拉取镜像", null, "镜像", "nginx:latest");
+        if (image == null) {
+            return;
+        }
+        setStatus("正在拉取镜像...");
+        sessionManager.imagePull(context.connId(), context.connInfo(), image).thenAccept(result ->
+                Platform.runLater(() -> handleMutationResult("拉取镜像", result)));
+    }
+
+    private void removeImages() {
+        DockerConnectionContext context = requireDockerConnection("删除镜像");
+        if (context == null) {
+            return;
+        }
+        List<DockerRow> selected = selectedImageRows();
+        if (selected.isEmpty()) {
+            DialogHelper.showWarning("删除镜像", "请先选择镜像");
+            return;
+        }
+        if (!DialogHelper.showConfirm("删除镜像", "确定要删除选中的 " + selected.size() + " 个镜像吗？")) {
+            return;
+        }
+        List<ImageBatchItem> items = selected.stream()
+                .map(row -> new ImageBatchItem(imageReference(row), imageReference(row), ""))
+                .toList();
+        runImageCommandBatch(context, "删除镜像", items,
+                item -> sessionManager.imageRemove(context.connId(), context.connInfo(), item.source()),
+                true);
+    }
+
+    private void pushImages() {
+        DockerConnectionContext context = requireDockerConnection("推送镜像");
+        if (context == null) {
+            return;
+        }
+        List<DockerRow> selected = selectedImageRows();
+        if (selected.isEmpty()) {
+            DialogHelper.showWarning("推送镜像", "请先选择镜像");
+            return;
+        }
+        PushImageRequest request = showPushImageDialog(selected);
+        if (request == null) {
+            return;
+        }
+        List<ImageBatchItem> items = selected.stream()
+                .map(row -> pushBatchItem(row, request, selected.size() == 1))
+                .toList();
+        if (items.isEmpty()) {
+            DialogHelper.showWarning("推送镜像", "所选镜像没有可推送的仓库名称");
+            return;
+        }
+        String loginRegistry = registryLoginAddress(request.registry().address);
+        if (hasText(request.registry().username) && hasText(request.registry().password)) {
+            setStatus("正在登录镜像仓库...");
+            sessionManager.imageLogin(context.connId(), context.connInfo(), loginRegistry,
+                    request.registry().username, request.registry().password).thenAccept(result ->
+                    Platform.runLater(() -> {
+                        if (!result.isSuccess()) {
+                            setStatus("登录镜像仓库失败");
+                            DialogHelper.showError("推送镜像", commandMessage(result));
+                            return;
+                        }
+                        runImageCommandBatch(context, "推送镜像", items,
+                                item -> sessionManager.imageTagAndPush(context.connId(), context.connInfo(), item.source(), item.target()),
+                                false);
+                    }));
+        } else {
+            runImageCommandBatch(context, "推送镜像", items,
+                    item -> sessionManager.imageTagAndPush(context.connId(), context.connInfo(), item.source(), item.target()),
+                    false);
+        }
+    }
+
+    private void tagImages() {
+        DockerConnectionContext context = requireDockerConnection("打标签");
+        if (context == null) {
+            return;
+        }
+        List<DockerRow> selected = selectedImageRows();
+        if (selected.isEmpty()) {
+            DialogHelper.showWarning("打标签", "请先选择镜像");
+            return;
+        }
+        List<ImageBatchItem> items;
+        if (selected.size() == 1) {
+            DockerRow row = selected.get(0);
+            String target = DialogHelper.showTextInput("打标签", null, "目标镜像[:标签]", imageReference(row));
+            if (target == null || target.equals(imageReference(row))) {
+                return;
+            }
+            items = List.of(new ImageBatchItem(imageReference(row), imageIdentifier(row), target));
+        } else {
+            String tag = DialogHelper.showTextInput("批量打标签", "会保留原镜像名称，仅替换标签", "标签", "latest");
+            if (tag == null) {
+                return;
+            }
+            items = selected.stream()
+                    .filter(this::hasRepositoryName)
+                    .map(row -> new ImageBatchItem(imageReference(row), imageIdentifier(row), row.name() + ":" + tag))
+                    .toList();
+            if (items.isEmpty()) {
+                DialogHelper.showWarning("打标签", "所选镜像没有可用名称，无法批量打标签");
+                return;
+            }
+            if (!DialogHelper.showConfirm("批量打标签", "确定要为 " + items.size() + " 个镜像设置标签 " + tag + " 吗？")) {
+                return;
+            }
+        }
+        runImageCommandBatch(context, "打标签", items,
+                item -> sessionManager.imageTag(context.connId(), context.connInfo(), item.source(), item.target()),
+                true);
+    }
+
+    private void pruneImages(boolean all) {
+        String title = all ? "清理无用镜像" : "清理悬空镜像";
+        DockerConnectionContext context = requireDockerConnection(title);
+        if (context == null) {
+            return;
+        }
+        String message = all
+                ? "确定要清理所有未被容器使用的镜像吗？"
+                : "确定要清理悬空镜像吗？";
+        if (!DialogHelper.showConfirm(title, message)) {
+            return;
+        }
+        setStatus("正在" + title + "...");
+        sessionManager.imagePrune(context.connId(), context.connInfo(), all).thenAccept(result ->
+                Platform.runLater(() -> {
+                    if (result.isSuccess()) {
+                        setStatus(title + "完成");
+                        showTextDialog(title, "", commandMessage(result));
+                        refreshForCurrentConnection(false);
+                    } else {
+                        setStatus(title + "失败");
+                        DialogHelper.showError(title, commandMessage(result));
+                    }
+                }));
+    }
+
+    private void saveImage(DockerRow row) {
+        DockerConnectionContext context = requireDockerConnection("导出镜像");
+        if (context == null) {
+            return;
+        }
+        String defaultPath = "/tmp/" + safeFileName(imageReference(row)) + ".tar";
+        String path = DialogHelper.showTextInput("导出镜像", null, "远程保存路径", defaultPath);
+        if (path == null) {
+            return;
+        }
+        setStatus("正在导出镜像...");
+        sessionManager.imageSave(context.connId(), context.connInfo(), imageIdentifier(row), path).thenAccept(result ->
+                Platform.runLater(() -> handleMutationResult("导出镜像", result)));
+    }
+
+    private void showImageCommandResult(String title, DockerRow row, CompletableFuture<SshService.CommandResult> future) {
+        setStatus("正在读取" + title + "...");
+        future.thenAccept(result -> Platform.runLater(() -> {
+            if (result.isSuccess()) {
+                setStatus(title + "已读取");
+                showTextDialog(title, imageReference(row), commandMessage(result));
+            } else {
+                setStatus(title + "读取失败");
+                DialogHelper.showError(title, commandMessage(result));
+            }
+        }));
+    }
+
+    private void runImageCommandBatch(DockerConnectionContext context, String title, List<ImageBatchItem> items,
+                                      ImageCommandRunner runner, boolean refreshAfter) {
+        if (items.isEmpty()) {
+            DialogHelper.showWarning(title, "没有可执行的镜像");
+            return;
+        }
+        setStatus("正在" + title + "...");
+        runImageCommandBatch(context, title, items, runner, refreshAfter, 0, 0, new ArrayList<>());
+    }
+
+    private void runImageCommandBatch(DockerConnectionContext context, String title, List<ImageBatchItem> items,
+                                      ImageCommandRunner runner, boolean refreshAfter,
+                                      int index, int succeeded, List<String> failures) {
+        if (index >= items.size()) {
             Platform.runLater(() -> {
-                setStatus("运行容器完成：" + succeeded + "/" + images.size());
+                setStatus(title + "完成：" + succeeded + "/" + items.size());
                 if (!failures.isEmpty()) {
-                    DialogHelper.showWarning("运行容器", String.join("\n", failures));
+                    DialogHelper.showWarning(title, String.join("\n", failures));
                 }
-                refreshForCurrentConnection(false);
+                if (refreshAfter) {
+                    refreshForCurrentConnection(false);
+                }
             });
             return;
         }
-        String image = images.get(index);
-        sessionManager.containerRun(context.connId(), context.connInfo(), image).thenAccept(result -> {
+        ImageBatchItem item = items.get(index);
+        runner.run(item).thenAccept(result -> {
             int nextSucceeded = result.isSuccess() ? succeeded + 1 : succeeded;
             List<String> nextFailures = failures;
             if (!result.isSuccess()) {
                 nextFailures = new ArrayList<>(failures);
-                nextFailures.add(image + ": " + commandMessage(result));
+                nextFailures.add(item.label() + ": " + commandMessage(result));
             }
-            runImageBatch(context, images, index + 1, nextSucceeded, nextFailures);
+            runImageCommandBatch(context, title, items, runner, refreshAfter, index + 1, nextSucceeded, nextFailures);
         });
     }
 
@@ -845,13 +1033,11 @@ public class DockerViewController {
                             refreshForCurrentConnection(false);
                             return;
                         }
-                        DialogHelper.showWarning(title, batchMessage(result, skipped));
-                        refreshForCurrentConnection(false);
                     } else {
                         setStatus(title + "部分失败：" + result.succeeded() + "/" + result.total());
-                        DialogHelper.showWarning(title, batchMessage(result, skipped));
-                        refreshForCurrentConnection(false);
                     }
+                    DialogHelper.showWarning(title, batchMessage(result, skipped));
+                    refreshForCurrentConnection(false);
                 }));
     }
 
@@ -970,7 +1156,9 @@ public class DockerViewController {
         area.setPrefColumnCount(100);
         area.setPrefRowCount(24);
         String dialogTitle = header == null || header.isBlank() ? title : title + " - " + header;
-        DialogHelper.<Void>showCustomDialog(dialogTitle, area, button -> null);
+        DialogHelper.<Void>showCustomDialog(dialogTitle, area, List.of(
+                new DialogHelper.CustomDialogButton<>("确定", ButtonBar.ButtonData.OK_DONE, dialog -> null)
+        ));
     }
 
     private String batchMessage(DockerSessionManager.DockerBatchResult result, List<DockerRow> skipped) {
@@ -1010,15 +1198,184 @@ public class DockerViewController {
         return repository + ":" + tag;
     }
 
+    private String imageIdentifier(DockerRow row) {
+        if (row == null) {
+            return "";
+        }
+        String target = row.commandTarget();
+        return target == null || target.isBlank() ? imageReference(row) : target;
+    }
+
+    private String imageSourceForPush(DockerRow row) {
+        return hasRepositoryName(row) ? imageReference(row) : imageIdentifier(row);
+    }
+
+    private String imageTag(DockerRow row) {
+        String tag = row == null ? "" : row.detail();
+        return tag == null || tag.isBlank() || "-".equals(tag) || "<none>".equals(tag) ? "latest" : tag;
+    }
+
+    private String simpleImageName(DockerRow row) {
+        String repository = row == null ? "" : row.name();
+        if (repository == null || repository.isBlank() || "-".equals(repository) || "<none>".equals(repository)) {
+            return "image-" + shortId(row == null ? "" : row.commandTarget());
+        }
+        int slash = repository.lastIndexOf('/');
+        return slash >= 0 && slash < repository.length() - 1 ? repository.substring(slash + 1) : repository;
+    }
+
+    private PushImageRequest showPushImageDialog(List<DockerRow> selected) {
+        List<AppConfig.DockerRegistry> registries = AppSettings.getInstance().getDockerRegistries().stream()
+                .filter(registry -> registry != null && hasText(registry.address))
+                .toList();
+        if (registries.isEmpty()) {
+            DialogHelper.showWarning("推送镜像", "请先在设置中配置 Docker 仓库");
+            return null;
+        }
+        boolean single = selected.size() == 1;
+        DockerRow first = selected.get(0);
+
+        ComboBox<AppConfig.DockerRegistry> registryCombo = new ComboBox<>(FXCollections.observableArrayList(registries));
+        registryCombo.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(AppConfig.DockerRegistry registry) {
+                return registryLabel(registry);
+            }
+
+            @Override
+            public AppConfig.DockerRegistry fromString(String value) {
+                return null;
+            }
+        });
+        registryCombo.getSelectionModel().selectFirst();
+
+        TextField namespaceField = new TextField(normalizeRegistryTargetBase(registries.get(0).address));
+        TextField imageField = new TextField(single ? simpleImageName(first) : "使用原镜像名称");
+        TextField tagField = new TextField(single ? imageTag(first) : "使用原标签");
+        imageField.setDisable(!single);
+        tagField.setDisable(!single);
+        registryCombo.valueProperty().addListener((obs, old, registry) -> {
+            if (registry != null) {
+                namespaceField.setText(normalizeRegistryTargetBase(registry.address));
+            }
+        });
+
+        GridPane grid = new GridPane();
+        grid.setPadding(new Insets(16, 18, 8, 18));
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.addRow(0, new Label("仓库"), registryCombo);
+        grid.addRow(1, new Label("命名空间"), namespaceField);
+        grid.addRow(2, new Label("镜像"), imageField);
+        grid.addRow(3, new Label("标签"), tagField);
+        ColumnConstraints labelColumn = new ColumnConstraints();
+        labelColumn.setMinWidth(72);
+        labelColumn.setPrefWidth(72);
+        ColumnConstraints fieldColumn = new ColumnConstraints();
+        fieldColumn.setHgrow(Priority.ALWAYS);
+        grid.getColumnConstraints().addAll(labelColumn, fieldColumn);
+        registryCombo.setMaxWidth(Double.MAX_VALUE);
+        namespaceField.setMaxWidth(Double.MAX_VALUE);
+        imageField.setMaxWidth(Double.MAX_VALUE);
+        tagField.setMaxWidth(Double.MAX_VALUE);
+
+        boolean ok = DialogHelper.showCustomDialog("推送镜像", grid,
+                        button -> button != null && button.getButtonData() == ButtonBar.ButtonData.OK_DONE ? Boolean.TRUE : null)
+                .isPresent();
+        if (!ok) {
+            return null;
+        }
+        AppConfig.DockerRegistry registry = registryCombo.getValue();
+        String namespace = normalizeRegistryTargetBase(namespaceField.getText());
+        String image = single ? trimToEmpty(imageField.getText()) : "";
+        String tag = single ? trimToEmpty(tagField.getText()) : "";
+        if (registry == null || namespace.isBlank() || (single && (image.isBlank() || tag.isBlank()))) {
+            DialogHelper.showWarning("推送镜像", "仓库、命名空间、镜像和标签不能为空");
+            return null;
+        }
+        return new PushImageRequest(registry, namespace, image, tag);
+    }
+
+    private ImageBatchItem pushBatchItem(DockerRow row, PushImageRequest request, boolean single) {
+        String source = imageSourceForPush(row);
+        String image = single ? request.image() : simpleImageName(row);
+        String tag = single ? request.tag() : imageTag(row);
+        String target = targetImageName(request.namespace(), image, tag);
+        return new ImageBatchItem(source + " -> " + target, source, target);
+    }
+
+    private String targetImageName(String namespace, String image, String tag) {
+        String base = normalizeRegistryTargetBase(namespace);
+        String cleanImage = trimToEmpty(image);
+        String cleanTag = trimToEmpty(tag);
+        if (cleanTag.isBlank()) {
+            cleanTag = "latest";
+        }
+        return base + "/" + cleanImage + ":" + cleanTag;
+    }
+
+    private String registryLoginAddress(String address) {
+        String base = normalizeRegistryTargetBase(address);
+        int slash = base.indexOf('/');
+        return slash >= 0 ? base.substring(0, slash) : base;
+    }
+
+    private String normalizeRegistryTargetBase(String value) {
+        String text = trimToEmpty(value);
+        if (text.startsWith("http://")) {
+            text = text.substring("http://".length());
+        } else if (text.startsWith("https://")) {
+            text = text.substring("https://".length());
+        }
+        while (text.endsWith("/")) {
+            text = text.substring(0, text.length() - 1);
+        }
+        return text;
+    }
+
+    private String registryLabel(AppConfig.DockerRegistry registry) {
+        if (registry == null) {
+            return "";
+        }
+        String name = trimToEmpty(registry.name);
+        String address = normalizeRegistryTargetBase(registry.address);
+        return name.isBlank() ? address : name + " (" + address + ")";
+    }
+
+    private String trimToEmpty(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private List<DockerRow> selectedImageRows() {
+        return selectedRows().stream()
+                .filter(row -> row.kind() == Section.IMAGES)
+                .toList();
+    }
+
+    private boolean hasRepositoryName(DockerRow row) {
+        String repository = row == null ? "" : row.name();
+        return repository != null
+                && !repository.isBlank()
+                && !"-".equals(repository)
+                && !"<none>".equals(repository);
+    }
+
+    private String safeFileName(String value) {
+        String text = value == null || value.isBlank() ? "image" : value;
+        return text.replaceAll("[^A-Za-z0-9._-]+", "_");
+    }
+
     private boolean supportsContainerBatchAction(String dockerAction, DockerRow row) {
         String state = containerState(row);
         return switch (dockerAction) {
             case "start" -> !isRunningState(state) && !isPausedState(state);
             case "stop" -> isRunningState(state) || isPausedState(state);
-            case "restart" -> isRunningState(state);
-            case "pause" -> isRunningState(state);
+            case "restart", "pause" -> isRunningState(state);
             case "unpause" -> isPausedState(state);
-            case "rm" -> true;
             default -> true;
         };
     }
@@ -1044,6 +1401,17 @@ public class DockerViewController {
     }
 
     private record DockerConnectionContext(String connId, ConnInfo connInfo) {
+    }
+
+    private record ImageBatchItem(String label, String source, String target) {
+    }
+
+    private record PushImageRequest(AppConfig.DockerRegistry registry, String namespace, String image, String tag) {
+    }
+
+    @FunctionalInterface
+    private interface ImageCommandRunner {
+        CompletableFuture<SshService.CommandResult> run(ImageBatchItem item);
     }
 
     private void updateColumns() {
@@ -1240,14 +1608,6 @@ public class DockerViewController {
         private final String more;
         private final String commandTarget;
         private final SimpleBooleanProperty selected = new SimpleBooleanProperty(false);
-
-        private DockerRow(Section kind, String name, String id, String status, String detail, String extra) {
-            this(kind, name, id, status, detail, extra, "", id);
-        }
-
-        private DockerRow(Section kind, String name, String id, String status, String detail, String extra, String more) {
-            this(kind, name, id, status, detail, extra, more, id);
-        }
 
         private DockerRow(Section kind, String name, String id, String status, String detail, String extra,
                           String more, String commandTarget) {

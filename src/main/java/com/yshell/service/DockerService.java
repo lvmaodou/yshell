@@ -105,6 +105,50 @@ public class DockerService {
         return run(sshService, "docker " + action + " " + shellQuote(id));
     }
 
+    public SshService.CommandResult imagePull(SshService sshService, String image) {
+        return run(sshService, "docker pull " + shellQuote(image));
+    }
+
+    public SshService.CommandResult imagePush(SshService sshService, String image) {
+        return run(sshService, "docker push " + shellQuote(image));
+    }
+
+    public SshService.CommandResult imageLogin(SshService sshService, String registry, String username, String password) {
+        return run(sshService, "printf %s " + shellQuote(password)
+                + " | docker login " + shellQuote(registry)
+                + " -u " + shellQuote(username)
+                + " --password-stdin");
+    }
+
+    public SshService.CommandResult imageRemove(SshService sshService, String image) {
+        return run(sshService, "docker rmi " + shellQuote(image));
+    }
+
+    public SshService.CommandResult imageTag(SshService sshService, String source, String target) {
+        return run(sshService, "docker tag " + shellQuote(source) + " " + shellQuote(target));
+    }
+
+    public SshService.CommandResult imageTagAndPush(SshService sshService, String source, String target) {
+        return run(sshService, "docker tag " + shellQuote(source) + " " + shellQuote(target)
+                + " && docker push " + shellQuote(target));
+    }
+
+    public SshService.CommandResult imageInspect(SshService sshService, String image) {
+        return run(sshService, "docker image inspect " + shellQuote(image));
+    }
+
+    public SshService.CommandResult imageHistory(SshService sshService, String image) {
+        return run(sshService, "docker history --no-trunc " + shellQuote(image));
+    }
+
+    public SshService.CommandResult imageSave(SshService sshService, String image, String path) {
+        return run(sshService, "docker save -o " + shellQuote(path) + " " + shellQuote(image));
+    }
+
+    public SshService.CommandResult imagePrune(SshService sshService, boolean all) {
+        return run(sshService, all ? "docker image prune -a -f" : "docker image prune -f");
+    }
+
     public SshService.CommandResult networkAction(SshService sshService, String action, String id) {
         return run(sshService, "docker " + action + " " + shellQuote(id));
     }

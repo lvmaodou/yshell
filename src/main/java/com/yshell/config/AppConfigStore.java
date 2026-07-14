@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -93,6 +94,8 @@ public class AppConfigStore {
         if (config.commands == null) config.commands = new AppConfig.Commands();
         if (config.layout == null) config.layout = new AppConfig.Layout();
         if (config.ai == null) config.ai = new AppConfig.Ai();
+        if (config.docker == null) config.docker = new AppConfig.Docker();
+        if (config.docker.registries == null) config.docker.registries = new ArrayList<>();
         if (!"vs-light".equals(config.appearance.theme) && !"vs-dark".equals(config.appearance.theme)) {
             config.appearance.theme = "vs-dark";
         }
@@ -110,6 +113,15 @@ public class AppConfigStore {
         if (config.ai.model == null) config.ai.model = "";
         if (config.ai.apiKey == null) config.ai.apiKey = "";
         if (config.ai.baseUrl == null) config.ai.baseUrl = "";
+        for (AppConfig.DockerRegistry registry : config.docker.registries) {
+            if (registry == null) {
+                continue;
+            }
+            if (registry.name == null) registry.name = "";
+            if (registry.address == null) registry.address = "";
+            if (registry.username == null) registry.username = "";
+            if (registry.password == null) registry.password = "";
+        }
     }
 
     private int clamp(int value, int min, int max) {

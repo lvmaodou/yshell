@@ -1,6 +1,8 @@
 package com.yshell.config;
 
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 public class AppConfig {
     public int version = 1;
@@ -12,6 +14,7 @@ public class AppConfig {
     public Commands commands = new Commands();
     public Layout layout = new Layout();
     public Ai ai = new Ai();
+    public Docker docker = new Docker();
 
     public static class Appearance {
         public String theme = "vs-dark";
@@ -66,5 +69,16 @@ public class AppConfig {
         public String model = "";
         public String apiKey = "";
         public String baseUrl = "";
+    }
+
+    public static class Docker {
+        public List<DockerRegistry> registries = new ArrayList<>();
+    }
+
+    public static class DockerRegistry {
+        public String name = "";
+        public String address = "";
+        public String username = "";
+        public String password = "";
     }
 }

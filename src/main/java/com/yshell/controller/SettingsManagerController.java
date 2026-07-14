@@ -1,5 +1,6 @@
 package com.yshell.controller;
 
+import com.yshell.config.AppConfig;
 import com.yshell.config.AppSettings;
 import com.yshell.config.ShortcutRegistry;
 import com.yshell.logging.LogDirectoryPropertyDefiner;
@@ -11,12 +12,18 @@ import com.yshell.ui.LayoutConfig;
 import com.yshell.ui.WindowDragResize;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 
-import java.awt.Desktop;
+import java.awt.*;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -42,6 +49,8 @@ public class SettingsManagerController {
     private Button navEditor;
     @FXML
     private Button navTransfer;
+    @FXML
+    private Button navDockerRegistry;
     @FXML
     private Button navShortcut;
     @FXML
@@ -77,6 +86,22 @@ public class SettingsManagerController {
     @FXML
     private CheckBox clearFinishedWhenDone;
     @FXML
+    private TableView<AppConfig.DockerRegistry> dockerRegistryTable;
+    @FXML
+    private TableColumn<AppConfig.DockerRegistry, String> registryNameColumn;
+    @FXML
+    private TableColumn<AppConfig.DockerRegistry, String> registryAddressColumn;
+    @FXML
+    private TableColumn<AppConfig.DockerRegistry, String> registryUsernameColumn;
+    @FXML
+    private TableColumn<AppConfig.DockerRegistry, String> registryPasswordColumn;
+    @FXML
+    private Button btnAddRegistry;
+    @FXML
+    private Button btnEditRegistry;
+    @FXML
+    private Button btnDeleteRegistry;
+    @FXML
     private TableView<ShortcutRegistry.Shortcut> shortcutTable;
     @FXML
     private TableColumn<ShortcutRegistry.Shortcut, String> shortcutGroupColumn;
@@ -104,6 +129,7 @@ public class SettingsManagerController {
     private TextField aiBaseUrlField;
 
     private Stage dialogStage;
+    private final ObservableList<AppConfig.DockerRegistry> dockerRegistries = FXCollections.observableArrayList();
 
     public void setDialogStage(Stage stage) {
         this.dialogStage = stage;
@@ -112,7 +138,8 @@ public class SettingsManagerController {
     @FXML
     public void initialize() {
         WindowDragResize.apply(root, 40, btnClose);
-        navButtons.addAll(List.of(navGeneral, navUpdate, navTerminal, navEditor, navTransfer, navShortcut, navMaintenance, navAI));
+        navButtons.addAll(List.of(navGeneral, navUpdate, navTerminal, navEditor, navTransfer, navDockerRegistry,
+                navShortcut, navMaintenance, navAI));
         setupNavigation();
         setupControls();
         loadSettings();
@@ -126,9 +153,10 @@ public class SettingsManagerController {
         navTerminal.setOnAction(e -> selectTab(2));
         navEditor.setOnAction(e -> selectTab(3));
         navTransfer.setOnAction(e -> selectTab(4));
-        navShortcut.setOnAction(e -> selectTab(5));
-        navMaintenance.setOnAction(e -> selectTab(6));
-        navAI.setOnAction(e -> selectTab(7));
+        navDockerRegistry.setOnAction(e -> selectTab(5));
+        navShortcut.setOnAction(e -> selectTab(6));
+        navMaintenance.setOnAction(e -> selectTab(7));
+        navAI.setOnAction(e -> selectTab(8));
         settingsTabPane.getSelectionModel().selectedIndexProperty().addListener((obs, oldIndex, newIndex) ->
                 updateNavSelection(newIndex.intValue()));
         settingsTabPane.getSelectionModel().select(0);
@@ -155,12 +183,21 @@ public class SettingsManagerController {
         shortcutKeyColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().keyText()));
         shortcutTable.setItems(FXCollections.observableArrayList(ShortcutRegistry.all()));
 
+        registryNameColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().name));
+        registryAddressColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().address));
+        registryUsernameColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().username));
+        registryPasswordColumn.setCellValueFactory(data -> new SimpleStringProperty(maskPassword(data.getValue().password)));
+        dockerRegistryTable.setItems(dockerRegistries);
+
         btnChooseDownloadDirectory.setOnAction(e -> chooseDownloadDirectory());
         btnOpenConfigDir.setOnAction(e -> openDirectory(configDirectory()));
         btnOpenLogDir.setOnAction(e -> openDirectory(Paths.get(new LogDirectoryPropertyDefiner().getPropertyValue())));
         btnClearRecentFiles.setOnAction(e -> clearRecentFiles());
         btnClearTransferQueue.setOnAction(e -> clearTransferQueue());
         btnResetLayout.setOnAction(e -> resetLayout());
+        btnAddRegistry.setOnAction(e -> addDockerRegistry());
+        btnEditRegistry.setOnAction(e -> editDockerRegistry());
+        btnDeleteRegistry.setOnAction(e -> deleteDockerRegistry());
     }
 
     private void loadSettings() {
@@ -182,6 +219,7 @@ public class SettingsManagerController {
         aiModelField.setText(settings.getAiModel());
         aiApiKeyField.setText(settings.getAiApiKey());
         aiBaseUrlField.setText(settings.getAiBaseUrl());
+        refreshDockerRegistries();
     }
 
     private void setupPersistence() {
@@ -210,6 +248,128 @@ public class SettingsManagerController {
         aiModelField.textProperty().addListener((obs, old, value) -> settings.setAiModel(value));
         aiApiKeyField.textProperty().addListener((obs, old, value) -> settings.setAiApiKey(value));
         aiBaseUrlField.textProperty().addListener((obs, old, value) -> settings.setAiBaseUrl(value));
+    }
+
+    private void refreshDockerRegistries() {
+        dockerRegistries.setAll(settings.getDockerRegistries());
+        dockerRegistryTable.refresh();
+    }
+
+    private void addDockerRegistry() {
+        AppConfig.DockerRegistry registry = editDockerRegistryDialog(null);
+        if (registry == null) {
+            return;
+        }
+        dockerRegistries.add(registry);
+        settings.setDockerRegistries(new ArrayList<>(dockerRegistries));
+    }
+
+    private void editDockerRegistry() {
+        AppConfig.DockerRegistry selected = dockerRegistryTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            DialogHelper.showWarning("Docker 仓库", "请先选择一条仓库配置");
+            return;
+        }
+        AppConfig.DockerRegistry edited = editDockerRegistryDialog(selected);
+        if (edited == null) {
+            return;
+        }
+        int index = dockerRegistries.indexOf(selected);
+        if (index >= 0) {
+            dockerRegistries.set(index, edited);
+            settings.setDockerRegistries(new ArrayList<>(dockerRegistries));
+        }
+    }
+
+    private void deleteDockerRegistry() {
+        AppConfig.DockerRegistry selected = dockerRegistryTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            DialogHelper.showWarning("Docker 仓库", "请先选择一条仓库配置");
+            return;
+        }
+        if (!DialogHelper.showConfirmYesNo("删除仓库", "确定要删除 \"" + selected.name + "\" 吗？")) {
+            return;
+        }
+        dockerRegistries.remove(selected);
+        settings.setDockerRegistries(new ArrayList<>(dockerRegistries));
+    }
+
+    private AppConfig.DockerRegistry editDockerRegistryDialog(AppConfig.DockerRegistry source) {
+        TextField nameField = new TextField(source == null ? "" : source.name);
+        TextField addressField = new TextField(source == null ? "" : source.address);
+        TextField usernameField = new TextField(source == null ? "" : source.username);
+        PasswordField passwordField = new PasswordField();
+        passwordField.setText(source == null ? "" : source.password);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(16, 18, 8, 18));
+        grid.addRow(0, new Label("名称"), nameField);
+        grid.addRow(1, new Label("地址"), addressField);
+        grid.addRow(2, new Label("用户名"), usernameField);
+        grid.addRow(3, new Label("密码"), passwordField);
+        GridPane.setFillWidth(nameField, true);
+        GridPane.setFillWidth(addressField, true);
+        GridPane.setFillWidth(usernameField, true);
+        GridPane.setFillWidth(passwordField, true);
+        grid.getColumnConstraints().addAll(createLabelColumn(), createFieldColumn());
+
+        boolean ok = DialogHelper.showCustomDialog(source == null ? "新增仓库" : "编辑仓库", grid,
+                        button -> button != null && button.getButtonData() == ButtonBar.ButtonData.OK_DONE ? Boolean.TRUE : null)
+                .isPresent();
+        if (!ok) {
+            return null;
+        }
+        String name = trimOrNull(nameField.getText());
+        String address = trimOrNull(addressField.getText());
+        if (name == null || address == null) {
+            DialogHelper.showWarning("Docker 仓库", "名称和地址不能为空");
+            return null;
+        }
+        AppConfig.DockerRegistry registry = new AppConfig.DockerRegistry();
+        registry.name = name;
+        registry.address = normalizeRegistryAddress(address);
+        registry.username = trimToEmpty(usernameField.getText());
+        registry.password = trimToEmpty(passwordField.getText());
+        return registry;
+    }
+
+    private javafx.scene.layout.ColumnConstraints createLabelColumn() {
+        javafx.scene.layout.ColumnConstraints labelColumn = new javafx.scene.layout.ColumnConstraints();
+        labelColumn.setMinWidth(72);
+        labelColumn.setPrefWidth(72);
+        return labelColumn;
+    }
+
+    private javafx.scene.layout.ColumnConstraints createFieldColumn() {
+        javafx.scene.layout.ColumnConstraints fieldColumn = new javafx.scene.layout.ColumnConstraints();
+        fieldColumn.setHgrow(javafx.scene.layout.Priority.ALWAYS);
+        return fieldColumn;
+    }
+
+    private String normalizeRegistryAddress(String value) {
+        String text = trimToEmpty(value);
+        if (text.startsWith("http://")) {
+            return text.substring("http://".length());
+        }
+        if (text.startsWith("https://")) {
+            return text.substring("https://".length());
+        }
+        return text;
+    }
+
+    private String trimToEmpty(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private String trimOrNull(String value) {
+        String text = trimToEmpty(value);
+        return text.isEmpty() ? null : text;
+    }
+
+    private String maskPassword(String value) {
+        return value == null || value.isBlank() ? "" : "••••••";
     }
 
     private void chooseDownloadDirectory() {

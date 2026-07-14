@@ -97,6 +97,67 @@ public class DockerSessionManager {
                 "Run Docker container failed");
     }
 
+    public CompletableFuture<SshService.CommandResult> imagePull(String connId, ConnInfo connInfo, String image) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.imagePull(session, image),
+                "Pull Docker image failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> imagePush(String connId, ConnInfo connInfo, String image) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.imagePush(session, image),
+                "Push Docker image failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> imageLogin(String connId, ConnInfo connInfo,
+                                                                  String registry, String username, String password) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.imageLogin(session, registry, username, password),
+                "Login Docker registry failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> imageRemove(String connId, ConnInfo connInfo, String image) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.imageRemove(session, image),
+                "Remove Docker image failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> imageTag(String connId, ConnInfo connInfo, String source, String target) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.imageTag(session, source, target),
+                "Tag Docker image failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> imageTagAndPush(String connId, ConnInfo connInfo, String source, String target) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.imageTagAndPush(session, source, target),
+                "Push Docker image failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> imageInspect(String connId, ConnInfo connInfo, String image) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.imageInspect(session, image),
+                "Inspect Docker image failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> imageHistory(String connId, ConnInfo connInfo, String image) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.imageHistory(session, image),
+                "Read Docker image history failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> imageSave(String connId, ConnInfo connInfo, String image, String path) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.imageSave(session, image, path),
+                "Save Docker image failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> imagePrune(String connId, ConnInfo connInfo, boolean all) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.imagePrune(session, all),
+                "Prune Docker images failed");
+    }
+
     public CompletableFuture<SshService.CommandResult> containerLogs(String connId, ConnInfo connInfo, String id) {
         return runDockerCommand(connId, connInfo,
                 session -> dockerService.containerLogs(session, id),
