@@ -6,7 +6,7 @@
 
     <groupId>com.shell</groupId>
     <artifactId>YShell</artifactId>
-    <version>1.0.0</version>
+    <version>2.0.0</version>
     <packaging>jar</packaging>
 
     <name>YShell</name>
@@ -342,7 +342,8 @@
                 <updater.script.name>update.sh</updater.script.name>
                 <jpackage.args>--type ${jpackage.type} --name ${app.name} --app-version ${project.version} --input
                     ${jpackage.input} --main-jar ${jpackage.app.jar} --main-class ${app.main.class} --dest
-                    ${jpackage.output} --mac-package-name ${app.name} --icon ${jpackage.icon} --java-options -Dfile.encoding=UTF-8
+                    ${jpackage.output} --mac-package-name ${app.name} --icon ${jpackage.icon} --java-options
+                    -Dfile.encoding=UTF-8
                 </jpackage.args>
             </properties>
         </profile>
@@ -357,7 +358,8 @@
                 <updater.script.name>update.sh</updater.script.name>
                 <jpackage.args>--type ${jpackage.type} --name ${app.name} --app-version ${project.version} --input
                     ${jpackage.input} --main-jar ${jpackage.app.jar} --main-class ${app.main.class} --dest
-                    ${jpackage.output} --linux-package-name ${linux.package.name} --icon ${jpackage.icon} --java-options -Dfile.encoding=UTF-8
+                    ${jpackage.output} --linux-package-name ${linux.package.name} --icon ${jpackage.icon} --java-options
+                    -Dfile.encoding=UTF-8
                 </jpackage.args>
             </properties>
         </profile>
