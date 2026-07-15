@@ -293,6 +293,14 @@ public final class DialogHelper {
                                                    Node content,
                                                    List<CustomDialogButton<T>> buttons,
                                                    String... styleClasses) {
+        Dialog<T> dialog = createCustomDialog(title, content, buttons, styleClasses);
+        return dialog.showAndWait();
+    }
+
+    public static <T> Dialog<T> createCustomDialog(String title,
+                                                   Node content,
+                                                   List<CustomDialogButton<T>> buttons,
+                                                   String... styleClasses) {
         Dialog<T> dialog = new Dialog<>();
         dialog.setTitle(title);
         dialog.setHeaderText(null);
@@ -315,13 +323,22 @@ public final class DialogHelper {
                     .forEach(contentBody.getStyleClass()::add);
         }
 
-        ScrollPane contentScroll = new ScrollPane(contentBody);
-        contentScroll.getStyleClass().add("custom-dialog-content");
-        contentScroll.setFitToWidth(true);
-        contentScroll.setFitToHeight(false);
-        contentScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        contentScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        VBox.setVgrow(contentScroll, Priority.ALWAYS);
+        boolean unscrolledContent = styleClasses != null
+                && Arrays.asList(styleClasses).contains("dialog-content-unscrolled");
+        Node dialogContent;
+        if (unscrolledContent) {
+            contentBody.getStyleClass().add("custom-dialog-content");
+            dialogContent = contentBody;
+        } else {
+            ScrollPane contentScroll = new ScrollPane(contentBody);
+            contentScroll.getStyleClass().add("custom-dialog-content");
+            contentScroll.setFitToWidth(true);
+            contentScroll.setFitToHeight(false);
+            contentScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            contentScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            dialogContent = contentScroll;
+        }
+        VBox.setVgrow(dialogContent, Priority.ALWAYS);
 
         HBox footer = new HBox(10);
         footer.getStyleClass().add("custom-dialog-footer");
@@ -334,7 +351,7 @@ public final class DialogHelper {
             footer.getChildren().add(button);
         }
 
-        VBox root = new VBox(titleLabel, contentScroll, footer);
+        VBox root = new VBox(titleLabel, dialogContent, footer);
         root.getStyleClass().add("custom-dialog-root");
 
         DialogPane dialogPane = dialog.getDialogPane();
@@ -344,7 +361,7 @@ public final class DialogHelper {
 
         applyTheme(dialog);
         applyCustomDialogStyles(dialog, styleClasses);
-        return dialog.showAndWait();
+        return dialog;
     }
 
     private static <T> Button createCustomDialogButton(Dialog<T> dialog, CustomDialogButton<T> buttonConfig) {

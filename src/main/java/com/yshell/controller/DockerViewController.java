@@ -18,10 +18,7 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
-import javafx.geometry.Bounds;
-import javafx.geometry.Insets;
-import javafx.geometry.Point2D;
-import javafx.geometry.Pos;
+import javafx.geometry.*;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.*;
@@ -35,8 +32,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class DockerViewController {
+    private static final int MAX_LOG_LINES = 2000;
+
     private final DockerSessionManager sessionManager = DockerSessionManager.getInstance();
     private final ObservableList<DockerRow> rows = FXCollections.observableArrayList();
     private FilteredList<DockerRow> filteredRows;
@@ -724,8 +726,7 @@ public class DockerViewController {
         switch (operation) {
             case "详情" -> showContainerCommandResult(operation, row,
                     sessionManager.containerInspect(context.connId(), context.connInfo(), row.commandTarget()));
-            case "日志" -> showContainerCommandResult(operation, row,
-                    sessionManager.containerLogs(context.connId(), context.connInfo(), row.commandTarget()));
+            case "日志" -> showContainerLogs(operation, row, context);
             case "进入容器" -> enterContainer(row);
             case "资源占用" -> showContainerCommandResult(operation, row,
                     sessionManager.containerStats(context.connId(), context.connInfo(), row.commandTarget()));
@@ -819,7 +820,7 @@ public class DockerViewController {
         List<ImageBatchItem> items = selected.stream()
                 .map(row -> new ImageBatchItem(imageReference(row), imageReference(row), ""))
                 .toList();
-        runImageCommandBatch(context, "删除镜像", items,
+        runImageCommandBatch("删除镜像", items,
                 item -> sessionManager.imageRemove(context.connId(), context.connInfo(), item.source()),
                 true);
     }
@@ -856,12 +857,12 @@ public class DockerViewController {
                             DialogHelper.showError("推送镜像", commandMessage(result));
                             return;
                         }
-                        runImageCommandBatch(context, "推送镜像", items,
+                        runImageCommandBatch("推送镜像", items,
                                 item -> sessionManager.imageTagAndPush(context.connId(), context.connInfo(), item.source(), item.target()),
                                 false);
                     }));
         } else {
-            runImageCommandBatch(context, "推送镜像", items,
+            runImageCommandBatch("推送镜像", items,
                     item -> sessionManager.imageTagAndPush(context.connId(), context.connInfo(), item.source(), item.target()),
                     false);
         }
@@ -902,7 +903,7 @@ public class DockerViewController {
                 return;
             }
         }
-        runImageCommandBatch(context, "打标签", items,
+        runImageCommandBatch("打标签", items,
                 item -> sessionManager.imageTag(context.connId(), context.connInfo(), item.source(), item.target()),
                 true);
     }
@@ -961,17 +962,17 @@ public class DockerViewController {
         }));
     }
 
-    private void runImageCommandBatch(DockerConnectionContext context, String title, List<ImageBatchItem> items,
+    private void runImageCommandBatch(String title, List<ImageBatchItem> items,
                                       ImageCommandRunner runner, boolean refreshAfter) {
         if (items.isEmpty()) {
             DialogHelper.showWarning(title, "没有可执行的镜像");
             return;
         }
         setStatus("正在" + title + "...");
-        runImageCommandBatch(context, title, items, runner, refreshAfter, 0, 0, new ArrayList<>());
+        runImageCommandBatch(title, items, runner, refreshAfter, 0, 0, new ArrayList<>());
     }
 
-    private void runImageCommandBatch(DockerConnectionContext context, String title, List<ImageBatchItem> items,
+    private void runImageCommandBatch(String title, List<ImageBatchItem> items,
                                       ImageCommandRunner runner, boolean refreshAfter,
                                       int index, int succeeded, List<String> failures) {
         if (index >= items.size()) {
@@ -994,7 +995,7 @@ public class DockerViewController {
                 nextFailures = new ArrayList<>(failures);
                 nextFailures.add(item.label() + ": " + commandMessage(result));
             }
-            runImageCommandBatch(context, title, items, runner, refreshAfter, index + 1, nextSucceeded, nextFailures);
+            runImageCommandBatch(title, items, runner, refreshAfter, index + 1, nextSucceeded, nextFailures);
         });
     }
 
@@ -1052,6 +1053,283 @@ public class DockerViewController {
                 DialogHelper.showError(title, commandMessage(result));
             }
         }));
+    }
+
+    private void showContainerLogs(String title, DockerRow row, DockerConnectionContext context) {
+        ObservableList<String> logLines = FXCollections.observableArrayList();
+        ListView<String> logView = new ListView<>(logLines);
+        logView.setPrefSize(920, 560);
+        logView.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        logView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        logView.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                setStyle("-fx-font-family: Consolas, 'Courier New', monospace;");
+            }
+        });
+        configureLogCopy(logView);
+
+        Dialog<Void> dialog = DialogHelper.createCustomDialog(title + " - " + row.name(), logView, List.of(
+                new DialogHelper.CustomDialogButton<>("关闭", ButtonBar.ButtonData.CANCEL_CLOSE, dialogRef -> null)
+        ), "dialog-content-unscrolled");
+        dialog.setResizable(true);
+
+        LogListBuffer buffer = new LogListBuffer(logLines, MAX_LOG_LINES);
+        AtomicBoolean closed = new AtomicBoolean(false);
+        AtomicBoolean followTail = new AtomicBoolean(true);
+        AtomicBoolean scrollTrackingInstalled = new AtomicBoolean(false);
+        AtomicReference<SshService.RemoteCommandHandle> handleRef = new AtomicReference<>();
+        logView.addEventFilter(ScrollEvent.SCROLL,
+                event -> Platform.runLater(() -> followTail.set(isLogListAtBottom(logView))));
+        logView.addEventFilter(MouseEvent.MOUSE_RELEASED,
+                event -> Platform.runLater(() -> followTail.set(isLogListAtBottom(logView))));
+        dialog.setOnHidden(event -> {
+            closed.set(true);
+            SshService.RemoteCommandHandle handle = handleRef.get();
+            if (handle != null) {
+                handle.cancel();
+            }
+            setStatus(title + "已关闭");
+        });
+
+        setStatus("正在读取" + title + "...");
+        dialog.show();
+        installLogScrollTracking(logView, followTail, scrollTrackingInstalled, 0);
+
+        CompletableFuture<SshService.RemoteCommandHandle> future = sessionManager.followContainerLogs(
+                context.connId(),
+                context.connInfo(),
+                row.commandTarget(),
+                chunk -> Platform.runLater(() -> {
+                    if (!closed.get()) {
+                        appendLogChunk(logView, buffer, chunk, followTail, scrollTrackingInstalled);
+                    }
+                }),
+                chunk -> Platform.runLater(() -> {
+                    if (!closed.get()) {
+                        appendLogChunk(logView, buffer, chunk, followTail, scrollTrackingInstalled);
+                    }
+                })
+        );
+
+        future.thenAccept(handle -> {
+            if (closed.get()) {
+                handle.cancel();
+                return;
+            }
+            handleRef.set(handle);
+            handle.completion().thenAccept(result -> Platform.runLater(() -> {
+                if (closed.get() || handle.isCancelled()) {
+                    return;
+                }
+                if (result.isSuccess()) {
+                    setStatus(title + "已结束");
+                } else {
+                    setStatus(title + "读取失败");
+                    appendLogChunk(logView, buffer, "\n" + commandMessage(result), followTail, scrollTrackingInstalled);
+                }
+            }));
+        }).exceptionally(error -> {
+            Platform.runLater(() -> {
+                if (!closed.get()) {
+                    setStatus(title + "读取失败");
+                    appendLogChunk(logView, buffer, "\n" + errorMessage(error), followTail, scrollTrackingInstalled);
+                }
+            });
+            return null;
+        });
+    }
+
+    private void configureLogCopy(ListView<String> logView) {
+        AtomicInteger dragAnchor = new AtomicInteger(-1);
+        logView.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+            if (!event.isPrimaryButtonDown() || isScrollBarEvent(event)) {
+                return;
+            }
+            int index = logCellIndex(logView, event);
+            if (index < 0) {
+                return;
+            }
+            dragAnchor.set(index);
+            logView.getSelectionModel().clearSelection();
+            logView.getSelectionModel().select(index);
+            event.consume();
+        });
+        logView.addEventFilter(MouseEvent.MOUSE_DRAGGED, event -> {
+            if (!event.isPrimaryButtonDown() || isScrollBarEvent(event)) {
+                return;
+            }
+            int anchor = dragAnchor.get();
+            int index = logCellIndex(logView, event);
+            if (anchor < 0 || index < 0) {
+                return;
+            }
+            selectLogRange(logView, anchor, index);
+            event.consume();
+        });
+        logView.addEventFilter(MouseEvent.MOUSE_RELEASED, event -> dragAnchor.set(-1));
+
+        logView.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
+            if (event.isShortcutDown() && event.getCode() == KeyCode.C) {
+                copyLogLines(logView, false);
+                event.consume();
+            }
+        });
+
+        MenuItem copySelected = new MenuItem("复制选中");
+        copySelected.setOnAction(event -> copyLogLines(logView, false));
+        MenuItem copyAll = new MenuItem("复制全部");
+        copyAll.setOnAction(event -> copyLogLines(logView, true));
+        logView.setContextMenu(new ContextMenu(copySelected, copyAll));
+    }
+
+    private void selectLogRange(ListView<String> logView, int first, int second) {
+        int start = Math.max(0, Math.min(first, second));
+        int end = Math.min(logView.getItems().size() - 1, Math.max(first, second));
+        logView.getSelectionModel().clearSelection();
+        for (int index = start; index <= end; index++) {
+            logView.getSelectionModel().select(index);
+        }
+    }
+
+    private int logCellIndex(ListView<String> logView, MouseEvent event) {
+        Node node = event.getPickResult() == null ? null : event.getPickResult().getIntersectedNode();
+        while (node != null && node != logView) {
+            if (node instanceof ListCell<?> cell) {
+                int index = cell.getIndex();
+                return index >= 0 && index < logView.getItems().size() ? index : -1;
+            }
+            node = node.getParent();
+        }
+        return -1;
+    }
+
+    private boolean isScrollBarEvent(MouseEvent event) {
+        Node node = event.getPickResult() == null ? null : event.getPickResult().getIntersectedNode();
+        while (node != null) {
+            if (node instanceof ScrollBar) {
+                return true;
+            }
+            node = node.getParent();
+        }
+        return false;
+    }
+
+    private void copyLogLines(ListView<String> logView, boolean all) {
+        List<String> lines;
+        if (all) {
+            lines = new ArrayList<>(logView.getItems());
+        } else {
+            List<Integer> indices = new ArrayList<>(logView.getSelectionModel().getSelectedIndices());
+            indices.sort(Integer::compareTo);
+            lines = indices.stream()
+                    .filter(index -> index >= 0 && index < logView.getItems().size())
+                    .map(index -> logView.getItems().get(index))
+                    .toList();
+        }
+        if (lines.isEmpty() && !all) {
+            lines = new ArrayList<>(logView.getItems());
+        }
+        if (lines.isEmpty()) {
+            return;
+        }
+        ClipboardContent content = new ClipboardContent();
+        content.putString(String.join(System.lineSeparator(), lines));
+        Clipboard.getSystemClipboard().setContent(content);
+    }
+
+    private void appendLogChunk(ListView<String> logView,
+                                LogListBuffer buffer,
+                                String chunk,
+                                AtomicBoolean followTail,
+                                AtomicBoolean scrollTrackingInstalled) {
+        if (!scrollTrackingInstalled.get()) {
+            installLogScrollTracking(logView, followTail, scrollTrackingInstalled, 0);
+        }
+        boolean shouldFollowTail = followTail.get();
+        int firstVisibleIndex = shouldFollowTail ? -1 : firstVisibleLogIndex(logView);
+        LogAppendResult appendResult = buffer.append(chunk);
+        if (shouldFollowTail) {
+            logView.scrollTo(Math.max(0, logView.getItems().size() - 1));
+        } else if (appendResult.removedLines() > 0 && firstVisibleIndex >= 0) {
+            logView.scrollTo(Math.max(0, firstVisibleIndex - appendResult.removedLines()));
+        }
+    }
+
+    private void installLogScrollTracking(ListView<String> logView,
+                                          AtomicBoolean followTail,
+                                          AtomicBoolean scrollTrackingInstalled,
+                                          int attempt) {
+        ScrollBar verticalScrollBar = verticalScrollBar(logView);
+        if (verticalScrollBar == null) {
+            if (attempt < 8) {
+                Platform.runLater(() -> installLogScrollTracking(
+                        logView, followTail, scrollTrackingInstalled, attempt + 1));
+            }
+            return;
+        }
+        if (!scrollTrackingInstalled.compareAndSet(false, true)) {
+            return;
+        }
+        verticalScrollBar.valueProperty().addListener((obs, oldValue, newValue) ->
+                followTail.set(isLogListAtBottom(logView)));
+    }
+
+    private boolean isLogListAtBottom(ListView<String> logView) {
+        ScrollBar verticalScrollBar = verticalScrollBar(logView);
+        if (verticalScrollBar == null || !verticalScrollBar.isVisible()) {
+            return true;
+        }
+        double min = verticalScrollBar.getMin();
+        double max = verticalScrollBar.getMax();
+        double range = max - min;
+        if (range <= 0) {
+            return true;
+        }
+        double epsilon = Math.max(0.000001, range * 0.001);
+        return verticalScrollBar.getValue() >= max - epsilon;
+    }
+
+    private int firstVisibleLogIndex(ListView<String> logView) {
+        Bounds viewport = logView.localToScene(logView.getBoundsInLocal());
+        int first = Integer.MAX_VALUE;
+        for (Node node : logView.lookupAll(".list-cell")) {
+            if (node instanceof ListCell<?> cell
+                    && cell.getIndex() >= 0
+                    && cell.getIndex() < logView.getItems().size()
+                    && !cell.isEmpty()) {
+                Bounds bounds = cell.localToScene(cell.getBoundsInLocal());
+                if (viewport != null
+                        && bounds != null
+                        && bounds.getMaxY() > viewport.getMinY()
+                        && bounds.getMinY() < viewport.getMaxY()) {
+                    first = Math.min(first, cell.getIndex());
+                }
+            }
+        }
+        return first == Integer.MAX_VALUE ? -1 : first;
+    }
+
+    private ScrollBar verticalScrollBar(Node node) {
+        for (Node child : node.lookupAll(".scroll-bar")) {
+            if (child instanceof ScrollBar scrollBar
+                    && scrollBar.getOrientation() == Orientation.VERTICAL) {
+                return scrollBar;
+            }
+        }
+        return null;
+    }
+
+    private String errorMessage(Throwable error) {
+        Throwable current = error;
+        while (current != null && current.getCause() != null) {
+            current = current.getCause();
+        }
+        return current == null || current.getMessage() == null || current.getMessage().isBlank()
+                ? "执行失败"
+                : current.getMessage();
     }
 
     private void enterContainer(DockerRow row) {
@@ -1398,6 +1676,54 @@ public class DockerViewController {
 
     private boolean isPausedState(String state) {
         return "paused".equals(state);
+    }
+
+    private static final class LogListBuffer {
+        private final int maxLines;
+        private final ObservableList<String> lines;
+        private String partial = "";
+        private boolean partialVisible;
+
+        private LogListBuffer(ObservableList<String> lines, int maxLines) {
+            this.lines = lines;
+            this.maxLines = Math.max(1, maxLines);
+        }
+
+        private LogAppendResult append(String chunk) {
+            if (chunk == null || chunk.isEmpty()) {
+                return new LogAppendResult("", 0);
+            }
+            if (partialVisible && !lines.isEmpty()) {
+                lines.remove(lines.size() - 1);
+                partialVisible = false;
+            }
+            String normalizedChunk = chunk.replace("\r\n", "\n").replace('\r', '\n');
+            String text = partial + normalizedChunk;
+            int start = 0;
+            int newline;
+            while ((newline = text.indexOf('\n', start)) >= 0) {
+                lines.add(text.substring(start, newline));
+                start = newline + 1;
+            }
+            partial = text.substring(start);
+            if (!partial.isEmpty()) {
+                lines.add(partial);
+                partialVisible = true;
+            }
+            return new LogAppendResult(normalizedChunk, trim());
+        }
+
+        private int trim() {
+            int overflow = lines.size() - maxLines;
+            if (overflow <= 0) {
+                return 0;
+            }
+            lines.remove(0, overflow);
+            return overflow;
+        }
+    }
+
+    private record LogAppendResult(String text, int removedLines) {
     }
 
     private record DockerConnectionContext(String connId, ConnInfo connInfo) {

@@ -14,6 +14,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 public class DockerSessionManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(DockerSessionManager.class);
@@ -162,6 +163,25 @@ public class DockerSessionManager {
         return runDockerCommand(connId, connInfo,
                 session -> dockerService.containerLogs(session, id),
                 "Read Docker container logs failed");
+    }
+
+    public CompletableFuture<SshService.RemoteCommandHandle> followContainerLogs(String connId,
+                                                                                 ConnInfo connInfo,
+                                                                                 String id,
+                                                                                 Consumer<String> stdoutConsumer,
+                                                                                 Consumer<String> stderrConsumer) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return dockerService.followContainerLogs(
+                        ensureSession(connId, connInfo),
+                        id,
+                        stdoutConsumer,
+                        stderrConsumer
+                );
+            } catch (Exception e) {
+                throw new CompletionException(e);
+            }
+        }, workerExecutor);
     }
 
     public CompletableFuture<SshService.CommandResult> containerInspect(String connId, ConnInfo connInfo, String id) {

@@ -29,6 +29,7 @@ import org.apache.sshd.common.util.io.output.NoCloseOutputStream;
 import org.apache.sshd.common.util.net.SshdSocketAddress;
 import org.apache.sshd.sftp.client.SftpClient;
 import org.apache.sshd.sftp.client.SftpClientFactory;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -129,6 +130,44 @@ public class SshService {
     public record CommandResult(int exitCode, String stdout, String stderr, boolean timedOut) {
         public boolean isSuccess() {
             return exitCode == 0 && !timedOut;
+        }
+    }
+
+    public static final class RemoteCommandHandle implements AutoCloseable {
+        private final CompletableFuture<CommandResult> completion = new CompletableFuture<>();
+        private final AtomicBoolean cancelled = new AtomicBoolean(false);
+        private volatile ChannelExec channel;
+        private volatile Future<?> task;
+
+        public CompletableFuture<CommandResult> completion() {
+            return completion;
+        }
+
+        public boolean isCancelled() {
+            return cancelled.get();
+        }
+
+        public void cancel() {
+            if (!cancelled.compareAndSet(false, true)) {
+                return;
+            }
+            ChannelExec current = channel;
+            if (current != null) {
+                try {
+                    current.close(true);
+                } catch (Exception ignored) {
+                }
+            }
+            Future<?> currentTask = task;
+            if (currentTask != null) {
+                currentTask.cancel(true);
+            }
+            completion.complete(new CommandResult(130, "", "", false));
+        }
+
+        @Override
+        public void close() {
+            cancel();
         }
     }
 
@@ -1262,6 +1301,81 @@ public class SshService {
         }
     }
 
+    public RemoteCommandHandle streamRemoteCommand(String command,
+                                                   Consumer<String> stdoutConsumer,
+                                                   Consumer<String> stderrConsumer) {
+        RemoteCommandHandle handle = new RemoteCommandHandle();
+        handle.task = executor.submit(() -> {
+            boolean acquired = false;
+            try {
+                execChannelSemaphore.acquire();
+                acquired = true;
+                if (!isConnected()) {
+                    handle.completion.complete(new CommandResult(-1, "", "Not connected", false));
+                    return;
+                }
+                try (ChannelExec exec = clientSession.createExecChannel(command)) {
+                    handle.channel = exec;
+                    exec.setOut(new StreamingOutputStream(stdoutConsumer));
+                    exec.setErr(new StreamingOutputStream(stderrConsumer));
+                    long verifySeconds = Math.max(1, defaultCommandTimeout().toSeconds());
+                    exec.open().verify(verifySeconds, TimeUnit.SECONDS);
+
+                    while (!handle.isCancelled()) {
+                        Set<ClientChannelEvent> events = exec.waitFor(
+                                EnumSet.of(ClientChannelEvent.CLOSED),
+                                Duration.ofMillis(250)
+                        );
+                        if (events.contains(ClientChannelEvent.CLOSED)) {
+                            break;
+                        }
+                    }
+                    if (handle.isCancelled()) {
+                        exec.close(true);
+                    }
+                    Integer exitStatus = exec.getExitStatus();
+                    int exitCode = exitStatus == null
+                            ? (handle.isCancelled() ? 130 : -1)
+                            : exitStatus;
+                    handle.completion.complete(new CommandResult(exitCode, "", "", false));
+                }
+            } catch (Exception e) {
+                if (handle.isCancelled()) {
+                    handle.completion.complete(new CommandResult(130, "", "", false));
+                } else {
+                    String errorMessage = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                    handle.completion.complete(new CommandResult(-1, "", errorMessage, false));
+                }
+            } finally {
+                handle.channel = null;
+                if (acquired) {
+                    execChannelSemaphore.release();
+                }
+            }
+        });
+        return handle;
+    }
+
+    private static final class StreamingOutputStream extends OutputStream {
+        private final Consumer<String> consumer;
+
+        private StreamingOutputStream(Consumer<String> consumer) {
+            this.consumer = consumer;
+        }
+
+        @Override
+        public void write(int b) {
+            write(new byte[]{(byte) b}, 0, 1);
+        }
+
+        @Override
+        public void write(@NotNull byte[] b, int off, int len) {
+            if (consumer != null && len > 0) {
+                consumer.accept(new String(b, off, len, StandardCharsets.UTF_8));
+            }
+        }
+    }
+
     private SshChannelOpenException findChannelOpenException(Throwable throwable) {
         Throwable current = throwable;
         while (current != null) {
@@ -1530,7 +1644,7 @@ public class SshService {
             String[] parts = line.split("\\s+");
             if (parts.length >= 4) {
                 users.add(new UserInfo(parts[0], parts[1], parts[2], parts[3]));
-            } else if (parts.length >= 3) {
+            } else if (parts.length == 3) {
                 users.add(new UserInfo(parts[0], parts[1], parts[2], ""));
             }
         }

@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Consumer;
 
 public class DockerService {
     private static final Logger LOGGER = LoggerFactory.getLogger(DockerService.class);
@@ -75,6 +76,14 @@ public class DockerService {
 
     public SshService.CommandResult containerLogs(SshService sshService, String id) {
         return run(sshService, "docker logs --tail 300 " + shellQuote(id));
+    }
+
+    public SshService.RemoteCommandHandle followContainerLogs(SshService sshService,
+                                                              String id,
+                                                              Consumer<String> stdoutConsumer,
+                                                              Consumer<String> stderrConsumer) {
+        return stream(sshService, "docker logs -f --tail 300 " + shellQuote(id),
+                stdoutConsumer, stderrConsumer);
     }
 
     public SshService.CommandResult containerInspect(SshService sshService, String id) {
@@ -199,6 +208,14 @@ public class DockerService {
             LOGGER.debug("docker command stderr: {}", result.stderr());
         }
         return result;
+    }
+
+    private SshService.RemoteCommandHandle stream(SshService sshService,
+                                                  String command,
+                                                  Consumer<String> stdoutConsumer,
+                                                  Consumer<String> stderrConsumer) {
+        String fullCommand = "sh -lc " + shellQuote(command);
+        return sshService.streamRemoteCommand(fullCommand, stdoutConsumer, stderrConsumer);
     }
 
     private String detectDockerConfigPath(SshService sshService) {
