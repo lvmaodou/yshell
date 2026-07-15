@@ -132,7 +132,7 @@
 
 .custom-dialog-root {
     -fx-background-color: -fx-bg-dialog;
-    -fx-pref-width: 720px;
+    -fx-min-width: 360px;
     -fx-max-width: 920px;
     -fx-max-height: 640px;
 }
@@ -154,9 +154,7 @@
     -fx-background-color: -fx-bg-dialog;
     -fx-background: -fx-bg-dialog;
     -fx-padding: 0;
-    -fx-pref-viewport-width: 688px;
-    -fx-min-viewport-height: 120px;
-    -fx-pref-viewport-height: 360px;
+    -fx-min-viewport-height: 80px;
     -fx-max-height: 520px;
 }
 
@@ -168,11 +166,15 @@
     -fx-background-color: -fx-bg-dialog;
 }
 
+.custom-dialog-content-body {
+    -fx-padding: 16 18 12 18;
+}
+
 .custom-dialog-footer {
     -fx-background-color: -fx-bg-secondary;
     -fx-border-color: -fx-border-default transparent transparent transparent;
     -fx-border-width: 1 0 0 0;
-    -fx-padding: 5 18 3 18;
+    -fx-padding: 5 4 3 18;
     -fx-spacing: 10;
     -fx-alignment: center-right;
 }

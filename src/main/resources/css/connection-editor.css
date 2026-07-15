@@ -306,10 +306,6 @@
     -fx-padding: 4 20 16 20;
 }
 
-.ssh-key-selection-content {
-    -fx-padding: 0 0 10 0;
-}
-
 .ssh-key-selection-list {
     -fx-background-color: -fx-bg-secondary;
     -fx-border-color: -fx-border-default;
@@ -334,7 +330,7 @@
 }
 
 .ssh-key-option-title {
-    -fx-text-fill: -fx-text-primary;
+    -fx-text-fill: -fx-text-inverse;
     -fx-font-size: 12px;
     -fx-font-weight: 600;
     -fx-pref-width: 340px;
@@ -342,7 +338,7 @@
 }
 
 .ssh-key-option-detail {
-    -fx-text-fill: -fx-text-muted;
+    -fx-text-fill: -fx-text-primary;
     -fx-font-size: 11px;
     -fx-pref-width: 340px;
     -fx-max-width: 340px;

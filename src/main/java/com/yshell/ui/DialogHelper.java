@@ -8,6 +8,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.DirectoryChooser;
@@ -298,8 +299,23 @@ public final class DialogHelper {
 
         Label titleLabel = new Label(title == null || title.isBlank() ? "对话框" : title);
         titleLabel.getStyleClass().add("custom-dialog-title");
+        titleLabel.setMaxWidth(Double.MAX_VALUE);
 
-        ScrollPane contentScroll = new ScrollPane(content == null ? new VBox() : content);
+        Node contentNode = content == null ? new VBox() : content;
+        if (contentNode instanceof Region region) {
+            region.setMaxWidth(Double.MAX_VALUE);
+        }
+        VBox.setVgrow(contentNode, Priority.ALWAYS);
+        VBox contentBody = new VBox(contentNode);
+        contentBody.setFillWidth(true);
+        if (styleClasses != null && styleClasses.length > 0) {
+            Arrays.stream(styleClasses)
+                    .filter(Objects::nonNull)
+                    .filter(styleClass -> !styleClass.isBlank())
+                    .forEach(contentBody.getStyleClass()::add);
+        }
+
+        ScrollPane contentScroll = new ScrollPane(contentBody);
         contentScroll.getStyleClass().add("custom-dialog-content");
         contentScroll.setFitToWidth(true);
         contentScroll.setFitToHeight(false);
@@ -328,12 +344,6 @@ public final class DialogHelper {
 
         applyTheme(dialog);
         applyCustomDialogStyles(dialog, styleClasses);
-        if (styleClasses != null && styleClasses.length > 0) {
-            Arrays.stream(styleClasses)
-                    .filter(Objects::nonNull)
-                    .filter(styleClass -> !styleClass.isBlank())
-                    .forEach(dialog.getDialogPane().getStyleClass()::add);
-        }
         return dialog.showAndWait();
     }
 

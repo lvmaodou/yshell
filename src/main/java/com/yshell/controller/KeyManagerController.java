@@ -289,7 +289,7 @@ public class KeyManagerController {
                     passphraseField.getText(),
                     savePassphrase.isSelected()
             );
-        }, "key-form-dialog");
+        }, "custom-dialog-content-body", "key-form-dialog");
     }
 
     private void showKeyProperties() {
@@ -309,7 +309,7 @@ public class KeyManagerController {
         addPropertyRow(grid, 5, "公钥路径", selected.getPublicKeyPath());
         addPropertyRow(grid, 6, "保存 passphrase", selected.isSavePassphrase() ? "是" : "否");
 
-        DialogHelper.showCustomDialog("密钥属性", grid, button -> null, "key-properties-dialog");
+        DialogHelper.showCustomDialog("密钥属性", grid, button -> null, "custom-dialog-content-body", "key-properties-dialog");
     }
 
     private void addPropertyRow(GridPane grid, int row, String label, String value) {

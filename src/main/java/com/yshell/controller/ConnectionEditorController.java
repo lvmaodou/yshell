@@ -917,7 +917,6 @@ public class ConnectionEditorController {
             }
         });
         VBox listContainer = new VBox(listView);
-        listContainer.getStyleClass().add("ssh-key-selection-content");
 
         DialogHelper.showCustomDialog("选择 SSH 私钥", listContainer, button ->
                 button.getButtonData() == ButtonBar.ButtonData.OK_DONE
