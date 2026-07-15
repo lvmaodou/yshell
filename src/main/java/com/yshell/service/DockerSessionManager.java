@@ -98,16 +98,16 @@ public class DockerSessionManager {
                 "Run Docker container failed");
     }
 
+    public CompletableFuture<SshService.CommandResult> containerRun(String connId, ConnInfo connInfo, String image, String options) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.containerRun(session, image, options),
+                "Run Docker container failed");
+    }
+
     public CompletableFuture<SshService.CommandResult> imagePull(String connId, ConnInfo connInfo, String image) {
         return runDockerCommand(connId, connInfo,
                 session -> dockerService.imagePull(session, image),
                 "Pull Docker image failed");
-    }
-
-    public CompletableFuture<SshService.CommandResult> imagePush(String connId, ConnInfo connInfo, String image) {
-        return runDockerCommand(connId, connInfo,
-                session -> dockerService.imagePush(session, image),
-                "Push Docker image failed");
     }
 
     public CompletableFuture<SshService.CommandResult> imageLogin(String connId, ConnInfo connInfo,
@@ -153,16 +153,94 @@ public class DockerSessionManager {
                 "Save Docker image failed");
     }
 
+    public CompletableFuture<SshService.CommandResult> imageLoad(String connId, ConnInfo connInfo, String path) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.imageLoad(session, path),
+                "Load Docker image failed");
+    }
+
     public CompletableFuture<SshService.CommandResult> imagePrune(String connId, ConnInfo connInfo, boolean all) {
         return runDockerCommand(connId, connInfo,
                 session -> dockerService.imagePrune(session, all),
                 "Prune Docker images failed");
     }
 
-    public CompletableFuture<SshService.CommandResult> containerLogs(String connId, ConnInfo connInfo, String id) {
+    public CompletableFuture<SshService.CommandResult> networkInspect(String connId, ConnInfo connInfo, String network) {
         return runDockerCommand(connId, connInfo,
-                session -> dockerService.containerLogs(session, id),
-                "Read Docker container logs failed");
+                session -> dockerService.networkInspect(session, network),
+                "Inspect Docker network failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> networkCreate(String connId,
+                                                                     ConnInfo connInfo,
+                                                                     String name,
+                                                                     String driver,
+                                                                     String subnet,
+                                                                     String gateway,
+                                                                     boolean internal) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.networkCreate(session, name, driver, subnet, gateway, internal),
+                "Create Docker network failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> networkRemove(String connId, ConnInfo connInfo, String network) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.networkRemove(session, network),
+                "Remove Docker network failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> networkConnect(String connId,
+                                                                      ConnInfo connInfo,
+                                                                      String network,
+                                                                      String container) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.networkConnect(session, network, container),
+                "Connect Docker network failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> networkDisconnect(String connId,
+                                                                         ConnInfo connInfo,
+                                                                         String network,
+                                                                         String container) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.networkDisconnect(session, network, container),
+                "Disconnect Docker network failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> volumeInspect(String connId, ConnInfo connInfo, String volume) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.volumeInspect(session, volume),
+                "Inspect Docker volume failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> volumeContainers(String connId, ConnInfo connInfo, String volume) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.volumeContainers(session, volume),
+                "Read Docker volume containers failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> volumeSize(String connId, ConnInfo connInfo, String volume) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.volumeSize(session, volume),
+                "Read Docker volume size failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> volumeCreate(String connId, ConnInfo connInfo, String name) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.volumeCreate(session, name),
+                "Create Docker volume failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> volumeRemove(String connId, ConnInfo connInfo, String volume) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.volumeRemove(session, volume),
+                "Remove Docker volume failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> volumePrune(String connId, ConnInfo connInfo) {
+        return runDockerCommand(connId, connInfo,
+                dockerService::volumePrune,
+                "Prune Docker volumes failed");
     }
 
     public CompletableFuture<SshService.RemoteCommandHandle> followContainerLogs(String connId,
@@ -269,12 +347,6 @@ public class DockerSessionManager {
         if (connId != null) {
             snapshots.remove(connId);
         }
-    }
-
-    public void shutdown() {
-        sessions.keySet().forEach(this::closeSession);
-        workerExecutor.shutdownNow();
-        sshExecutor.shutdownNow();
     }
 
     private CompletableFuture<SshService.CommandResult> runDockerCommand(String connId,

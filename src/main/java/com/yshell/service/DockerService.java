@@ -74,6 +74,11 @@ public class DockerService {
         return run(sshService, "docker run -d " + shellQuote(image));
     }
 
+    public SshService.CommandResult containerRun(SshService sshService, String image, String options) {
+        String cleanOptions = options == null || options.isBlank() ? "" : options.trim() + " ";
+        return run(sshService, "docker run -d " + cleanOptions + shellQuote(image));
+    }
+
     public SshService.CommandResult containerLogs(SshService sshService, String id) {
         return run(sshService, "docker logs --tail 300 " + shellQuote(id));
     }
@@ -91,11 +96,35 @@ public class DockerService {
     }
 
     public SshService.CommandResult containerStats(SshService sshService, String id) {
-        return run(sshService, "docker stats --no-stream --no-trunc " + shellQuote(id));
+        String format = "Container ID: {{.Container}}\\n"
+                + "Name: {{.Name}}\\n"
+                + "CPU: {{.CPUPerc}}\\n"
+                + "Memory: {{.MemUsage}}\\n"
+                + "Memory %: {{.MemPerc}}\\n"
+                + "Network I/O: {{.NetIO}}\\n"
+                + "Block I/O: {{.BlockIO}}\\n"
+                + "PIDs: {{.PIDs}}";
+        return run(sshService, "docker stats --no-stream --no-trunc --format "
+                + shellQuote(format) + " " + shellQuote(id));
     }
 
     public SshService.CommandResult containerTop(SshService sshService, String id) {
-        return run(sshService, "docker top " + shellQuote(id));
+        String awk = "NR==1 {next} "
+                + "{ "
+                + "printf \"Process %d\\n\", ++n; "
+                + "printf \"PID: %s\\n\", $1; "
+                + "printf \"PPID: %s\\n\", $2; "
+                + "printf \"User: %s\\n\", $3; "
+                + "printf \"State: %s\\n\", $4; "
+                + "printf \"CPU %%: %s\\n\", $5; "
+                + "printf \"Memory %%: %s\\n\", $6; "
+                + "printf \"Command: %s\\n\", $7; "
+                + "if (NF > 7) { printf \"Args:\"; for (i = 8; i <= NF; i++) printf \" %s\", $i; printf \"\\n\"; } "
+                + "printf \"\\n\" "
+                + "} "
+                + "END {if (n == 0) print \"No processes\"}";
+        return run(sshService, "docker top " + shellQuote(id)
+                + " -eo pid,ppid,user,stat,pcpu,pmem,comm,args | awk " + shellQuote(awk));
     }
 
     public SshService.CommandResult containerDiff(SshService sshService, String id) {
@@ -108,10 +137,6 @@ public class DockerService {
 
     public SshService.CommandResult containerCopy(SshService sshService, String source, String target) {
         return run(sshService, "docker cp " + shellQuote(source) + " " + shellQuote(target));
-    }
-
-    public SshService.CommandResult imageAction(SshService sshService, String action, String id) {
-        return run(sshService, "docker " + action + " " + shellQuote(id));
     }
 
     public SshService.CommandResult imagePull(SshService sshService, String image) {
@@ -154,16 +179,84 @@ public class DockerService {
         return run(sshService, "docker save -o " + shellQuote(path) + " " + shellQuote(image));
     }
 
+    public SshService.CommandResult imageLoad(SshService sshService, String path) {
+        return run(sshService, "docker load -i " + shellQuote(path));
+    }
+
     public SshService.CommandResult imagePrune(SshService sshService, boolean all) {
         return run(sshService, all ? "docker image prune -a -f" : "docker image prune -f");
     }
 
-    public SshService.CommandResult networkAction(SshService sshService, String action, String id) {
-        return run(sshService, "docker " + action + " " + shellQuote(id));
+    public SshService.CommandResult networkInspect(SshService sshService, String network) {
+        return run(sshService, "docker network inspect " + shellQuote(network));
     }
 
-    public SshService.CommandResult volumeAction(SshService sshService, String action, String name) {
-        return run(sshService, "docker " + action + " " + shellQuote(name));
+    public SshService.CommandResult networkCreate(SshService sshService,
+                                                  String name,
+                                                  String driver,
+                                                  String subnet,
+                                                  String gateway,
+                                                  boolean internal) {
+        StringBuilder command = new StringBuilder("docker network create");
+        String cleanDriver = driver == null || driver.isBlank() ? "bridge" : driver.trim();
+        command.append(" --driver ").append(shellQuote(cleanDriver));
+        if (subnet != null && !subnet.isBlank()) {
+            command.append(" --subnet ").append(shellQuote(subnet.trim()));
+        }
+        if (gateway != null && !gateway.isBlank()) {
+            command.append(" --gateway ").append(shellQuote(gateway.trim()));
+        }
+        if (internal) {
+            command.append(" --internal");
+        }
+        command.append(' ').append(shellQuote(name));
+        return run(sshService, command.toString());
+    }
+
+    public SshService.CommandResult networkRemove(SshService sshService, String network) {
+        return run(sshService, "docker network rm " + shellQuote(network));
+    }
+
+    public SshService.CommandResult networkConnect(SshService sshService, String network, String container) {
+        return run(sshService, "docker network connect " + shellQuote(network) + " " + shellQuote(container));
+    }
+
+    public SshService.CommandResult networkDisconnect(SshService sshService, String network, String container) {
+        return run(sshService, "docker network disconnect " + shellQuote(network) + " " + shellQuote(container));
+    }
+
+    public SshService.CommandResult volumeInspect(SshService sshService, String volume) {
+        return run(sshService, "docker volume inspect " + shellQuote(volume));
+    }
+
+    public SshService.CommandResult volumeContainers(SshService sshService, String volume) {
+        String format = "Name: {{.Names}}\\n"
+                + "ID: {{.ID}}\\n"
+                + "Image: {{.Image}}\\n"
+                + "Status: {{.Status}}\\n";
+        String command = "containers=$(docker ps -a --filter " + shellQuote("volume=" + volume)
+                + " --format " + shellQuote(format) + "); "
+                + "if [ -n \"$containers\" ]; then printf '%s\\n' \"$containers\"; else printf '无容器使用该卷\\n'; fi";
+        return run(sshService, command);
+    }
+
+    public SshService.CommandResult volumeSize(SshService sshService, String volume) {
+        String command = "mountpoint=$(docker volume inspect -f '{{.Mountpoint}}' " + shellQuote(volume) + ") && "
+                + "printf 'Mountpoint: %s\\n' \"$mountpoint\" && "
+                + "(du -sh \"$mountpoint\" 2>/dev/null || sudo -n du -sh \"$mountpoint\" 2>/dev/null)";
+        return run(sshService, command);
+    }
+
+    public SshService.CommandResult volumeCreate(SshService sshService, String name) {
+        return run(sshService, "docker volume create " + shellQuote(name));
+    }
+
+    public SshService.CommandResult volumeRemove(SshService sshService, String volume) {
+        return run(sshService, "docker volume rm " + shellQuote(volume));
+    }
+
+    public SshService.CommandResult volumePrune(SshService sshService) {
+        return run(sshService, "docker volume prune -f");
     }
 
     public DockerConfigFile loadConfigFile(SshService sshService) {
