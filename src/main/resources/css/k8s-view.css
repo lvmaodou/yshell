@@ -10,18 +10,80 @@
 .k8s-sidebar {
     -fx-background-color: -fx-bg-tertiary;
     -fx-border-color: -fx-border-default;
-    -fx-pref-width: 160px;
     -fx-border-width: 0 1px 0 0;
+    -fx-pref-width: 230px;
+    -fx-min-width: 230px;
+    -fx-max-width: 230px;
 }
 
 .k8s-nav {
-    -fx-padding: 8px 0;
+    -fx-padding: 10px;
+    -fx-spacing: 4px;
 }
 
-.k8s-stats {
+.k8s-nav-scroll {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-border-width: 0;
+}
+
+.k8s-nav-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.k8s-category-button,
+.k8s-child-button {
+    -fx-alignment: center-left;
+    -fx-max-width: Infinity;
+    -fx-padding: 6px 8px;
+    -fx-font-size: 12px;
+}
+
+.k8s-category-button {
+    -fx-content-display: graphic-only;
+}
+
+.k8s-category-button.active,
+.k8s-child-button.active {
+    -fx-background-color: -fx-bg-selected;
+}
+
+.k8s-category-button.active .label,
+.k8s-category-button.active .ikonli-font-icon,
+.k8s-child-button.active {
+    -fx-text-fill: -fx-text-inverse;
+    -fx-icon-color: -fx-text-inverse;
+}
+
+.k8s-category-content {
+    -fx-alignment: center-left;
+    -fx-spacing: 8px;
+    -fx-min-width: 190px;
+}
+
+.k8s-category-label {
+    -fx-text-fill: -fx-text-primary;
+}
+
+.k8s-nav-icon,
+.k8s-disclosure-icon {
+    -fx-icon-color: -fx-text-primary;
+}
+
+.k8s-child-list {
+    -fx-padding: 0 0 4px 16px;
+    -fx-spacing: 3px;
+}
+
+.k8s-child-button {
+    -fx-text-fill: -fx-text-primary;
+}
+
+.k8s-side-status {
     -fx-border-color: -fx-border-default;
-    -fx-padding: 12px;
     -fx-border-width: 1px 0 0 0;
+    -fx-padding: 10px;
+    -fx-spacing: 7px;
 }
 
 .k8s-content {
@@ -33,16 +95,37 @@
     -fx-background-color: -fx-bg-secondary;
     -fx-border-color: -fx-border-default;
     -fx-border-width: 0 0 1px 0;
-    -fx-padding: 8px 12px;
+    -fx-padding: 4px 2px;
     -fx-spacing: 8px;
     -fx-alignment: center-left;
 }
 
-.k8s-table-scroll {
-    -fx-fill-height: true;
+.k8s-page-controls {
+    -fx-alignment: center-left;
+    -fx-spacing: 6px;
 }
 
+.page-jump-field {
+    -fx-pref-width: 58px;
+    -fx-max-width: 58px;
+    -fx-font-size: 12px;
+}
 
-.table-col.namespace {
-    -fx-pref-width: 100px;
+.page-jump-button {
+    -fx-padding: 4px 8px;
+    -fx-font-size: 12px;
+}
+
+.namespace-combo {
+    -fx-pref-width: 160px;
+    -fx-max-width: 160px;
+}
+
+.k8s-table .column-header .label {
+    -fx-alignment: center-left;
+}
+
+.page-info {
+    -fx-text-fill: -fx-text-secondary;
+    -fx-font-size: 12px;
 }

@@ -27,7 +27,7 @@
                 <String fx:value="visual-tab"/>
             </styleClass>
         </Label>
-        <Label fx:id="tabK8s" text="k8s" managed="false" visible="false">
+        <Label fx:id="tabK8s" text="k8s">
             <styleClass>
                 <String fx:value="label-tab"/>
                 <String fx:value="visual-tab"/>
