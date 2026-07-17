@@ -77,9 +77,11 @@ public class VisualPanelController {
         setViewVisible(k8sView, false);
         setViewVisible(aiView, false);
         if (dockerViewController != null) {
+            dockerViewController.showForConnection(activeConnectionId);
             dockerViewController.setTabVisible(false);
         }
         if (k8sViewController != null) {
+            k8sViewController.showForConnection(activeConnectionId);
             k8sViewController.setTabVisible(false);
         }
         applyTab(tabForConnection(activeConnectionId));
@@ -101,26 +103,42 @@ public class VisualPanelController {
 
     private void switchTab(String tabName) {
         activeTab = tabName;
-        String connId = ConnectionManager.getInstance().getCurrentConnectionId();
+        String connId = activeConnectionId;
         if (connId != null) {
             selectedTabsByConnection.put(connId, tabName);
-            activeConnectionId = connId;
         }
         applyTab(tabName);
     }
 
-    private void onConnectionStateChanged() {
-        String currentConnId = ConnectionManager.getInstance().getCurrentConnectionId();
-        if (Objects.equals(activeConnectionId, currentConnId)) {
+    public void showForConnection(String connId) {
+        if (Objects.equals(activeConnectionId, connId)) {
+            if (dockerViewController != null) {
+                dockerViewController.showForConnection(connId);
+            }
+            if (k8sViewController != null) {
+                k8sViewController.showForConnection(connId);
+            }
             return;
         }
-        if (activeConnectionId != null
-                && activeTab != null
-                && ConnectionManager.getInstance().getConnectionById(activeConnectionId) != null) {
+        if (activeConnectionId != null && activeTab != null) {
             selectedTabsByConnection.put(activeConnectionId, activeTab);
         }
-        activeConnectionId = currentConnId;
-        applyTab(tabForConnection(currentConnId));
+        activeConnectionId = connId;
+        applyTab(tabForConnection(connId));
+    }
+
+    private void onConnectionStateChanged() {
+        String currentConnId = ConnectionManager.getInstance().getCurrentConnectionId();
+        if (activeConnectionId == null && currentConnId != null) {
+            showForConnection(currentConnId);
+            return;
+        }
+        if (dockerViewController != null) {
+            dockerViewController.showForConnection(activeConnectionId);
+        }
+        if (k8sViewController != null) {
+            k8sViewController.showForConnection(activeConnectionId);
+        }
     }
 
     private String tabForConnection(String connId) {
@@ -129,6 +147,12 @@ public class VisualPanelController {
 
     private void applyTab(String tabName) {
         activeTab = tabName;
+        if (dockerViewController != null) {
+            dockerViewController.showForConnection(activeConnectionId);
+        }
+        if (k8sViewController != null) {
+            k8sViewController.showForConnection(activeConnectionId);
+        }
         if (tabFiles != null) tabFiles.getStyleClass().remove("active");
         if (tabDocker != null) tabDocker.getStyleClass().remove("active");
         if (tabK8s != null) tabK8s.getStyleClass().remove("active");

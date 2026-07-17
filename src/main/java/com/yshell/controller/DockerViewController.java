@@ -43,6 +43,7 @@ public class DockerViewController {
 
     private Section activeSection = Section.CONTAINERS;
     private DockerSnapshot currentSnapshot;
+    private String boundConnId;
     private String activeConnId;
     private String activeConfigPath = "/etc/docker/daemon.json";
     private boolean tabVisible;
@@ -120,6 +121,27 @@ public class DockerViewController {
         } else if (activeConnId != null) {
             sessionManager.closeSession(activeConnId);
             setStatus("Docker 会话已关闭");
+        }
+    }
+
+    public void showForConnection(String connId) {
+        if (Objects.equals(boundConnId, connId)) {
+            return;
+        }
+        if (activeConnId != null) {
+            sessionManager.closeSession(activeConnId);
+        }
+        boundConnId = connId;
+        activeConnId = null;
+        currentSnapshot = null;
+        refreshSerial++;
+        configSerial++;
+        if (searchBox != null) {
+            searchBox.clear();
+        }
+        showEmptyState();
+        if (tabVisible) {
+            refreshVisibleContent();
         }
     }
 
@@ -342,6 +364,17 @@ public class DockerViewController {
     }
 
     private void onConnectionStateChanged() {
+        if (boundConnId != null && !ConnectionManager.getInstance().isConnected(boundConnId)) {
+            if (activeConnId != null) {
+                sessionManager.closeSession(activeConnId);
+            }
+            activeConnId = null;
+            currentSnapshot = null;
+            refreshSerial++;
+            configSerial++;
+            showEmptyState();
+            return;
+        }
         if (tabVisible) {
             refreshVisibleContent();
         }
@@ -356,11 +389,11 @@ public class DockerViewController {
     }
 
     private void refreshForCurrentConnection(boolean showCacheFirst) {
-        ConnectionManager connectionManager = ConnectionManager.getInstance();
-        String connId = connectionManager.getCurrentConnectionId();
-        ConnInfo connInfo = connectionManager.getCurrentConnection();
+        DockerConnectionContext context = boundConnection();
+        String connId = context == null ? boundConnId : context.connId();
+        ConnInfo connInfo = context == null ? null : context.connInfo();
 
-        if (connId == null || connInfo == null || !connectionManager.isConnected(connId)) {
+        if (connId == null || connInfo == null || !ConnectionManager.getInstance().isConnected(connId)) {
             if (activeConnId != null) {
                 sessionManager.closeSession(activeConnId);
             }
@@ -596,10 +629,8 @@ public class DockerViewController {
     }
 
     private void loadDockerConfig() {
-        ConnectionManager connectionManager = ConnectionManager.getInstance();
-        String connId = connectionManager.getCurrentConnectionId();
-        ConnInfo connInfo = connectionManager.getCurrentConnection();
-        if (connId == null || connInfo == null || !connectionManager.isConnected(connId)) {
+        DockerConnectionContext context = boundConnection();
+        if (context == null) {
             activeConfigPath = "/etc/docker/daemon.json";
             configPathLabel.setText(activeConfigPath);
             configEditor.clear();
@@ -609,7 +640,7 @@ public class DockerViewController {
         long serial = ++configSerial;
         configPathLabel.setText(activeConfigPath);
         configEditor.setText("正在读取 Docker 配置文件...");
-        sessionManager.loadConfigFile(connId, connInfo).thenAccept(config ->
+        sessionManager.loadConfigFile(context.connId(), context.connInfo()).thenAccept(config ->
                 Platform.runLater(() -> applyDockerConfig(serial, config)));
     }
 
@@ -671,16 +702,14 @@ public class DockerViewController {
     }
 
     private void saveDockerConfig() {
-        ConnectionManager connectionManager = ConnectionManager.getInstance();
-        String connId = connectionManager.getCurrentConnectionId();
-        ConnInfo connInfo = connectionManager.getCurrentConnection();
-        if (connId == null || connInfo == null || !connectionManager.isConnected(connId)) {
+        DockerConnectionContext context = boundConnection();
+        if (context == null) {
             showInfo("保存配置", "未连接");
             return;
         }
         String path = firstNonBlank(activeConfigPath, "/etc/docker/daemon.json");
         setStatus("正在保存 Docker 配置...");
-        sessionManager.saveConfigFile(connId, connInfo, path, configEditor.getText()).thenAccept(result ->
+        sessionManager.saveConfigFile(context.connId(), context.connInfo(), path, configEditor.getText()).thenAccept(result ->
                 Platform.runLater(() -> {
                     if (result.isSuccess()) {
                         setStatus("Docker 配置已保存");
@@ -692,28 +721,24 @@ public class DockerViewController {
     }
 
     private void openDockerConfigInEditor() {
-        ConnectionManager connectionManager = ConnectionManager.getInstance();
-        String connId = connectionManager.getCurrentConnectionId();
-        ConnInfo connInfo = connectionManager.getCurrentConnection();
-        if (connId == null || connInfo == null || !connectionManager.isConnected(connId)) {
+        DockerConnectionContext context = boundConnection();
+        if (context == null) {
             showInfo("编辑配置", "未连接");
             return;
         }
         String path = firstNonBlank(activeConfigPath, "/etc/docker/daemon.json");
-        EditorViewController.open(path, connId);
+        EditorViewController.open(path, context.connId());
         setStatus("已在编辑器打开 Docker 配置");
     }
 
     private void restartDocker() {
-        ConnectionManager connectionManager = ConnectionManager.getInstance();
-        String connId = connectionManager.getCurrentConnectionId();
-        ConnInfo connInfo = connectionManager.getCurrentConnection();
-        if (connId == null || connInfo == null || !connectionManager.isConnected(connId)) {
+        DockerConnectionContext context = boundConnection();
+        if (context == null) {
             showInfo("重启 Docker", "未连接");
             return;
         }
         setStatus("正在重启 Docker...");
-        sessionManager.restartDocker(connId, connInfo).thenAccept(result ->
+        sessionManager.restartDocker(context.connId(), context.connInfo()).thenAccept(result ->
                 Platform.runLater(() -> {
                     if (result.isSuccess()) {
                         setStatus("Docker 已重启");
@@ -2096,26 +2121,23 @@ public class DockerViewController {
     }
 
     private DockerConnectionContext requireDockerConnection(String title) {
-        String connId = activeConnId();
-        ConnInfo connInfo = activeConnInfo();
-        if (connId == null || connInfo == null || !ConnectionManager.getInstance().isConnected(connId)) {
+        DockerConnectionContext context = boundConnection();
+        if (context == null) {
             DialogHelper.showWarning(title, "未连接");
             return null;
         }
-        return new DockerConnectionContext(connId, connInfo);
+        return context;
     }
 
-    private String activeConnId() {
-        return activeConnId == null ? ConnectionManager.getInstance().getCurrentConnectionId() : activeConnId;
-    }
-
-    private ConnInfo activeConnInfo() {
+    private DockerConnectionContext boundConnection() {
         ConnectionManager connectionManager = ConnectionManager.getInstance();
-        SshService service = connectionManager.getConnectionById(activeConnId());
-        if (service != null) {
-            return service.getConnInfo();
+        String connId = boundConnId;
+        if (connId == null || !connectionManager.isConnected(connId)) {
+            return null;
         }
-        return connectionManager.getCurrentConnection();
+        SshService service = connectionManager.getConnectionById(connId);
+        ConnInfo connInfo = service == null ? null : service.getConnInfo();
+        return connInfo == null ? null : new DockerConnectionContext(connId, connInfo);
     }
 
     private String commandMessage(SshService.CommandResult result) {

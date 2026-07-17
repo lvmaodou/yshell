@@ -153,10 +153,13 @@ public class ConnectionManager {
                 String message = normalizeConnectionError(error);
                 Platform.runLater(() -> {
                     connections.remove(finalConnId);
+                    DockerSessionManager.getInstance().clear(finalConnId);
+                    K8sSessionManager.getInstance().clear(finalConnId);
                     TerminalPanelController terminalPanel = getTerminalPanelController(finalConnId);
                     if (terminalPanel != null) {
                         terminalPanel.appendOutput("连接失败: " + error + "\n");
                     }
+                    fireConnectionClosed(finalConnId);
                     DialogHelper.showError("连接失败", connectionDisplayName(connInfo) + "\n" + message);
                 });
             }
@@ -164,6 +167,17 @@ public class ConnectionManager {
             @Override
             public void onDisconnected() {
                 Platform.runLater(() -> {
+                    SshService removed = connections.remove(finalConnId);
+                    if (removed == null) {
+                        fireConnectionStateChanged();
+                        return;
+                    }
+                    if (finalConnId.equals(currentConnectionId)) {
+                        stopCurrentPolling();
+                        currentConnectionId = null;
+                    }
+                    DockerSessionManager.getInstance().clear(finalConnId);
+                    K8sSessionManager.getInstance().clear(finalConnId);
                     TerminalPanelController terminalPanel = getTerminalPanelController(finalConnId);
                     if (terminalPanel != null) {
                         terminalPanel.appendOutput("连接已断开\n");
@@ -171,7 +185,7 @@ public class ConnectionManager {
                     if (leftPanelController != null) {
                         leftPanelController.removeConnectionInfo(finalConnId);
                     }
-                    fireConnectionStateChanged();
+                    fireConnectionClosed(finalConnId);
                 });
             }
 
@@ -261,6 +275,7 @@ public class ConnectionManager {
                 currentConnectionId = null;
             }
             DockerSessionManager.getInstance().clear(connId);
+            K8sSessionManager.getInstance().clear(connId);
             service.disconnect();
             fireConnectionClosed(connId);
         }

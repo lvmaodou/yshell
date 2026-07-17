@@ -51,6 +51,7 @@ public class K8sViewController {
     private ResourceKind activeKind = ResourceKind.CRON_JOBS;
     private Category expandedCategory;
     private K8sSessionManager.K8sSnapshot currentSnapshot;
+    private String boundConnId;
     private String activeConnId;
     private boolean tabVisible;
     private boolean namespaceInitialized;
@@ -125,7 +126,44 @@ public class K8sViewController {
         }
     }
 
+    public void showForConnection(String connId) {
+        if (Objects.equals(boundConnId, connId)) {
+            return;
+        }
+        if (activeConnId != null) {
+            sessionManager.closeSession(activeConnId);
+        }
+        boundConnId = connId;
+        activeConnId = null;
+        currentSnapshot = null;
+        namespaceInitialized = false;
+        snapshotSerial++;
+        rowSerial++;
+        detailSerial++;
+        updateNamespaceChoices(List.of());
+        showEmptyState();
+        if (tabVisible) {
+            refreshVisibleContent();
+        }
+    }
+
     private void onConnectionStateChanged() {
+        if (boundConnId != null && !ConnectionManager.getInstance().isConnected(boundConnId)) {
+            if (activeConnId != null) {
+                sessionManager.closeSession(activeConnId);
+            }
+            activeConnId = null;
+            currentSnapshot = null;
+            namespaceInitialized = false;
+            snapshotSerial++;
+            rowSerial++;
+            detailSerial++;
+            updateNamespaceChoices(List.of());
+            setVersionText("-");
+            setStatusText("未连接");
+            showEmptyState();
+            return;
+        }
         if (tabVisible) {
             refreshVisibleContent();
         }
@@ -387,8 +425,9 @@ public class K8sViewController {
     }
 
     private void refreshForCurrentConnection() {
-        ConnInfo connInfo = ConnectionManager.getInstance().getCurrentConnection();
-        String connId = ConnectionManager.getInstance().getCurrentConnectionId();
+        ConnectionContext context = boundConnection();
+        ConnInfo connInfo = context == null ? null : context.connInfo();
+        String connId = context == null ? boundConnId : context.connId();
         if (connId == null || connInfo == null || !ConnectionManager.getInstance().isConnected(connId)) {
             if (activeConnId != null) {
                 sessionManager.closeSession(activeConnId);
@@ -438,8 +477,9 @@ public class K8sViewController {
     }
 
     private void refreshRowsForCurrentKind(boolean resetPage) {
-        ConnInfo connInfo = ConnectionManager.getInstance().getCurrentConnection();
-        String connId = ConnectionManager.getInstance().getCurrentConnectionId();
+        ConnectionContext context = boundConnection();
+        ConnInfo connInfo = context == null ? null : context.connInfo();
+        String connId = context == null ? boundConnId : context.connId();
         if (connId == null || connInfo == null || !ConnectionManager.getInstance().isConnected(connId)) {
             showEmptyState();
             return;
@@ -506,7 +546,6 @@ public class K8sViewController {
     }
 
     private void updateNamespaceChoices(List<String> namespaces) {
-        List<String> items = new ArrayList<>();
         List<String> namespaceItems = new ArrayList<>();
         if (namespaces != null) {
             namespaces.stream()
@@ -515,7 +554,7 @@ public class K8sViewController {
                     .sorted(String::compareToIgnoreCase)
                     .forEach(namespaceItems::add);
         }
-        items.addAll(namespaceItems);
+        List<String> items = new ArrayList<>(namespaceItems);
         items.add(ALL_NAMESPACES);
         String previous = namespaceCombo.getValue();
         String defaultSelection = namespaceItems.isEmpty() ? ALL_NAMESPACES : namespaceItems.get(0);
@@ -1349,14 +1388,24 @@ public class K8sViewController {
     }
 
     private ConnectionContext requireConnection(String title) {
-        ConnInfo connInfo = ConnectionManager.getInstance().getCurrentConnection();
-        String connId = ConnectionManager.getInstance().getCurrentConnectionId();
-        if (connId == null || connInfo == null || !ConnectionManager.getInstance().isConnected(connId)) {
+        ConnectionContext context = boundConnection();
+        if (context == null) {
             DialogHelper.showWarning(title, "请先连接一台可执行 kubectl 的 SSH 主机。");
             return null;
         }
-        activeConnId = connId;
-        return new ConnectionContext(connId, connInfo);
+        activeConnId = context.connId();
+        return context;
+    }
+
+    private ConnectionContext boundConnection() {
+        ConnectionManager connectionManager = ConnectionManager.getInstance();
+        String connId = boundConnId;
+        if (connId == null || !connectionManager.isConnected(connId)) {
+            return null;
+        }
+        SshService service = connectionManager.getConnectionById(connId);
+        ConnInfo connInfo = service == null ? null : service.getConnInfo();
+        return connInfo == null ? null : new ConnectionContext(connId, connInfo);
     }
 
     private String rowName(K8sRow row) {

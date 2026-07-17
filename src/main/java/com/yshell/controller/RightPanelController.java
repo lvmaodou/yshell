@@ -48,6 +48,7 @@ public class RightPanelController implements Initializable {
      */
     private Node quickConnectPanelNode;
     private Node visualPanelNode;
+    private VisualPanelController visualPanelController;
     private boolean initialTerminalPanelAvailable = true;
 
     @Override
@@ -103,6 +104,10 @@ public class RightPanelController implements Initializable {
         showTerminalPanel(activeTerminalPanel);
         ConnectionManager.getInstance().setTerminalPanelController(tabInfo.getTerminalPanelController());
         ConnectionManager.getInstance().showFilesForConnection(tabInfo.getConnId());
+        VisualPanelController visualController = ensureVisualPanelController();
+        if (visualController != null) {
+            visualController.showForConnection(tabInfo.getConnId());
+        }
         if (quickConnectPanelNode != null) {
             quickConnectPanelNode.setVisible(false);
             quickConnectPanelNode.setManaged(false);
@@ -195,10 +200,16 @@ public class RightPanelController implements Initializable {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/VisualPanel.fxml"));
             visualPanelNode = loader.load();
+            visualPanelController = loader.getController();
             PanelManager.getInstance().setVisualPanelNode(visualPanelNode);
             return visualPanelNode;
         } catch (IOException e) {
             throw new IllegalStateException("Failed to load visual panel", e);
         }
+    }
+
+    private VisualPanelController ensureVisualPanelController() {
+        ensureVisualPanelNode();
+        return visualPanelController;
     }
 }
