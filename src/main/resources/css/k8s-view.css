@@ -86,6 +86,10 @@
     -fx-spacing: 7px;
 }
 
+.k8s-side-status .status-message {
+    -fx-wrap-text: false;
+}
+
 .k8s-content {
     -fx-background-color: -fx-bg-primary;
     -fx-fill-height: true;

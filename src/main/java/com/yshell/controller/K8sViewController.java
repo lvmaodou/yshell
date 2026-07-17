@@ -1,41 +1,74 @@
 package com.yshell.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yshell.model.ConnInfo;
+import com.yshell.service.ConnectionManager;
+import com.yshell.service.K8sSessionManager;
+import com.yshell.service.SshService;
 import com.yshell.ui.DialogHelper;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.geometry.Bounds;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
+import javafx.scene.input.*;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class K8sViewController {
+    private static final Logger LOGGER = LoggerFactory.getLogger(K8sViewController.class);
     private static final int PAGE_SIZE = 100;
+    private static final int MAX_LOG_LINES = 2000;
     private static final String ALL_NAMESPACES = "全部 namespace";
 
+    private final K8sSessionManager sessionManager = K8sSessionManager.getInstance();
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<Category, Button> categoryButtons = new LinkedHashMap<>();
     private final Map<Category, VBox> childContainers = new LinkedHashMap<>();
     private final ObservableList<K8sRow> allRows = FXCollections.observableArrayList();
     private final ObservableList<K8sRow> visibleRows = FXCollections.observableArrayList();
     private ResourceKind activeKind = ResourceKind.CRON_JOBS;
     private Category expandedCategory;
+    private K8sSessionManager.K8sSnapshot currentSnapshot;
+    private String activeConnId;
+    private boolean tabVisible;
+    private boolean namespaceInitialized;
+    private boolean updatingNamespaceChoices;
+    private long snapshotSerial;
+    private long rowSerial;
+    private long detailSerial;
     private int currentPageIndex;
+    private String statusDetailText = "";
 
     @FXML
     private VBox navGroups;
     @FXML
+    private VBox k8sSideStatus;
+    @FXML
     private Label lblK8sVersion;
+    @FXML
+    private Label lblK8sStatus;
     @FXML
     private HBox toolbarActions;
     @FXML
@@ -67,10 +100,35 @@ public class K8sViewController {
         configureToolbar();
         configureFilters();
         configureTable();
-        updateClusterStatus();
+        configureStatusLabel();
+        ConnectionManager.getInstance().addOnConnectionStateChangedListener(
+                () -> Platform.runLater(this::onConnectionStateChanged));
         expandedCategory = Category.WORKLOADS;
         updateSidebarStyle();
-        renderRows();
+        updateNamespaceChoices(List.of());
+        setVersionText("-");
+        setStatusText("未连接");
+        showEmptyState();
+    }
+
+    public void setTabVisible(boolean visible) {
+        if (tabVisible == visible) {
+            return;
+        }
+        tabVisible = visible;
+        if (visible) {
+            refreshVisibleContent();
+        } else if (activeConnId != null) {
+            sessionManager.closeSession(activeConnId);
+            setVersionText("-");
+            setStatusText("K8s 会话已关闭");
+        }
+    }
+
+    private void onConnectionStateChanged() {
+        if (tabVisible) {
+            refreshVisibleContent();
+        }
     }
 
     private void configureSidebar() {
@@ -119,8 +177,9 @@ public class K8sViewController {
     }
 
     private void configureToolbar() {
-        Button createButton = makeToolbarButton(this::createResource);
-        toolbarActions.getChildren().setAll(createButton);
+        Button createButton = makeToolbarButton("fas-plus", "新建资源", this::createResource);
+        Button refreshButton = makeToolbarButton("fas-sync-alt", "刷新资源", this::refreshVisibleContent);
+        toolbarActions.getChildren().setAll(createButton, refreshButton);
         configurePageButton(firstPageButton, "头页", "fas-angle-double-left", () -> goToPage(0));
         configurePageButton(prevPageButton, "上一页", "fas-angle-left", () -> goToPage(currentPageIndex - 1));
         configurePageButton(nextPageButton, "下一页", "fas-angle-right", () -> goToPage(currentPageIndex + 1));
@@ -137,17 +196,16 @@ public class K8sViewController {
 
     private void configureFilters() {
         namespaceCombo.setItems(FXCollections.observableArrayList(
-                ALL_NAMESPACES,
-                "default",
-                "kube-system",
-                "database",
-                "monitoring",
-                "ingress-nginx"
+                ALL_NAMESPACES
         ));
         namespaceCombo.getSelectionModel().select(ALL_NAMESPACES);
         namespaceCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
             currentPageIndex = 0;
-            applyFilters();
+            if (updatingNamespaceChoices) {
+                applyFilters();
+            } else {
+                refreshRowsForCurrentKind(true);
+            }
         });
         searchBox.textProperty().addListener((obs, oldValue, newValue) -> {
             currentPageIndex = 0;
@@ -321,9 +379,287 @@ public class K8sViewController {
 
     private void renderRows() {
         rebuildColumns();
-        allRows.setAll(sampleRows(activeKind));
+        refreshRowsForCurrentKind(true);
+    }
+
+    private void refreshVisibleContent() {
+        refreshForCurrentConnection();
+    }
+
+    private void refreshForCurrentConnection() {
+        ConnInfo connInfo = ConnectionManager.getInstance().getCurrentConnection();
+        String connId = ConnectionManager.getInstance().getCurrentConnectionId();
+        if (connId == null || connInfo == null || !ConnectionManager.getInstance().isConnected(connId)) {
+            if (activeConnId != null) {
+                sessionManager.closeSession(activeConnId);
+            }
+            activeConnId = null;
+            currentSnapshot = null;
+            namespaceInitialized = false;
+            setVersionText("-");
+            setStatusText("未连接");
+            showEmptyState();
+            return;
+        }
+
+        if (!Objects.equals(activeConnId, connId)) {
+            if (activeConnId != null) {
+                sessionManager.closeSession(activeConnId);
+            }
+            activeConnId = connId;
+            currentSnapshot = null;
+            namespaceInitialized = false;
+            allRows.clear();
+            visibleRows.clear();
+            setStatusText("正在连接 Kubernetes...");
+        }
+
+        K8sSessionManager.K8sSnapshot cached = sessionManager.getCachedSnapshot(connId);
+        boolean hasCached = cached != null;
+        if (cached != null) {
+            applySnapshot(cached);
+            setStatusText("显示缓存，正在刷新...");
+            refreshRowsForCurrentKind(false);
+        } else {
+            setStatusText("正在读取 Kubernetes 命名空间...");
+        }
+
+        long snapshotToken = ++snapshotSerial;
+        sessionManager.refreshSnapshot(connId, connInfo).thenAccept(snapshot ->
+                Platform.runLater(() -> {
+                    if (snapshotToken != snapshotSerial || !Objects.equals(activeConnId, connId)) {
+                        return;
+                    }
+                    applySnapshot(snapshot);
+                    if (!hasCached) {
+                        refreshRowsForCurrentKind(false);
+                    }
+                }));
+    }
+
+    private void refreshRowsForCurrentKind(boolean resetPage) {
+        ConnInfo connInfo = ConnectionManager.getInstance().getCurrentConnection();
+        String connId = ConnectionManager.getInstance().getCurrentConnectionId();
+        if (connId == null || connInfo == null || !ConnectionManager.getInstance().isConnected(connId)) {
+            showEmptyState();
+            return;
+        }
+        if (!Objects.equals(activeConnId, connId)) {
+            if (activeConnId != null) {
+                sessionManager.closeSession(activeConnId);
+            }
+            activeConnId = connId;
+            namespaceInitialized = false;
+        }
+
+        long rowToken = ++rowSerial;
+        setStatusText("正在加载 " + activeKind.label() + "...");
+        String namespace = namespaceCombo.getValue();
+        String listNamespace = namespace == null || namespace.isBlank() || Objects.equals(namespace, ALL_NAMESPACES)
+                ? ""
+                : namespace;
+        sessionManager.listResources(connId, connInfo, activeKind.kubectlType(), activeKind.namespaced(), listNamespace)
+                .thenAccept(result -> Platform.runLater(() -> {
+                    if (rowToken != rowSerial || !Objects.equals(activeConnId, connId)) {
+                        return;
+                    }
+                    if (result == null || !result.success()) {
+                        allRows.clear();
+                        visibleRows.clear();
+                        totalInfoLabel.setText("总数 0");
+                        currentPageLabel.setText("第 0/1 页");
+                        if (result != null && result.errorMessage() != null && !result.errorMessage().isBlank()) {
+                            String message = result.errorMessage();
+                            setStatusText(message);
+                            LOGGER.error("load kubernetes resources failed: kind={}, namespace={}, error={}",
+                                    activeKind.kubectlType(), listNamespace.isBlank() ? "<all/current>" : listNamespace, message);
+                        }
+                        return;
+                    }
+                    List<K8sRow> rows = new ArrayList<>(result.items().size());
+                    for (JsonNode item : result.items()) {
+                        rows.add(new K8sRow(activeKind, valuesFor(activeKind, item), item));
+                    }
+                    allRows.setAll(rows);
+                    if (resetPage) {
+                        currentPageIndex = 0;
+                    }
+                    applyFilters();
+                    setStatusText(activeKind.label() + " 已加载：" + rows.size());
+                }));
+    }
+
+    private void applySnapshot(K8sSessionManager.K8sSnapshot snapshot) {
+        currentSnapshot = snapshot;
+        if (snapshot == null) {
+            setVersionText("-");
+            setStatusText("未连接");
+            return;
+        }
+        updateNamespaceChoices(snapshot.namespaces());
+        setVersionText(snapshotVersionText(snapshot));
+        if (!snapshot.kubectlAvailable()) {
+            String message = firstNonBlank(snapshot.errorMessage(), "kubectl 不可用");
+            setStatusText(message);
+            LOGGER.error("refresh kubernetes snapshot failed: {}", message);
+        }
+    }
+
+    private void updateNamespaceChoices(List<String> namespaces) {
+        List<String> items = new ArrayList<>();
+        List<String> namespaceItems = new ArrayList<>();
+        if (namespaces != null) {
+            namespaces.stream()
+                    .filter(value -> value != null && !value.isBlank())
+                    .distinct()
+                    .sorted(String::compareToIgnoreCase)
+                    .forEach(namespaceItems::add);
+        }
+        items.addAll(namespaceItems);
+        items.add(ALL_NAMESPACES);
+        String previous = namespaceCombo.getValue();
+        String defaultSelection = namespaceItems.isEmpty() ? ALL_NAMESPACES : namespaceItems.get(0);
+        boolean defaultToFirstNamespace = !namespaceInitialized && !namespaceItems.isEmpty();
+        updatingNamespaceChoices = true;
+        try {
+            namespaceCombo.setItems(FXCollections.observableArrayList(items));
+            if (previous != null
+                    && items.contains(previous)
+                    && !(defaultToFirstNamespace && Objects.equals(previous, ALL_NAMESPACES))) {
+                namespaceCombo.getSelectionModel().select(previous);
+            } else {
+                namespaceCombo.getSelectionModel().select(defaultSelection);
+            }
+        } finally {
+            updatingNamespaceChoices = false;
+        }
+        if (!namespaceItems.isEmpty()) {
+            namespaceInitialized = true;
+        }
+    }
+
+    private String snapshotVersionText(K8sSessionManager.K8sSnapshot snapshot) {
+        if (snapshot == null) {
+            return "-";
+        }
+        if (!snapshot.kubectlAvailable()) {
+            return "-";
+        }
+        String client = snapshot.clientVersion();
+        String server = snapshot.serverVersion();
+        if (!client.isBlank() && !server.isBlank()) {
+            return server + " / " + client;
+        }
+        return firstNonBlank(server, firstNonBlank(client, "-"));
+    }
+
+    private void setVersionText(String value) {
+        lblK8sVersion.setText(firstNonBlank(value, "-"));
+    }
+
+    private void setStatusText(String value) {
+        if (lblK8sStatus != null) {
+            String fullText = firstNonBlank(value, "-");
+            statusDetailText = fullText;
+            lblK8sStatus.setText(statusSummary(fullText));
+            lblK8sStatus.setTooltip(new Tooltip(hasStatusDetail(fullText) ? "点击查看完整信息" : fullText));
+            lblK8sStatus.setCursor(hasStatusDetail(fullText) ? Cursor.HAND : Cursor.DEFAULT);
+            if (k8sSideStatus != null) {
+                k8sSideStatus.setCursor(hasStatusDetail(fullText) ? Cursor.HAND : Cursor.DEFAULT);
+            }
+        }
+    }
+
+    private void configureStatusLabel() {
+        if (lblK8sStatus == null) {
+            return;
+        }
+        if (k8sSideStatus != null) {
+            k8sSideStatus.setOnMouseClicked(this::showStatusDetail);
+        }
+        lblK8sStatus.setWrapText(false);
+        lblK8sStatus.setTextOverrun(OverrunStyle.ELLIPSIS);
+        lblK8sStatus.setMaxWidth(Double.MAX_VALUE);
+        lblK8sStatus.setPickOnBounds(true);
+    }
+
+    private void showStatusDetail(MouseEvent event) {
+        showStatusDetail();
+        if (event != null) {
+            event.consume();
+        }
+    }
+
+    private void showStatusDetail() {
+        if (!hasStatusDetail(statusDetailText)) {
+            return;
+        }
+        TextArea area = new TextArea(statusDetailText);
+        area.setEditable(false);
+        area.setWrapText(false);
+        area.setPrefColumnCount(100);
+        area.setPrefRowCount(18);
+        DialogHelper.<Void>showCustomDialog("Kubernetes 状态详情", area, List.of(
+                new DialogHelper.CustomDialogButton<>("确定", ButtonBar.ButtonData.OK_DONE, dialog -> null)
+        ));
+    }
+
+    private boolean hasStatusDetail(String value) {
+        String text = firstNonBlank(value, "-");
+        String lower = text.toLowerCase(Locale.ROOT);
+        return text.contains("\n")
+                || text.contains("\r")
+                || text.length() > 80
+                || lower.contains("error")
+                || lower.contains("failed")
+                || lower.contains("refused")
+                || lower.contains("forbidden")
+                || lower.contains("unauthorized")
+                || lower.contains("timeout")
+                || text.contains("失败")
+                || text.contains("错误")
+                || text.contains("不可用")
+                || text.contains("未授权")
+                || text.contains("权限不足");
+    }
+
+    private String statusSummary(String value) {
+        String text = firstNonBlank(value, "-").replace("\r", "\n");
+        if (text.equals("-")) {
+            return text;
+        }
+        String compact = text.replaceAll("(?m)^[EWI]\\d{4}\\s+\\d{2}:\\d{2}:\\d{2}\\.\\d+\\s+\\d+\\s+[^]]+]\\s*", "")
+                .replaceAll("\\s+", " ")
+                .trim();
+        String lower = compact.toLowerCase(Locale.ROOT);
+        if (lower.contains("connection refused")) {
+            return "加载失败：connection refused";
+        }
+        if (lower.contains("forbidden")) {
+            return "加载失败：权限不足";
+        }
+        if (lower.contains("unauthorized")) {
+            return "加载失败：未授权";
+        }
+        if (lower.contains("timed out") || lower.contains("timeout")) {
+            return "加载失败：连接超时";
+        }
+        if (lower.contains("no such host")) {
+            return "加载失败：无法解析主机";
+        }
+        if (compact.length() <= 80) {
+            return compact;
+        }
+        return compact.substring(0, 77) + "...";
+    }
+
+    private void showEmptyState() {
+        rebuildColumns();
+        allRows.clear();
+        visibleRows.clear();
         currentPageIndex = 0;
         applyFilters();
+        setVersionText(currentSnapshot == null ? "-" : snapshotVersionText(currentSnapshot));
     }
 
     private void applyFilters() {
@@ -432,7 +768,18 @@ public class K8sViewController {
     }
 
     private void createResource() {
-        DialogHelper.showInfo("Kubernetes", "新建资源功能等待 Kubernetes 后端接入。");
+        ConnectionContext context = requireConnection("新建资源");
+        if (context == null) {
+            return;
+        }
+        String template = resourceTemplate(activeKind, selectedNamespace());
+        Optional<String> yaml = showYamlEditor("新建 " + activeKind.label(), template, "创建");
+        if (yaml.isEmpty()) {
+            return;
+        }
+        setStatusText("正在创建...");
+        sessionManager.applyYaml(context.connId(), context.connInfo(), yaml.get()).thenAccept(result ->
+                Platform.runLater(() -> handleMutationResult("创建资源", result)));
     }
 
     private void showResourceAction(Action action, K8sRow row) {
@@ -440,43 +787,758 @@ public class K8sViewController {
             showDetailWindow(row);
             return;
         }
-        DialogHelper.showInfo("Kubernetes",
-                action.label() + ": " + row.kind().label() + " / " + row.value("名称")
-                        + "\n\n等效操作: " + kubectlHint(action, row));
+        switch (action) {
+            case LOGS -> showLogs(row);
+            case EXEC -> execIntoPod(row);
+            case EDIT -> editResource(row);
+            case DELETE -> deleteResource(row);
+            case SCALE -> scaleResource(row);
+            case RESTART -> restartResource(row);
+            case TRIGGER -> triggerCronJob(row);
+            default -> DialogHelper.showInfo("Kubernetes",
+                    action.label() + ": " + row.kind().label() + " / " + row.value("名称")
+                            + "\n\n等效操作: " + kubectlHint(action, row));
+        }
     }
 
     private void showDetailWindow(K8sRow row) {
-        List<K8sDetailController.DetailActionSpec> actionSpecs = new ArrayList<>();
-        for (Action action : row.kind().actions()) {
-            if (action == Action.DETAIL) {
-                continue;
-            }
-            actionSpecs.add(new K8sDetailController.DetailActionSpec(
-                    action.label(),
-                    kubectlHint(action, row),
-                    action == Action.EDIT || action == Action.SCALE || action == Action.TRIGGER
-            ));
+        ConnectionContext context = requireConnection("查看详情");
+        if (context == null) {
+            return;
         }
-        actionSpecs.add(new K8sDetailController.DetailActionSpec(
-                "固定到侧边栏",
-                "将 " + row.kind().label() + " / " + row.value("名称") + " 固定到侧边栏",
-                false
-        ));
 
-        K8sDetailController.DetailPageData data = new K8sDetailController.DetailPageData(
-                row.kind().label(),
-                row.kind().label() + "详情",
-                row.value("名称") + namespaceSubtitle(row),
-                metadataFor(row),
-                resourceInfoFor(row),
-                detailSectionsFor(row),
-                actionSpecs,
-                eventsFor(row),
-                yamlFor(row),
-                spec -> DialogHelper.showInfo("Kubernetes", spec.label() + "\n\n等效操作: " + spec.hint())
+        long serial = ++detailSerial;
+        CompletableFuture<SshService.CommandResult> describeFuture = sessionManager.describe(
+                context.connId(), context.connInfo(), row.kind().kubectlType(), rowNamespace(row), rowName(row), row.kind().namespaced());
+        CompletableFuture<SshService.CommandResult> yamlFuture = sessionManager.getYaml(
+                context.connId(), context.connInfo(), row.kind().kubectlType(), rowNamespace(row), rowName(row), row.kind().namespaced());
+        CompletableFuture<SshService.CommandResult> eventsFuture = sessionManager.events(
+                context.connId(), context.connInfo(), rowNamespace(row), rowName(row), row.kind().namespaced());
+
+        CompletableFuture.allOf(describeFuture, yamlFuture, eventsFuture).thenRun(() ->
+                Platform.runLater(() -> {
+                    if (serial != detailSerial) {
+                        return;
+                    }
+                    SshService.CommandResult describe = describeFuture.join();
+                    SshService.CommandResult yaml = yamlFuture.join();
+                    SshService.CommandResult events = eventsFuture.join();
+
+                    List<K8sDetailController.DetailActionSpec> actionSpecs = new ArrayList<>();
+                    for (Action action : row.kind().actions()) {
+                        if (action == Action.DETAIL) {
+                            continue;
+                        }
+                        actionSpecs.add(new K8sDetailController.DetailActionSpec(
+                                action.label(),
+                                kubectlHint(action, row),
+                                action == Action.EDIT || action == Action.SCALE || action == Action.TRIGGER
+                        ));
+                    }
+
+                    List<String> eventLines = parseEventLines(events);
+                    List<K8sDetailController.DetailSectionSpec> sections = new ArrayList<>();
+                    sections.add(K8sDetailController.DetailSectionSpec.kv("资源摘要", resourceSummaryFor(row)));
+                    sections.add(K8sDetailController.DetailSectionSpec.text("资源描述", commandMessage(describe)));
+
+                    K8sDetailController.DetailPageData data = new K8sDetailController.DetailPageData(
+                            row.kind().label(),
+                            row.kind().label() + "详情",
+                            row.value("名称") + namespaceSubtitle(row),
+                            metadataFor(row),
+                            resourceInfoFor(row),
+                            sections,
+                            actionSpecs,
+                            eventLines,
+                            commandMessage(yaml),
+                            spec -> handleDetailAction(row, spec)
+                    );
+
+                    K8sDetailController.show(resourceTable.getScene() == null ? null : resourceTable.getScene().getWindow(), data);
+                }));
+    }
+
+    private void handleDetailAction(K8sRow row, K8sDetailController.DetailActionSpec spec) {
+        Action action = Action.fromLabel(spec.label());
+        if (action == null) {
+            DialogHelper.showInfo("Kubernetes", spec.label() + "\n\n等效操作: " + spec.hint());
+            return;
+        }
+        showResourceAction(action, row);
+    }
+
+    private void showLogs(K8sRow row) {
+        ConnectionContext context = requireConnection("查看日志");
+        if (context == null) {
+            return;
+        }
+        ObservableList<String> logLines = FXCollections.observableArrayList();
+        ListView<String> logView = new ListView<>(logLines);
+        logView.setPrefSize(920, 560);
+        logView.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        logView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        logView.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                setStyle("-fx-font-family: Consolas, 'Courier New', monospace;");
+            }
+        });
+        configureLogCopy(logView);
+
+        Dialog<Void> dialog = DialogHelper.createCustomDialog("查看日志 - " + row.value("名称"), logView, List.of(
+                new DialogHelper.CustomDialogButton<>("关闭", ButtonBar.ButtonData.CANCEL_CLOSE, dialogRef -> null)
+        ), "dialog-content-unscrolled");
+        dialog.setResizable(true);
+
+        LogListBuffer buffer = new LogListBuffer(logLines, MAX_LOG_LINES);
+        AtomicBoolean closed = new AtomicBoolean(false);
+        AtomicBoolean followTail = new AtomicBoolean(true);
+        AtomicBoolean scrollTrackingInstalled = new AtomicBoolean(false);
+        AtomicReference<SshService.RemoteCommandHandle> handleRef = new AtomicReference<>();
+        logView.addEventFilter(ScrollEvent.SCROLL,
+                event -> Platform.runLater(() -> followTail.set(isLogListAtBottom(logView))));
+        logView.addEventFilter(MouseEvent.MOUSE_RELEASED,
+                event -> Platform.runLater(() -> followTail.set(isLogListAtBottom(logView))));
+        dialog.setOnHidden(event -> {
+            closed.set(true);
+            SshService.RemoteCommandHandle handle = handleRef.get();
+            if (handle != null) {
+                handle.cancel();
+            }
+            setStatusText("日志已关闭");
+        });
+
+        setStatusText("正在读取日志...");
+        dialog.show();
+        installLogScrollTracking(logView, followTail, scrollTrackingInstalled, 0);
+
+        CompletableFuture<SshService.RemoteCommandHandle> future = sessionManager.followLogs(
+                context.connId(),
+                context.connInfo(),
+                row.kind().kubectlType(),
+                rowNamespace(row),
+                rowName(row),
+                row.kind().namespaced(),
+                chunk -> Platform.runLater(() -> {
+                    if (!closed.get()) {
+                        appendLogChunk(logView, buffer, chunk, followTail, scrollTrackingInstalled);
+                    }
+                }),
+                chunk -> Platform.runLater(() -> {
+                    if (!closed.get()) {
+                        appendLogChunk(logView, buffer, chunk, followTail, scrollTrackingInstalled);
+                    }
+                })
         );
 
-        K8sDetailController.show(resourceTable.getScene() == null ? null : resourceTable.getScene().getWindow(), data);
+        future.thenAccept(handle -> {
+            if (closed.get()) {
+                handle.cancel();
+                return;
+            }
+            handleRef.set(handle);
+            handle.completion().thenAccept(result -> Platform.runLater(() -> {
+                if (closed.get() || handle.isCancelled()) {
+                    return;
+                }
+                if (result.isSuccess()) {
+                    setStatusText("日志已结束");
+                } else {
+                    setStatusText("日志读取失败");
+                    appendLogChunk(logView, buffer, "\n" + commandMessage(result), followTail, scrollTrackingInstalled);
+                }
+            }));
+        }).exceptionally(error -> {
+            Platform.runLater(() -> {
+                if (!closed.get()) {
+                    setStatusText("日志读取失败");
+                    appendLogChunk(logView, buffer, "\n" + errorMessage(error), followTail, scrollTrackingInstalled);
+                }
+            });
+            return null;
+        });
+    }
+
+    private void execIntoPod(K8sRow row) {
+        ConnectionContext context = requireConnection("执行");
+        if (context == null) {
+            return;
+        }
+        if (row.kind() != ResourceKind.PODS) {
+            DialogHelper.showWarning("Kubernetes", "执行仅支持 Pod。");
+            return;
+        }
+        TerminalPanelController terminalController = ConnectionManager.getInstance().getTerminalPanelController(context.connId());
+        if (terminalController == null) {
+            DialogHelper.showWarning("执行", "当前连接没有可用终端");
+            return;
+        }
+        String command = "kubectl exec -it -n " + shellArg(rowNamespace(row)) + " "
+                + shellArg(rowName(row)) + " -- sh";
+        if (terminalController.executeShellCommand(command)) {
+            setStatusText("已进入 Pod 终端");
+        } else {
+            DialogHelper.showWarning("执行", "终端未就绪");
+        }
+    }
+
+    private void editResource(K8sRow row) {
+        ConnectionContext context = requireConnection("编辑资源");
+        if (context == null) {
+            return;
+        }
+        setStatusText("正在读取 YAML...");
+        sessionManager.getYaml(context.connId(), context.connInfo(), row.kind().kubectlType(),
+                        rowNamespace(row), rowName(row), row.kind().namespaced())
+                .thenAccept(result -> Platform.runLater(() -> {
+                    if (!result.isSuccess()) {
+                        showCommandResult(row.value("名称"), result);
+                        return;
+                    }
+                    Optional<String> yaml = showYamlEditor("编辑 " + row.kind().label() + " / " + row.value("名称"),
+                            result.stdout(), "应用");
+                    if (yaml.isEmpty()) {
+                        setStatusText("已取消编辑");
+                        return;
+                    }
+                    setStatusText("正在应用 YAML...");
+                    sessionManager.applyYaml(context.connId(), context.connInfo(), yaml.get()).thenAccept(applyResult ->
+                            Platform.runLater(() -> handleMutationResult("编辑资源", applyResult)));
+                }));
+    }
+
+    private void deleteResource(K8sRow row) {
+        ConnectionContext context = requireConnection("删除资源");
+        if (context == null) {
+            return;
+        }
+        if (!DialogHelper.showConfirm("删除资源",
+                "确定要删除 " + row.kind().label() + " / " + row.value("名称") + " 吗？")) {
+            return;
+        }
+        setStatusText("正在删除...");
+        sessionManager.delete(context.connId(), context.connInfo(), row.kind().kubectlType(),
+                        rowNamespace(row), rowName(row), row.kind().namespaced())
+                .thenAccept(result -> Platform.runLater(() -> handleMutationResult("删除资源", result)));
+    }
+
+    private void scaleResource(K8sRow row) {
+        ConnectionContext context = requireConnection("扩缩容");
+        if (context == null) {
+            return;
+        }
+        Optional<Integer> value = showScaleDialog(row);
+        if (value.isEmpty()) {
+            return;
+        }
+        setStatusText("正在扩缩容...");
+        sessionManager.scale(context.connId(), context.connInfo(), row.kind().kubectlType(),
+                        rowNamespace(row), rowName(row), row.kind().namespaced(), value.get())
+                .thenAccept(result -> Platform.runLater(() -> handleMutationResult("扩缩容", result)));
+    }
+
+    private void restartResource(K8sRow row) {
+        ConnectionContext context = requireConnection("重启");
+        if (context == null) {
+            return;
+        }
+        if (!DialogHelper.showConfirm("重启", "确定要重启 " + row.kind().label() + " / " + row.value("名称") + " 吗？")) {
+            return;
+        }
+        setStatusText("正在重启...");
+        sessionManager.rolloutRestart(context.connId(), context.connInfo(), row.kind().kubectlType(),
+                        rowNamespace(row), rowName(row), row.kind().namespaced())
+                .thenAccept(result -> Platform.runLater(() -> handleMutationResult("重启", result)));
+    }
+
+    private void triggerCronJob(K8sRow row) {
+        ConnectionContext context = requireConnection("触发执行");
+        if (context == null) {
+            return;
+        }
+        if (!DialogHelper.showConfirm("触发执行", "确定要基于该 CronJob 创建一次性 Job 吗？")) {
+            return;
+        }
+        setStatusText("正在触发...");
+        sessionManager.triggerCronJob(context.connId(), context.connInfo(), rowNamespace(row), rowName(row))
+                .thenAccept(result -> Platform.runLater(() -> handleMutationResult("触发执行", result)));
+    }
+
+    private void handleMutationResult(String title, SshService.CommandResult result) {
+        if (result != null && result.isSuccess()) {
+            setStatusText(title + "完成");
+            DialogHelper.showInfoWithHeader(title, title, commandMessage(result));
+            refreshRowsForCurrentKind(false);
+        } else {
+            setStatusText(commandMessage(result));
+            DialogHelper.showError(title, commandMessage(result));
+        }
+    }
+
+    private void showCommandResult(String header, SshService.CommandResult result) {
+        if (result != null && result.isSuccess()) {
+            setStatusText("编辑资源" + "已读取");
+            DialogHelper.showInfoWithHeader("编辑资源", header, commandMessage(result));
+        } else {
+            setStatusText(commandMessage(result));
+            DialogHelper.showError("编辑资源", commandMessage(result));
+        }
+    }
+
+    private Optional<String> showYamlEditor(String title, String yaml, String actionText) {
+        TextArea editor = new TextArea(yaml == null ? "" : yaml);
+        editor.setWrapText(false);
+        editor.setPrefColumnCount(110);
+        editor.setPrefRowCount(28);
+        editor.getStyleClass().add("detail-yaml");
+        return DialogHelper.showCustomDialog(title, editor, List.of(
+                new DialogHelper.CustomDialogButton<>(
+                        actionText == null || actionText.isBlank() ? "应用" : actionText,
+                        ButtonBar.ButtonData.OK_DONE,
+                        dialog -> editor.getText()
+                ),
+                new DialogHelper.CustomDialogButton<>(
+                        "取消",
+                        ButtonBar.ButtonData.CANCEL_CLOSE,
+                        dialog -> null
+                )
+        ));
+    }
+
+    private Optional<Integer> showScaleDialog(K8sRow row) {
+        Spinner<Integer> replicas = new Spinner<>();
+        replicas.setEditable(true);
+        replicas.setPrefWidth(140);
+        replicas.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(
+                0, 10000, currentReplicas(row), 1));
+
+        GridPane grid = new GridPane();
+        grid.setHgap(12);
+        grid.setVgap(10);
+        grid.add(new Label("资源"), 0, 0);
+        grid.add(new Label(row.kind().label() + " / " + row.value("名称")), 1, 0);
+        grid.add(new Label("当前副本数"), 0, 1);
+        grid.add(new Label(row.value("Pods")), 1, 1);
+        grid.add(new Label("副本数"), 0, 2);
+        grid.add(replicas, 1, 2);
+
+        return DialogHelper.showCustomDialog("扩缩容", grid, List.of(
+                new DialogHelper.CustomDialogButton<>("确定", ButtonBar.ButtonData.OK_DONE,
+                        dialog -> replicas.getValue()),
+                new DialogHelper.CustomDialogButton<>("取消", ButtonBar.ButtonData.CANCEL_CLOSE,
+                        dialog -> null)
+        ), "custom-dialog-content-body");
+    }
+
+    private int currentReplicas(K8sRow row) {
+        JsonNode raw = row.raw();
+        if (raw != null) {
+            JsonNode specReplicas = raw.path("spec").path("replicas");
+            if (specReplicas.isInt()) {
+                return Math.max(0, specReplicas.asInt());
+            }
+        }
+        String pods = row.value("Pods");
+        if (pods != null && pods.contains("/")) {
+            String desired = pods.substring(pods.indexOf('/') + 1).trim();
+            try {
+                return Math.max(0, Integer.parseInt(desired));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return 1;
+    }
+
+    private void configureLogCopy(ListView<String> logView) {
+        AtomicInteger dragAnchor = new AtomicInteger(-1);
+        logView.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+            if (!event.isPrimaryButtonDown() || isScrollBarEvent(event)) {
+                return;
+            }
+            int index = logCellIndex(logView, event);
+            if (index < 0) {
+                return;
+            }
+            dragAnchor.set(index);
+            logView.getSelectionModel().clearSelection();
+            logView.getSelectionModel().select(index);
+            event.consume();
+        });
+        logView.addEventFilter(MouseEvent.MOUSE_DRAGGED, event -> {
+            if (!event.isPrimaryButtonDown() || isScrollBarEvent(event)) {
+                return;
+            }
+            int anchor = dragAnchor.get();
+            int index = logCellIndex(logView, event);
+            if (anchor < 0 || index < 0) {
+                return;
+            }
+            selectLogRange(logView, anchor, index);
+            event.consume();
+        });
+        logView.addEventFilter(MouseEvent.MOUSE_RELEASED, event -> dragAnchor.set(-1));
+
+        logView.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
+            if (event.isShortcutDown() && event.getCode() == KeyCode.C) {
+                copyLogLines(logView, false);
+                event.consume();
+            }
+        });
+
+        MenuItem copySelected = new MenuItem("复制选中");
+        copySelected.setOnAction(event -> copyLogLines(logView, false));
+        MenuItem copyAll = new MenuItem("复制全部");
+        copyAll.setOnAction(event -> copyLogLines(logView, true));
+        logView.setContextMenu(new ContextMenu(copySelected, copyAll));
+    }
+
+    private void selectLogRange(ListView<String> logView, int first, int second) {
+        int start = Math.max(0, Math.min(first, second));
+        int end = Math.min(logView.getItems().size() - 1, Math.max(first, second));
+        logView.getSelectionModel().clearSelection();
+        for (int index = start; index <= end; index++) {
+            logView.getSelectionModel().select(index);
+        }
+    }
+
+    private int logCellIndex(ListView<String> logView, MouseEvent event) {
+        Node node = event.getPickResult() == null ? null : event.getPickResult().getIntersectedNode();
+        while (node != null && node != logView) {
+            if (node instanceof ListCell<?> cell) {
+                int index = cell.getIndex();
+                return index >= 0 && index < logView.getItems().size() ? index : -1;
+            }
+            node = node.getParent();
+        }
+        return -1;
+    }
+
+    private boolean isScrollBarEvent(MouseEvent event) {
+        Node node = event.getPickResult() == null ? null : event.getPickResult().getIntersectedNode();
+        while (node != null) {
+            if (node instanceof ScrollBar) {
+                return true;
+            }
+            node = node.getParent();
+        }
+        return false;
+    }
+
+    private void copyLogLines(ListView<String> logView, boolean all) {
+        List<String> lines;
+        if (all) {
+            lines = new ArrayList<>(logView.getItems());
+        } else {
+            List<Integer> indices = new ArrayList<>(logView.getSelectionModel().getSelectedIndices());
+            indices.sort(Integer::compareTo);
+            lines = indices.stream()
+                    .filter(index -> index >= 0 && index < logView.getItems().size())
+                    .map(index -> logView.getItems().get(index))
+                    .toList();
+        }
+        if (lines.isEmpty() && !all) {
+            lines = new ArrayList<>(logView.getItems());
+        }
+        if (lines.isEmpty()) {
+            return;
+        }
+        ClipboardContent content = new ClipboardContent();
+        content.putString(String.join(System.lineSeparator(), lines));
+        Clipboard.getSystemClipboard().setContent(content);
+    }
+
+    private void appendLogChunk(ListView<String> logView,
+                                LogListBuffer buffer,
+                                String chunk,
+                                AtomicBoolean followTail,
+                                AtomicBoolean scrollTrackingInstalled) {
+        if (!scrollTrackingInstalled.get()) {
+            installLogScrollTracking(logView, followTail, scrollTrackingInstalled, 0);
+        }
+        boolean shouldFollowTail = followTail.get();
+        int firstVisibleIndex = shouldFollowTail ? -1 : firstVisibleLogIndex(logView);
+        LogAppendResult appendResult = buffer.append(chunk);
+        if (shouldFollowTail) {
+            logView.scrollTo(Math.max(0, logView.getItems().size() - 1));
+        } else if (appendResult.removedLines() > 0 && firstVisibleIndex >= 0) {
+            logView.scrollTo(Math.max(0, firstVisibleIndex - appendResult.removedLines()));
+        }
+    }
+
+    private void installLogScrollTracking(ListView<String> logView,
+                                          AtomicBoolean followTail,
+                                          AtomicBoolean scrollTrackingInstalled,
+                                          int attempt) {
+        ScrollBar verticalScrollBar = verticalScrollBar(logView);
+        if (verticalScrollBar == null) {
+            if (attempt < 8) {
+                Platform.runLater(() -> installLogScrollTracking(
+                        logView, followTail, scrollTrackingInstalled, attempt + 1));
+            }
+            return;
+        }
+        if (!scrollTrackingInstalled.compareAndSet(false, true)) {
+            return;
+        }
+        verticalScrollBar.valueProperty().addListener((obs, oldValue, newValue) ->
+                followTail.set(isLogListAtBottom(logView)));
+    }
+
+    private boolean isLogListAtBottom(ListView<String> logView) {
+        ScrollBar verticalScrollBar = verticalScrollBar(logView);
+        if (verticalScrollBar == null || !verticalScrollBar.isVisible()) {
+            return true;
+        }
+        double min = verticalScrollBar.getMin();
+        double max = verticalScrollBar.getMax();
+        double range = max - min;
+        if (range <= 0) {
+            return true;
+        }
+        double epsilon = Math.max(0.000001, range * 0.001);
+        return verticalScrollBar.getValue() >= max - epsilon;
+    }
+
+    private int firstVisibleLogIndex(ListView<String> logView) {
+        Bounds viewport = logView.localToScene(logView.getBoundsInLocal());
+        int first = Integer.MAX_VALUE;
+        for (Node node : logView.lookupAll(".list-cell")) {
+            if (node instanceof ListCell<?> cell
+                    && cell.getIndex() >= 0
+                    && cell.getIndex() < logView.getItems().size()
+                    && !cell.isEmpty()) {
+                Bounds bounds = cell.localToScene(cell.getBoundsInLocal());
+                if (viewport != null
+                        && bounds != null
+                        && bounds.getMaxY() > viewport.getMinY()
+                        && bounds.getMinY() < viewport.getMaxY()) {
+                    first = Math.min(first, cell.getIndex());
+                }
+            }
+        }
+        return first == Integer.MAX_VALUE ? -1 : first;
+    }
+
+    private ScrollBar verticalScrollBar(Node node) {
+        for (Node child : node.lookupAll(".scroll-bar")) {
+            if (child instanceof ScrollBar scrollBar
+                    && scrollBar.getOrientation() == Orientation.VERTICAL) {
+                return scrollBar;
+            }
+        }
+        return null;
+    }
+
+    private String errorMessage(Throwable error) {
+        Throwable current = error;
+        while (current != null && current.getCause() != null) {
+            current = current.getCause();
+        }
+        return current == null || current.getMessage() == null || current.getMessage().isBlank()
+                ? "执行失败"
+                : current.getMessage();
+    }
+
+    private String shellArg(String value) {
+        if (value == null) {
+            return "''";
+        }
+        return "'" + value.replace("'", "'\"'\"'") + "'";
+    }
+
+    private ConnectionContext requireConnection(String title) {
+        ConnInfo connInfo = ConnectionManager.getInstance().getCurrentConnection();
+        String connId = ConnectionManager.getInstance().getCurrentConnectionId();
+        if (connId == null || connInfo == null || !ConnectionManager.getInstance().isConnected(connId)) {
+            DialogHelper.showWarning(title, "请先连接一台可执行 kubectl 的 SSH 主机。");
+            return null;
+        }
+        activeConnId = connId;
+        return new ConnectionContext(connId, connInfo);
+    }
+
+    private String rowName(K8sRow row) {
+        return row.value("名称");
+    }
+
+    private String rowNamespace(K8sRow row) {
+        String namespace = row.value("命名空间");
+        if (namespace == null || namespace.isBlank() || "-".equals(namespace)) {
+            return "default";
+        }
+        return namespace;
+    }
+
+    private String selectedNamespace() {
+        String selected = namespaceCombo.getValue();
+        if (selected == null || selected.isBlank() || ALL_NAMESPACES.equals(selected)) {
+            return "default";
+        }
+        return selected;
+    }
+
+    private String commandMessage(SshService.CommandResult result) {
+        if (result == null) {
+            return "";
+        }
+        String stdout = result.stdout() == null ? "" : result.stdout().trim();
+        String stderr = result.stderr() == null ? "" : result.stderr().trim();
+        if (!stdout.isBlank() && !stderr.isBlank()) {
+            return stdout + "\n" + stderr;
+        }
+        if (!stdout.isBlank()) {
+            return stdout;
+        }
+        if (!stderr.isBlank()) {
+            return stderr;
+        }
+        return result.isSuccess() ? "执行成功" : "执行失败";
+    }
+
+    private List<String> parseEventLines(SshService.CommandResult result) {
+        if (result == null || result.stdout() == null || result.stdout().isBlank()) {
+            return List.of();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(result.stdout());
+            JsonNode items = root.path("items");
+            if (!items.isArray()) {
+                return List.of();
+            }
+            List<String> events = new ArrayList<>();
+            for (JsonNode item : items) {
+                String type = item.path("type").asText("-");
+                String reason = item.path("reason").asText("-");
+                String time = firstNonBlank(
+                        ageSince(firstNonBlank(item.path("lastTimestamp").asText(""),
+                                item.path("eventTime").asText(""))),
+                        "-"
+                );
+                String message = item.path("message").asText("");
+                events.add(type + "  " + reason + "  " + time + "  " + message);
+            }
+            return events;
+        } catch (Exception e) {
+            return result.stdout().lines()
+                    .filter(line -> !line.isBlank())
+                    .limit(50)
+                    .toList();
+        }
+    }
+
+    private Map<String, String> resourceSummaryFor(K8sRow row) {
+        Map<String, String> summary = new LinkedHashMap<>(resourceInfoFor(row));
+        summary.put("kubectl", "kubectl get " + row.kind().kubectlType()
+                + (row.kind().namespaced() ? " -n " + rowNamespace(row) : "")
+                + " " + rowName(row) + " -o yaml");
+        return summary;
+    }
+
+    private String resourceTemplate(ResourceKind kind, String namespace) {
+        String name = kind.namePrefix() + "-example";
+        String nsLine = kind.namespaced() ? "  namespace: " + firstNonBlank(namespace, "default") + "\n" : "";
+        return switch (kind) {
+            case PODS -> """
+                    apiVersion: v1
+                    kind: Pod
+                    metadata:
+                      name: %s
+                    %sspec:
+                      containers:
+                        - name: app
+                          image: nginx:latest
+                    """.formatted(name, nsLine);
+            case DEPLOYMENTS -> """
+                    apiVersion: apps/v1
+                    kind: Deployment
+                    metadata:
+                      name: %s
+                    %sspec:
+                      replicas: 1
+                      selector:
+                        matchLabels:
+                          app: %s
+                      template:
+                        metadata:
+                          labels:
+                            app: %s
+                        spec:
+                          containers:
+                            - name: app
+                              image: nginx:latest
+                    """.formatted(name, nsLine, name, name);
+            case SERVICES -> """
+                    apiVersion: v1
+                    kind: Service
+                    metadata:
+                      name: %s
+                    %sspec:
+                      selector:
+                        app: %s
+                      ports:
+                        - port: 80
+                          targetPort: 80
+                    """.formatted(name, nsLine, name);
+            case CONFIG_MAPS -> """
+                    apiVersion: v1
+                    kind: ConfigMap
+                    metadata:
+                      name: %s
+                    %sdata:
+                      config.yaml: |
+                        key: value
+                    """.formatted(name, nsLine);
+            default -> """
+                    apiVersion: %s
+                    kind: %s
+                    metadata:
+                      name: %s
+                    %s
+                    """.formatted(apiVersionFor(kind), manifestKindFor(kind), name, nsLine);
+        };
+    }
+
+    private String apiVersionFor(ResourceKind kind) {
+        return switch (kind) {
+            case CRON_JOBS, JOBS -> "batch/v1";
+            case DAEMON_SETS, DEPLOYMENTS, REPLICA_SETS, STATEFUL_SETS -> "apps/v1";
+            case INGRESSES, INGRESS_CLASSES, NETWORK_POLICIES -> "networking.k8s.io/v1";
+            case STORAGE_CLASSES -> "storage.k8s.io/v1";
+            case CLUSTER_ROLE_BINDINGS, CLUSTER_ROLES, ROLE_BINDINGS, ROLES -> "rbac.authorization.k8s.io/v1";
+            default -> "v1";
+        };
+    }
+
+    private String manifestKindFor(ResourceKind kind) {
+        return switch (kind) {
+            case CRON_JOBS -> "CronJob";
+            case DAEMON_SETS -> "DaemonSet";
+            case DEPLOYMENTS -> "Deployment";
+            case JOBS -> "Job";
+            case PODS -> "Pod";
+            case REPLICA_SETS -> "ReplicaSet";
+            case REPLICATION_CONTROLLERS -> "ReplicationController";
+            case STATEFUL_SETS -> "StatefulSet";
+            case INGRESSES -> "Ingress";
+            case INGRESS_CLASSES -> "IngressClass";
+            case SERVICES -> "Service";
+            case CONFIG_MAPS -> "ConfigMap";
+            case PERSISTENT_VOLUME_CLAIMS -> "PersistentVolumeClaim";
+            case SECRETS -> "Secret";
+            case STORAGE_CLASSES -> "StorageClass";
+            case CLUSTER_ROLE_BINDINGS -> "ClusterRoleBinding";
+            case CLUSTER_ROLES -> "ClusterRole";
+            case EVENTS -> "Event";
+            case NAMESPACES -> "Namespace";
+            case NETWORK_POLICIES -> "NetworkPolicy";
+            case NODES -> "Node";
+            case PERSISTENT_VOLUMES -> "PersistentVolume";
+            case ROLE_BINDINGS -> "RoleBinding";
+            case ROLES -> "Role";
+            case SERVICE_ACCOUNTS -> "ServiceAccount";
+        };
     }
 
     private String namespaceSubtitle(K8sRow row) {
@@ -493,9 +1555,10 @@ public class K8sViewController {
         if (row.kind().namespaced()) {
             metadata.put("命名空间", row.value("命名空间"));
         }
-        metadata.put("标签", firstNonBlank(row.value("标签"), "app=" + row.value("名称")));
-        metadata.put("注解", "app.kubernetes.io/managed-by=YShell");
-        metadata.put("创建时间", firstNonBlank(row.value("创建时间"), row.value("Age")));
+        metadata.put("标签", firstNonBlank(row.value("标签"), "-"));
+        metadata.put("注解", annotationsFor(row.raw()));
+        metadata.put("创建时间", firstNonBlank(nodeText(row.raw(), "metadata", "creationTimestamp"),
+                firstNonBlank(row.value("创建时间"), row.value("Age"))));
         return metadata;
     }
 
@@ -504,11 +1567,11 @@ public class K8sViewController {
             return row(
                     "Node", firstNonBlank(row.value("节点"), "node-1"),
                     "Status", firstNonBlank(row.value("状态"), "Running"),
-                    "IP", "10.244.0." + positiveHash(row.value("名称")),
-                    "QoS Class", "Burstable",
+                    "IP", firstNonBlank(nodeText(row.raw(), "status", "podIP"), "-"),
+                    "QoS Class", firstNonBlank(nodeText(row.raw(), "status", "qosClass"), "-"),
                     "Restarts", firstNonBlank(row.value("重启次数"), "0"),
-                    "Service Account", "default",
-                    "Image Pull Secrets", "registry-secret"
+                    "Service Account", firstNonBlank(nodeText(row.raw(), "spec", "serviceAccountName"), "default"),
+                    "Image", firstNonBlank(row.value("镜像"), "-")
             );
         }
         if (row.kind() == ResourceKind.NODES) {
@@ -537,264 +1600,12 @@ public class K8sViewController {
         return info;
     }
 
-    private List<K8sDetailController.DetailSectionSpec> detailSectionsFor(K8sRow row) {
-        List<K8sDetailController.DetailSectionSpec> sections = new ArrayList<>();
-        switch (row.kind()) {
-            case PODS -> {
-                sections.add(metricsCard(row));
-                sections.add(conditionTable());
-                sections.add(K8sDetailController.DetailSectionSpec.kv("创建者信息", row(
-                        "Kind", "ReplicaSet",
-                        "Name", row.value("名称") + "-rs",
-                        "Namespace", row.value("命名空间")
-                )));
-                sections.add(K8sDetailController.DetailSectionSpec.table("PVC 列表",
-                        List.of("名称", "状态", "容量"),
-                        List.of(row("名称", "data-" + row.value("名称"), "状态", "Bound", "容量", "20Gi"))));
-                sections.add(eventTable(row));
-                sections.add(K8sDetailController.DetailSectionSpec.cardGroup("Containers",
-                        List.of(containerCard(row.value("名称"), firstNonBlank(row.value("镜像"), "registry.local/app:latest")))));
-            }
-            case DEPLOYMENTS -> {
-                sections.add(K8sDetailController.DetailSectionSpec.kv("滚动更新策略", row(
-                        "Max surge", "25%",
-                        "Max unavailable", "25%"
-                )));
-                sections.add(K8sDetailController.DetailSectionSpec.kv("Pods 状态", row(
-                        "Updated", "3",
-                        "Total", "3",
-                        "Available", "3",
-                        "Unavailable", "0"
-                )));
-                sections.add(conditionTable());
-                sections.add(K8sDetailController.DetailSectionSpec.table("新副本集",
-                        List.of("Name", "Namespace", "Age", "Pods", "Labels", "Images"),
-                        List.of(row("Name", row.value("名称") + "-rs", "Namespace", row.value("命名空间"),
-                                "Age", "2d", "Pods", firstNonBlank(row.value("Pods"), "3/3"),
-                                "Labels", row.value("标签"), "Images", row.value("镜像")))));
-                sections.add(K8sDetailController.DetailSectionSpec.list("旧副本集", List.of(row.value("名称") + "-rs-old")));
-                sections.add(K8sDetailController.DetailSectionSpec.list("HPA 列表", List.of(row.value("名称") + "-hpa")));
-                sections.add(eventTable(row));
-            }
-            case DAEMON_SETS, STATEFUL_SETS, REPLICA_SETS, REPLICATION_CONTROLLERS -> sections.addAll(List.of(
-                    K8sDetailController.DetailSectionSpec.kv("Pod 状态", row(
-                            "Running / Desired", firstNonBlank(row.value("Pods"), "1/1"),
-                            "状态百分比", "100%"
-                    )),
-                    K8sDetailController.DetailSectionSpec.table("Pod 列表",
-                            List.of("名称", "状态", "节点"),
-                            List.of(row("名称", row.value("名称") + "-pod", "状态", "Running", "节点", "node-1"))),
-                    K8sDetailController.DetailSectionSpec.table("Service 列表",
-                            List.of("名称", "类型", "Cluster IP"),
-                            List.of(row("名称", row.value("名称") + "-svc", "类型", "ClusterIP", "Cluster IP", "10.96.0.10"))),
-                    eventTable(row)
-            ));
-            case JOBS -> sections.addAll(List.of(
-                    K8sDetailController.DetailSectionSpec.kv("Pod 状态", row(
-                            "Running / Desired", firstNonBlank(row.value("Pods"), "1/1"),
-                            "Succeeded", row.value("状态").equals("已完成") ? "1" : "0",
-                            "Failed", row.value("状态").equals("失败") ? "1" : "0"
-                    )),
-                    conditionTable(),
-                    K8sDetailController.DetailSectionSpec.table("Pod 列表",
-                            List.of("名称", "状态", "节点"),
-                            List.of(row("名称", row.value("名称") + "-pod", "状态", "Running", "节点", "node-1"))),
-                    eventTable(row)
-            ));
-            case CRON_JOBS -> sections.addAll(List.of(
-                    K8sDetailController.DetailSectionSpec.table("Job 列表",
-                            List.of("名称", "状态", "开始时间", "完成时间"),
-                            List.of(row("名称", row.value("名称") + "-001", "状态", "Complete", "开始时间", "10m 前", "完成时间", "9m 前"))),
-                    eventTable(row)
-            ));
-            case SERVICES -> {
-                sections.add(K8sDetailController.DetailSectionSpec.cardGroup("端点列表",
-                        List.of(row("_标题", "端点 1", "内部端点", firstNonBlank(row.value("内部端点"), "-"),
-                                "外部端点", firstNonBlank(row.value("外部端点"), "-"), "端口", "80/TCP"))));
-                sections.add(K8sDetailController.DetailSectionSpec.table("Pod 列表",
-                        List.of("名称", "状态"), List.of(row("名称", row.value("名称") + "-pod", "状态", "Running"))));
-                sections.add(K8sDetailController.DetailSectionSpec.list("Ingress 列表", List.of("public-" + row.value("名称"))));
-                sections.add(eventTable(row));
-            }
-            case INGRESSES -> {
-                sections.add(K8sDetailController.DetailSectionSpec.table("Ingress 规则",
-                        List.of("Host", "Path", "Service", "Port"),
-                        List.of(row("Host", firstNonBlank(row.value("Hosts"), "-"), "Path", "/",
-                                "Service", "svc-" + row.value("名称"), "Port", "80"))));
-                sections.add(K8sDetailController.DetailSectionSpec.kv("外部端点", row("Endpoint", firstNonBlank(row.value("Endpoints"), "-"))));
-                sections.add(K8sDetailController.DetailSectionSpec.kv("TLS 配置", row("Secret", "tls-" + row.value("名称"))));
-                sections.add(eventTable(row));
-            }
-            case INGRESS_CLASSES -> sections.add(K8sDetailController.DetailSectionSpec.kv("Controller 信息",
-                    row("Controller", firstNonBlank(row.value("Controller"), "k8s.io/ingress-nginx"))));
-            case CONFIG_MAPS -> sections.add(K8sDetailController.DetailSectionSpec.text("数据",
-                    "{\n  \"config.yaml\": \"key: value\"\n}"));
-            case PERSISTENT_VOLUME_CLAIMS -> sections.add(K8sDetailController.DetailSectionSpec.kv("存储信息", row(
-                    "Status", firstNonBlank(row.value("绑定状态"), row.value("状态")),
-                    "Volume", firstNonBlank(row.value("Volume"), "-"),
-                    "Capacity", firstNonBlank(row.value("容量"), "-"),
-                    "Access Modes", firstNonBlank(row.value("访问模式"), "-"),
-                    "Storage Class", firstNonBlank(row.value("Storage Class"), "-")
-            )));
-            case SECRETS -> sections.add(K8sDetailController.DetailSectionSpec.table("数据",
-                    List.of("Key", "Value"),
-                    List.of(row("Key", "password", "Value", "8 bytes hidden"),
-                            row("Key", "certificate", "Value", "1024 bytes hidden"))));
-            case NODES -> {
-                sections.add(metricsCard(row));
-                sections.add(K8sDetailController.DetailSectionSpec.kv("系统信息", Map.of(
-                        "Kernel version", "5.15.0",
-                        "OS Image", "Ubuntu 22.04",
-                        "Container runtime version", "containerd://1.7.0",
-                        "kubelet version", "v1.28.0"
-                )));
-                sections.add(conditionTable());
-                sections.add(K8sDetailController.DetailSectionSpec.table("Pod 列表",
-                        List.of("名称", "命名空间", "状态"),
-                        List.of(row("名称", "api-001", "命名空间", "default", "状态", "Running"))));
-                sections.add(eventTable(row));
-            }
-            case ROLES, CLUSTER_ROLES -> sections.add(policyRuleTable());
-            case ROLE_BINDINGS, CLUSTER_ROLE_BINDINGS ->
-                    sections.add(K8sDetailController.DetailSectionSpec.table("主体列表",
-                            List.of("Kind", "Name", "Namespace"),
-                            List.of(row("Kind", "ServiceAccount", "Name", "default",
-                                    "Namespace", firstNonBlank(row.value("命名空间"), "default")))));
-            case SERVICE_ACCOUNTS -> {
-                sections.add(K8sDetailController.DetailSectionSpec.list("Secret 列表", List.of("default-token")));
-                sections.add(K8sDetailController.DetailSectionSpec.list("Image Pull Secret 列表", List.of("image-pull-secret")));
-            }
-            case NETWORK_POLICIES -> {
-                sections.add(K8sDetailController.DetailSectionSpec.kv("Pod Selector",
-                        row("matchLabels", firstNonBlank(row.value("标签"), "app=" + row.value("名称")))));
-                sections.add(K8sDetailController.DetailSectionSpec.text("Ingress / Egress 规则",
-                        "policyTypes:\n  - Ingress\n  - Egress\npodSelector:\n  matchLabels:\n    app: " + row.value("名称")));
-            }
-            case PERSISTENT_VOLUMES -> {
-                sections.add(K8sDetailController.DetailSectionSpec.kv("PV 源", row("类型", "HostPath", "Path", "/var/lib/data")));
-                sections.add(K8sDetailController.DetailSectionSpec.table("容量",
-                        List.of("Resource name", "Quantity"),
-                        List.of(row("Resource name", "storage", "Quantity", firstNonBlank(row.value("容量"), "20Gi")))));
-            }
-            case STORAGE_CLASSES -> {
-                sections.add(K8sDetailController.DetailSectionSpec.kv("参数", row(
-                        "Provisioner", firstNonBlank(row.value("Provisioner"), "-"),
-                        "Reclaim policy", "Delete",
-                        "Volume binding mode", "WaitForFirstConsumer",
-                        "Allow volume expansion", "true"
-                )));
-                sections.add(K8sDetailController.DetailSectionSpec.list("持久卷列表", List.of("pv-001", "pv-002")));
-            }
-            case NAMESPACES -> {
-                sections.add(K8sDetailController.DetailSectionSpec.table("资源配额列表",
-                        List.of("资源", "使用量", "限制"),
-                        List.of(row("资源", "pods", "使用量", "12", "限制", "100"))));
-                sections.add(K8sDetailController.DetailSectionSpec.table("资源限制列表",
-                        List.of("资源", "默认值"),
-                        List.of(row("资源", "cpu", "默认值", "500m"))));
-                sections.add(eventTable(row));
-            }
-            case EVENTS -> sections.add(K8sDetailController.DetailSectionSpec.text("消息",
-                    firstNonBlank(row.value("Message"), "Successfully assigned resource")));
-            default -> {
-            }
-        }
-        return sections;
-    }
-
-    private K8sDetailController.DetailSectionSpec conditionTable() {
-        return K8sDetailController.DetailSectionSpec.table("条件列表",
-                List.of("Type", "Status", "Reason", "Message", "Last Probe Time"),
-                List.of(row("Type", "Ready", "Status", "True", "Reason", "MinimumReplicasAvailable",
-                        "Message", "resource is ready", "Last Probe Time", "30s")));
-    }
-
-    private K8sDetailController.DetailSectionSpec policyRuleTable() {
-        return K8sDetailController.DetailSectionSpec.table("策略规则列表",
-                List.of("Resources", "Non-Resource URLs", "Resource Names", "Verbs", "API Groups"),
-                List.of(row("Resources", "pods, services", "Non-Resource URLs", "-",
-                        "Resource Names", "*", "Verbs", "get, list, watch", "API Groups", "*")));
-    }
-
-    private K8sDetailController.DetailSectionSpec metricsCard(K8sRow row) {
-        return K8sDetailController.DetailSectionSpec.kv("指标",
-                row("CPU 使用率", firstNonBlank(row.value("CPU 使用率"), firstNonBlank(row.value("CPU requests"), "-")),
-                        "内存使用率", firstNonBlank(row.value("内存使用率"), firstNonBlank(row.value("Memory requests"), "-"))));
-    }
-
-    private K8sDetailController.DetailSectionSpec eventTable(K8sRow row) {
-        return K8sDetailController.DetailSectionSpec.table("事件列表",
-                List.of("类型", "原因", "时间", "消息"),
-                List.of(
-                        row("类型", "Normal", "原因", "Created", "时间", "2m",
-                                "消息", row.kind().label() + " " + row.value("名称") + " created"),
-                        row("类型", "Normal", "原因", "Synced", "时间", "1m",
-                                "消息", "Resource observed by YShell")
-                ));
-    }
-
-    private Map<String, String> containerCard(String name, String image) {
-        return row(
-                "_标题", name,
-                "Image", image,
-                "Ready", "true",
-                "Started", "true",
-                "Restart Count", "0",
-                "Resource Requests", "cpu=100m, memory=128Mi",
-                "Resource Limits", "cpu=500m, memory=512Mi",
-                "Mounts", "/var/run/secrets/kubernetes.io/serviceaccount"
-        );
-    }
-
     private Map<String, String> row(String... keyValues) {
         Map<String, String> row = new LinkedHashMap<>();
         for (int i = 0; i + 1 < keyValues.length; i += 2) {
             row.put(keyValues[i], keyValues[i + 1]);
         }
         return row;
-    }
-
-    private int positiveHash(String value) {
-        return Math.floorMod(value == null ? 0 : value.hashCode(), 220) + 1;
-    }
-
-    private List<String> eventsFor(K8sRow row) {
-        return List.of(
-                "Normal  Created  2m  " + row.kind().label() + " " + row.value("名称") + " created",
-                "Normal  Synced   1m  Resource observed by YShell",
-                "Normal  Ready    30s Resource detail data prepared"
-        );
-    }
-
-    private String yamlFor(K8sRow row) {
-        StringBuilder builder = new StringBuilder();
-        builder.append("apiVersion: v1\n")
-                .append("kind: ").append(row.kind().kubectlType()).append("\n")
-                .append("metadata:\n")
-                .append("  name: ").append(row.value("名称")).append('\n');
-        if (row.kind().namespaced()) {
-            builder.append("  namespace: ").append(row.value("命名空间")).append('\n');
-        }
-        builder.append("  labels:\n")
-                .append("    app: ").append(row.value("名称")).append("\n")
-                .append("  annotations:\n")
-                .append("    app.kubernetes.io/managed-by: YShell\n")
-                .append("spec:\n");
-        for (Map.Entry<String, String> entry : row.values().entrySet()) {
-            if ("名称".equals(entry.getKey()) || "命名空间".equals(entry.getKey())) {
-                continue;
-            }
-            builder.append("  ").append(toYamlKey(entry.getKey())).append(": \"")
-                    .append(entry.getValue()).append("\"\n");
-        }
-        return builder.toString();
-    }
-
-    private String toYamlKey(String value) {
-        return value.toLowerCase(Locale.ROOT)
-                .replace(" ", "_")
-                .replace("/", "_")
-                .replace("：", "_");
     }
 
     private String firstNonBlank(String first, String second) {
@@ -834,15 +1645,15 @@ public class K8sViewController {
         button.setOnAction(event -> action.run());
     }
 
-    private Button makeToolbarButton(Runnable action) {
-        FontIcon icon = new FontIcon("fas-plus");
+    private Button makeToolbarButton(String iconLiteral, String tooltipText, Runnable action) {
+        FontIcon icon = new FontIcon(iconLiteral);
         icon.setIconSize(13);
         icon.getStyleClass().add("docker-tool-icon");
 
         Button button = new Button();
         button.getStyleClass().add("tool-icon-btn");
         button.setGraphic(icon);
-        Tooltip tooltip = new Tooltip("新建资源");
+        Tooltip tooltip = new Tooltip(tooltipText);
         tooltip.setShowDelay(new Duration(200));
         button.setTooltip(tooltip);
         button.setMinSize(30, 28);
@@ -852,158 +1663,348 @@ public class K8sViewController {
         return button;
     }
 
-    private void updateClusterStatus() {
-        lblK8sVersion.setText("v1.28.0");
-    }
-
-    private List<K8sRow> sampleRows(ResourceKind kind) {
-        int count = kind == ResourceKind.PODS ? 126 : sampleCount(kind);
-        List<K8sRow> rows = new ArrayList<>(count);
-        for (int i = 1; i <= count; i++) {
-            rows.add(new K8sRow(kind, valuesFor(kind, i)));
-        }
-        return rows;
-    }
-
-    private int sampleCount(ResourceKind kind) {
-        return switch (kind) {
-            case EVENTS -> 118;
-            case SERVICES, INGRESS_CLASSES -> 18;
-            case CONFIG_MAPS -> 24;
-            case SECRETS -> 32;
-            case NODES -> 5;
-            case NAMESPACES -> 6;
-            case PERSISTENT_VOLUMES -> 12;
-            case STORAGE_CLASSES -> 4;
-            default -> 14;
-        };
-    }
-
-    private Map<String, String> valuesFor(ResourceKind kind, int index) {
+    private Map<String, String> valuesFor(ResourceKind kind, JsonNode item) {
         Map<String, String> values = new LinkedHashMap<>();
         for (String column : kind.columns()) {
-            values.put(column, valueFor(kind, column, index));
+            values.put(column, valueFor(kind, column, item));
         }
         return values;
     }
 
-    private String valueFor(ResourceKind kind, String column, int index) {
+    private String valueFor(ResourceKind kind, String column, JsonNode item) {
         return switch (column) {
-            case "状态" -> statusFor(kind, index);
-            case "名称" -> sampleName(kind, index);
-            case "命名空间" -> namespaceFor(index, kind);
-            case "镜像" -> "registry.local/" + sampleName(kind, index) + ":1." + (index % 9);
-            case "标签" -> "app=" + sampleName(kind, index) + ",env=" + envFor(index);
-            case "调度规则" -> "*/" + (5 + index % 20) + " * * * *";
-            case "暂停" -> index % 7 == 0 ? "是" : "否";
-            case "活跃任务" -> String.valueOf(index % 3);
-            case "最后调度" -> index + "h 前";
-            case "Pods" -> (1 + index % 4) + "/" + (2 + index % 4);
-            case "节点" -> "node-" + (1 + index % 5);
-            case "重启次数" -> String.valueOf(index % 5);
-            case "CPU 使用率" -> (8 + index % 70) + "%";
-            case "内存使用率" -> (12 + index % 64) + "%";
-            case "Endpoints" -> "https://app" + index + ".example.local";
-            case "Hosts" -> "app" + index + ".example.local";
-            case "Controller" -> "k8s.io/ingress-nginx";
-            case "类型" -> serviceOrEventType(kind, index);
-            case "Cluster IP" -> "10.96." + (index % 40) + "." + (10 + index);
-            case "内部端点" -> "10.244." + (index % 8) + "." + index + ":80";
-            case "外部端点" -> index % 3 == 0 ? "192.168.1." + index + ":80" : "-";
-            case "Volume" -> "pvc-" + String.format("%03d", index);
-            case "容量" -> (10 + index) + "Gi";
-            case "访问模式" -> index % 2 == 0 ? "RWO" : "RWX";
-            case "Storage Class" -> index % 2 == 0 ? "standard" : "fast-ssd";
-            case "Provisioner" -> index % 2 == 0 ? "kubernetes.io/no-provisioner" : "csi.example.com";
-            case "参数" -> "type=ssd,zone=local";
-            case "Role Ref" -> "ClusterRole/admin";
-            case "Subjects" -> "ServiceAccount/default/app-" + index;
-            case "Source" -> kind == ResourceKind.EVENTS ? "kubelet/node-" + (index % 5 + 1) : "-";
-            case "Age" -> ageFor(index);
-            case "Message" -> index % 9 == 0 ? "Back-off restarting failed container" : "Successfully assigned pod";
-            case "Phase" -> index % 6 == 0 ? "Terminating" : "Active";
-            case "Ready" -> index % 5 == 0 ? "False" : "True";
-            case "CPU requests" -> (1 + index % 8) + " cores / " + (10 + index % 60) + "%";
-            case "CPU limits" -> (2 + index % 12) + " cores / " + (20 + index % 60) + "%";
-            case "CPU capacity" -> (4 + index % 12) + " cores";
-            case "Memory requests" -> (512 + index * 32) + "Mi / " + (10 + index % 60) + "%";
-            case "Memory limits" -> (1024 + index * 64) + "Mi / " + (20 + index % 60) + "%";
-            case "Memory capacity" -> (8 + index % 64) + "Gi";
-            case "Claim" -> "default/data-" + String.format("%03d", index);
-            case "绑定状态" -> index % 7 == 0 ? "Released" : "Bound";
-            case "创建时间" -> ageFor(index) + " 前";
+            case "状态" -> statusFor(kind, item);
+            case "名称" -> nodeText(item, "metadata", "name");
+            case "命名空间" -> firstNonBlank(nodeText(item, "metadata", "namespace"), "-");
+            case "镜像" -> imagesFor(item);
+            case "标签" -> labelsFor(item);
+            case "调度规则" -> firstNonBlank(nodeText(item, "spec", "schedule"), "-");
+            case "暂停" -> nodeBoolean(item, "spec", "suspend") ? "是" : "否";
+            case "活跃任务" -> String.valueOf(item.path("status").path("active").size());
+            case "最后调度" -> firstNonBlank(ageSince(nodeText(item, "status", "lastScheduleTime")), "-");
+            case "Pods" -> podsFor(kind, item);
+            case "节点" -> firstNonBlank(nodeText(item, "spec", "nodeName"), "-");
+            case "重启次数" -> String.valueOf(restartCountFor(item));
+            case "Endpoints" -> firstNonBlank(ingressEndpoints(item), externalEndpointFor(item));
+            case "Hosts" -> ingressHosts(item);
+            case "Controller" -> firstNonBlank(nodeText(item, "spec", "controller"), "-");
+            case "类型" -> typeFor(kind, item);
+            case "Cluster IP" -> firstNonBlank(nodeText(item, "spec", "clusterIP"), "-");
+            case "内部端点" -> portsFor(item);
+            case "外部端点" -> externalEndpointFor(item);
+            case "Volume" -> firstNonBlank(nodeText(item, "spec", "volumeName"), "-");
+            case "容量" -> capacityFor(item);
+            case "访问模式" -> joinArray(item.path("spec").path("accessModes"));
+            case "Storage Class" -> firstNonBlank(nodeText(item, "spec", "storageClassName"), "-");
+            case "Provisioner" ->
+                    firstNonBlank(nodeText(item, "provisioner"), firstNonBlank(nodeText(item, "spec", "provisioner"), "-"));
+            case "参数" ->
+                    objectToPairs(firstNonMissing(item.path("parameters"), item.path("spec").path("parameters")), 4);
+            case "Role Ref" -> roleRefFor(item);
+            case "Subjects" -> subjectsFor(item);
+            case "Source" -> firstNonBlank(nodeText(item, "source", "component"),
+                    firstNonBlank(nodeText(item, "reportingController"), "-"));
+            case "Age", "创建时间" -> firstNonBlank(ageSince(nodeText(item, "metadata", "creationTimestamp")), "-");
+            case "Reason" -> firstNonBlank(nodeText(item, "reason"), "-");
+            case "Message" -> firstNonBlank(nodeText(item, "message"), "-");
+            case "Object" -> involvedObjectFor(item);
+            case "Count" -> firstNonBlank(nodeText(item, "count"), "1");
+            case "First Seen" -> firstNonBlank(ageSince(firstNonBlank(nodeText(item, "firstTimestamp"),
+                    nodeText(item, "metadata", "creationTimestamp"))), "-");
+            case "Last Seen" -> firstNonBlank(ageSince(firstNonBlank(nodeText(item, "lastTimestamp"),
+                    nodeText(item, "eventTime"))), "-");
+            case "Phase" -> firstNonBlank(nodeText(item, "status", "phase"), statusFor(kind, item));
+            case "Ready" -> readyFor(item);
+            case "CPU requests" -> firstNonBlank(nodeText(item, "status", "allocatable", "cpu"), "-");
+            case "CPU limits", "CPU capacity" -> firstNonBlank(nodeText(item, "status", "capacity", "cpu"), "-");
+            case "Memory requests" -> firstNonBlank(nodeText(item, "status", "allocatable", "memory"), "-");
+            case "Memory limits", "Memory capacity" ->
+                    firstNonBlank(nodeText(item, "status", "capacity", "memory"), "-");
+            case "Claim" -> claimFor(item);
+            case "绑定状态" -> firstNonBlank(nodeText(item, "status", "phase"), statusFor(kind, item));
+            case "Reclaim Policy" -> firstNonBlank(nodeText(item, "spec", "persistentVolumeReclaimPolicy"), "-");
             default -> "-";
         };
     }
 
-    private String statusFor(ResourceKind kind, int index) {
-        if (kind == ResourceKind.EVENTS) {
-            return index % 9 == 0 ? "警告" : "正常";
-        }
+    private String statusFor(ResourceKind kind, JsonNode item) {
         if (kind == ResourceKind.NODES) {
-            return index % 5 == 0 ? "未就绪" : "就绪";
+            return "True".equalsIgnoreCase(readyFor(item)) ? "就绪" : "未就绪";
         }
-        if (kind == ResourceKind.PERSISTENT_VOLUME_CLAIMS || kind == ResourceKind.PERSISTENT_VOLUMES) {
-            return index % 7 == 0 ? "释放" : "绑定";
-        }
-        if (index % 17 == 0) {
-            return "失败";
-        }
-        if (index % 11 == 0) {
-            return "等待中";
-        }
-        return switch (kind) {
-            case JOBS -> index % 4 == 0 ? "运行中" : "已完成";
-            case CRON_JOBS -> "活跃";
-            case NAMESPACES -> "Active";
-            default -> "运行中";
-        };
-    }
-
-    private String serviceOrEventType(ResourceKind kind, int index) {
         if (kind == ResourceKind.EVENTS) {
-            return index % 9 == 0 ? "Warning" : "Normal";
+            return firstNonBlank(nodeText(item, "type"), "-");
         }
+        String phase = nodeText(item, "status", "phase");
+        if (!phase.isBlank()) {
+            return phase;
+        }
+        int desired = item.path("status").path("replicas").asInt(-1);
+        int ready = item.path("status").path("readyReplicas").asInt(item.path("status").path("availableReplicas").asInt(-1));
+        if (desired >= 0 || ready >= 0) {
+            return Math.max(ready, 0) + "/" + Math.max(desired, 0);
+        }
+        if (item.path("status").has("succeeded")) {
+            return item.path("status").path("succeeded").asInt() > 0 ? "Complete" : "Running";
+        }
+        if (kind == ResourceKind.CRON_JOBS) {
+            return nodeBoolean(item, "spec", "suspend") ? "Suspended" : "Active";
+        }
+        return "-";
+    }
+
+    private String readyFor(JsonNode item) {
+        JsonNode conditions = item.path("status").path("conditions");
+        if (conditions.isArray()) {
+            String target = "Ready";
+            for (JsonNode condition : conditions) {
+                if (target.equalsIgnoreCase(condition.path("type").asText())) {
+                    return firstNonBlank(condition.path("status").asText(), "-");
+                }
+            }
+        }
+        return "-";
+    }
+
+    private String podsFor(ResourceKind kind, JsonNode item) {
+        if (kind == ResourceKind.NODES) {
+            return firstNonBlank(nodeText(item, "status", "capacity", "pods"), "-");
+        }
+        int ready = item.path("status").path("readyReplicas").asInt(item.path("status").path("availableReplicas").asInt(-1));
+        int desired = item.path("status").path("replicas").asInt(item.path("status").path("desiredNumberScheduled").asInt(-1));
+        if (desired < 0 && item.path("status").has("succeeded")) {
+            int succeeded = item.path("status").path("succeeded").asInt(0);
+            int active = item.path("status").path("active").asInt(0);
+            int failed = item.path("status").path("failed").asInt(0);
+            return "succeeded=" + succeeded + ",active=" + active + ",failed=" + failed;
+        }
+        if (ready >= 0 || desired >= 0) {
+            return Math.max(ready, 0) + "/" + Math.max(desired, 0);
+        }
+        return "-";
+    }
+
+    private String imagesFor(JsonNode item) {
+        JsonNode containers = item.path("spec").path("template").path("spec").path("containers");
+        if (!containers.isArray()) {
+            containers = item.path("spec").path("containers");
+        }
+        List<String> images = new ArrayList<>();
+        if (containers.isArray()) {
+            for (JsonNode container : containers) {
+                String image = container.path("image").asText("");
+                if (!image.isBlank()) {
+                    images.add(image);
+                }
+            }
+        }
+        return images.isEmpty() ? "-" : String.join(", ", images);
+    }
+
+    private int restartCountFor(JsonNode item) {
+        int count = 0;
+        JsonNode statuses = item.path("status").path("containerStatuses");
+        if (statuses.isArray()) {
+            for (JsonNode status : statuses) {
+                count += status.path("restartCount").asInt(0);
+            }
+        }
+        return count;
+    }
+
+    private String labelsFor(JsonNode item) {
+        return objectToPairs(item.path("metadata").path("labels"), 6);
+    }
+
+    private String annotationsFor(JsonNode item) {
+        return objectToPairs(item == null ? null : item.path("metadata").path("annotations"), 4);
+    }
+
+    private String typeFor(ResourceKind kind, JsonNode item) {
         if (kind == ResourceKind.SECRETS) {
-            return index % 2 == 0 ? "Opaque" : "kubernetes.io/tls";
+            return firstNonBlank(nodeText(item, "type"), "-");
         }
-        return switch (index % 3) {
-            case 0 -> "LoadBalancer";
-            case 1 -> "ClusterIP";
-            default -> "NodePort";
-        };
+        if (kind == ResourceKind.EVENTS) {
+            return firstNonBlank(nodeText(item, "type"), "-");
+        }
+        return firstNonBlank(nodeText(item, "spec", "type"), "-");
     }
 
-    private String sampleName(ResourceKind kind, int index) {
-        return kind.namePrefix() + "-" + String.format("%03d", index);
-    }
-
-    private String namespaceFor(int index, ResourceKind kind) {
-        if (!kind.namespaced()) {
+    private String portsFor(JsonNode item) {
+        JsonNode ports = item.path("spec").path("ports");
+        if (!ports.isArray()) {
             return "-";
         }
-        return switch (index % 5) {
-            case 0 -> "kube-system";
-            case 1 -> "default";
-            case 2 -> "database";
-            case 3 -> "monitoring";
-            default -> "ingress-nginx";
-        };
-    }
-
-    private String envFor(int index) {
-        return switch (index % 3) {
-            case 0 -> "prod";
-            case 1 -> "test";
-            default -> "dev";
-        };
-    }
-
-    private String ageFor(int index) {
-        if (index < 24) {
-            return index + "h";
+        List<String> values = new ArrayList<>();
+        for (JsonNode port : ports) {
+            String protocol = firstNonBlank(port.path("protocol").asText(""), "TCP");
+            String target = firstNonBlank(port.path("targetPort").asText(""), port.path("port").asText(""));
+            values.add(port.path("port").asText("-") + ":" + target + "/" + protocol);
         }
-        return Math.max(1, index / 3) + "d";
+        return values.isEmpty() ? "-" : String.join(", ", values);
+    }
+
+    private String externalEndpointFor(JsonNode item) {
+        JsonNode ingress = item.path("status").path("loadBalancer").path("ingress");
+        if (!ingress.isArray()) {
+            return "-";
+        }
+        List<String> values = new ArrayList<>();
+        for (JsonNode endpoint : ingress) {
+            String value = firstNonBlank(endpoint.path("ip").asText(""), endpoint.path("hostname").asText(""));
+            if (!value.isBlank()) {
+                values.add(value);
+            }
+        }
+        return values.isEmpty() ? "-" : String.join(", ", values);
+    }
+
+    private String ingressHosts(JsonNode item) {
+        JsonNode rules = item.path("spec").path("rules");
+        if (!rules.isArray()) {
+            return "-";
+        }
+        List<String> hosts = new ArrayList<>();
+        for (JsonNode rule : rules) {
+            String host = rule.path("host").asText("");
+            if (!host.isBlank()) {
+                hosts.add(host);
+            }
+        }
+        return hosts.isEmpty() ? "-" : String.join(", ", hosts);
+    }
+
+    private String ingressEndpoints(JsonNode item) {
+        return externalEndpointFor(item);
+    }
+
+    private String capacityFor(JsonNode item) {
+        return firstNonBlank(nodeText(item, "spec", "resources", "requests", "storage"),
+                firstNonBlank(nodeText(item, "spec", "capacity", "storage"),
+                        firstNonBlank(nodeText(item, "status", "capacity", "storage"), "-")));
+    }
+
+    private String roleRefFor(JsonNode item) {
+        JsonNode roleRef = item.path("roleRef");
+        String kind = roleRef.path("kind").asText("");
+        String name = roleRef.path("name").asText("");
+        return kind.isBlank() && name.isBlank() ? "-" : kind + "/" + name;
+    }
+
+    private String subjectsFor(JsonNode item) {
+        JsonNode subjects = item.path("subjects");
+        if (!subjects.isArray()) {
+            return "-";
+        }
+        List<String> values = new ArrayList<>();
+        for (JsonNode subject : subjects) {
+            String value = subject.path("kind").asText("") + "/" + subject.path("name").asText("");
+            String namespace = subject.path("namespace").asText("");
+            if (!namespace.isBlank()) {
+                value = namespace + "/" + value;
+            }
+            values.add(value);
+            if (values.size() >= 4) {
+                break;
+            }
+        }
+        return values.isEmpty() ? "-" : String.join(", ", values);
+    }
+
+    private String involvedObjectFor(JsonNode item) {
+        JsonNode involved = item.path("involvedObject");
+        String kind = involved.path("kind").asText("");
+        String name = involved.path("name").asText("");
+        return kind.isBlank() && name.isBlank() ? "-" : kind + "/" + name;
+    }
+
+    private String claimFor(JsonNode item) {
+        JsonNode claim = item.path("spec").path("claimRef");
+        String namespace = claim.path("namespace").asText("");
+        String name = claim.path("name").asText("");
+        if (name.isBlank()) {
+            return "-";
+        }
+        return namespace.isBlank() ? name : namespace + "/" + name;
+    }
+
+    private JsonNode firstNonMissing(JsonNode first, JsonNode second) {
+        return first != null && !first.isMissingNode() && !first.isNull() ? first : second;
+    }
+
+    private String objectToPairs(JsonNode object, int limit) {
+        if (object == null || !object.isObject()) {
+            return "-";
+        }
+        List<String> values = new ArrayList<>();
+        Iterator<Map.Entry<String, JsonNode>> fields = object.fields();
+        while (fields.hasNext() && values.size() < limit) {
+            Map.Entry<String, JsonNode> entry = fields.next();
+            values.add(entry.getKey() + "=" + entry.getValue().asText());
+        }
+        return values.isEmpty() ? "-" : String.join(", ", values);
+    }
+
+    private String joinArray(JsonNode array) {
+        if (array == null || !array.isArray()) {
+            return "-";
+        }
+        List<String> values = new ArrayList<>();
+        for (JsonNode node : array) {
+            String value = node.asText("");
+            if (!value.isBlank()) {
+                values.add(value);
+            }
+        }
+        return values.isEmpty() ? "-" : String.join(", ", values);
+    }
+
+    private boolean nodeBoolean(JsonNode root, String... path) {
+        JsonNode node = nodeAt(root, path);
+        return node != null && node.asBoolean(false);
+    }
+
+    private String nodeText(JsonNode root, String... path) {
+        JsonNode node = nodeAt(root, path);
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return "";
+        }
+        return node.asText("");
+    }
+
+    private JsonNode nodeAt(JsonNode root, String... path) {
+        if (root == null) {
+            return null;
+        }
+        JsonNode current = root;
+        for (String part : path) {
+            current = current.path(part);
+        }
+        return current;
+    }
+
+    private String ageSince(String timestamp) {
+        if (timestamp == null || timestamp.isBlank()) {
+            return "";
+        }
+        try {
+            Instant instant = Instant.parse(timestamp);
+            java.time.Duration duration = java.time.Duration.between(instant, Instant.now());
+            long days = duration.toDays();
+            if (days > 0) {
+                return days + "d";
+            }
+            long hours = duration.toHours();
+            if (hours > 0) {
+                return hours + "h";
+            }
+            long minutes = duration.toMinutes();
+            if (minutes > 0) {
+                return minutes + "m";
+            }
+            return Math.max(0, duration.toSeconds()) + "s";
+        } catch (Exception ignored) {
+            return timestamp;
+        }
     }
 
     private void setVisibleManaged(javafx.scene.Node node, boolean visible) {
@@ -1047,7 +2048,7 @@ public class K8sViewController {
     private enum Action {
         DETAIL("查看详情"),
         LOGS("查看日志"),
-        EXEC("执行命令"),
+        EXEC("执行"),
         EDIT("编辑资源"),
         DELETE("删除资源"),
         SCALE("扩缩容"),
@@ -1062,6 +2063,15 @@ public class K8sViewController {
 
         private String label() {
             return label;
+        }
+
+        private static Action fromLabel(String label) {
+            for (Action action : values()) {
+                if (Objects.equals(action.label, label)) {
+                    return action;
+                }
+            }
+            return null;
         }
     }
 
@@ -1200,7 +2210,59 @@ public class K8sViewController {
         }
     }
 
-    private record K8sRow(ResourceKind kind, Map<String, String> values) {
+    private record ConnectionContext(String connId, ConnInfo connInfo) {
+    }
+
+    private static final class LogListBuffer {
+        private final int maxLines;
+        private final ObservableList<String> lines;
+        private String partial = "";
+        private boolean partialVisible;
+
+        private LogListBuffer(ObservableList<String> lines, int maxLines) {
+            this.lines = lines;
+            this.maxLines = Math.max(1, maxLines);
+        }
+
+        private LogAppendResult append(String chunk) {
+            if (chunk == null || chunk.isEmpty()) {
+                return new LogAppendResult("", 0);
+            }
+            if (partialVisible && !lines.isEmpty()) {
+                lines.remove(lines.size() - 1);
+                partialVisible = false;
+            }
+            String normalizedChunk = chunk.replace("\r\n", "\n").replace('\r', '\n');
+            String text = partial + normalizedChunk;
+            int start = 0;
+            int newline;
+            while ((newline = text.indexOf('\n', start)) >= 0) {
+                lines.add(text.substring(start, newline));
+                start = newline + 1;
+            }
+            partial = text.substring(start);
+            if (!partial.isEmpty()) {
+                lines.add(partial);
+                partialVisible = true;
+            }
+            return new LogAppendResult(normalizedChunk, trim());
+        }
+
+        private int trim() {
+            int overflow = lines.size() - maxLines;
+            if (overflow <= 0) {
+                return 0;
+            }
+            lines.remove(0, overflow);
+            return overflow;
+        }
+    }
+
+    private record LogAppendResult(String text, int removedLines) {
+    }
+
+    private record K8sRow(ResourceKind kind, Map<String, String> values, JsonNode raw) {
+
         private String value(String column) {
             return values.getOrDefault(column, "");
         }

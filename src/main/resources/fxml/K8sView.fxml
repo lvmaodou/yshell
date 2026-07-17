@@ -25,11 +25,12 @@
                 <VBox fx:id="navGroups" styleClass="k8s-nav"/>
             </ScrollPane>
 
-            <VBox styleClass="k8s-side-status">
+            <VBox fx:id="k8sSideStatus" styleClass="k8s-side-status">
                 <HBox styleClass="status-row">
                     <Label text="K8s 版本"/>
                     <Label fx:id="lblK8sVersion" text="-" styleClass="status-value"/>
                 </HBox>
+                <Label fx:id="lblK8sStatus" text="未连接" styleClass="status-message"/>
             </VBox>
         </VBox>
 

@@ -83,6 +83,12 @@ public class K8sDetailController {
                 case CARD_GROUP -> overviewHost.getChildren().add(createCardGroup(section.title(), section.rows()));
             }
         }
+        if (data.events() != null && !data.events().isEmpty()) {
+            overviewHost.getChildren().add(createListCard("事件", data.events()));
+        }
+        if (data.yaml() != null && !data.yaml().isBlank()) {
+            overviewHost.getChildren().add(createTextCard("YAML", data.yaml()));
+        }
     }
 
     private VBox createKeyValueCard(String title, Map<String, String> values) {
@@ -299,9 +305,6 @@ public class K8sDetailController {
             return new DetailSectionSpec(title, SectionType.LIST, Map.of(), null, List.of(), List.of(), items);
         }
 
-        public static DetailSectionSpec cardGroup(String title, List<Map<String, String>> cards) {
-            return new DetailSectionSpec(title, SectionType.CARD_GROUP, Map.of(), null, List.of(), cards, List.of());
-        }
     }
 
     public enum SectionType {

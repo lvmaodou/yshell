@@ -45,6 +45,9 @@ public class VisualPanelController {
     private VBox k8sView;
 
     @FXML
+    private K8sViewController k8sViewController;
+
+    @FXML
     private VBox aiView;
 
     @FXML
@@ -75,6 +78,9 @@ public class VisualPanelController {
         setViewVisible(aiView, false);
         if (dockerViewController != null) {
             dockerViewController.setTabVisible(false);
+        }
+        if (k8sViewController != null) {
+            k8sViewController.setTabVisible(false);
         }
         applyTab(tabForConnection(activeConnectionId));
     }
@@ -134,6 +140,9 @@ public class VisualPanelController {
         setViewVisible(aiView, false);
         if (dockerViewController != null) {
             dockerViewController.setTabVisible("docker".equals(tabName));
+        }
+        if (k8sViewController != null) {
+            k8sViewController.setTabVisible("k8s".equals(tabName));
         }
 
         switch (tabName) {
