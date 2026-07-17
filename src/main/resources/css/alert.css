@@ -170,6 +170,35 @@
     -fx-padding: 16 18 12 18;
 }
 
+.format-toggle-bar {
+    -fx-background-color: -fx-bg-secondary;
+    -fx-background-radius: 6px;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 1px;
+}
+
+.format-toggle-button {
+    -fx-background-color: -fx-bg-hover;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+    -fx-text-fill: -fx-text-secondary;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-padding: 4px 10px;
+    -fx-min-height: 28px;
+    -fx-cursor: hand;
+}
+
+.format-toggle-button:hover {
+    -fx-background-color: -fx-bg-hover;
+    -fx-text-fill: -fx-text-primary;
+}
+
+.format-toggle-button:selected {
+    -fx-background-color: -fx-bg-selected;
+    -fx-text-fill: -fx-text-inverse;
+}
+
 .custom-dialog-footer {
     -fx-background-color: -fx-bg-secondary;
     -fx-border-color: -fx-border-default transparent transparent transparent;

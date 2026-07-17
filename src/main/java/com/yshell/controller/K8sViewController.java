@@ -812,7 +812,7 @@ public class K8sViewController {
             return;
         }
         String template = resourceTemplate(activeKind, selectedNamespace());
-        Optional<String> yaml = showYamlEditor("新建 " + activeKind.label(), template, "创建");
+        Optional<String> yaml = showYamlEditor("新建 " + activeKind.label(), template);
         if (yaml.isEmpty()) {
             return;
         }
@@ -1028,22 +1028,34 @@ public class K8sViewController {
         if (context == null) {
             return;
         }
-        setStatusText("正在读取 YAML...");
-        sessionManager.getYaml(context.connId(), context.connInfo(), row.kind().kubectlType(),
-                        rowNamespace(row), rowName(row), row.kind().namespaced())
-                .thenAccept(result -> Platform.runLater(() -> {
-                    if (!result.isSuccess()) {
-                        showCommandResult(row.value("名称"), result);
+        setStatusText("正在读取资源配置...");
+        CompletableFuture<SshService.CommandResult> yamlFuture = sessionManager.getYaml(
+                context.connId(), context.connInfo(), row.kind().kubectlType(),
+                rowNamespace(row), rowName(row), row.kind().namespaced());
+        CompletableFuture<SshService.CommandResult> jsonFuture = sessionManager.getJson(
+                context.connId(), context.connInfo(), row.kind().kubectlType(),
+                rowNamespace(row), rowName(row), row.kind().namespaced());
+        CompletableFuture.allOf(yamlFuture, jsonFuture).thenRun(() ->
+                Platform.runLater(() -> {
+                    SshService.CommandResult yamlResult = yamlFuture.join();
+                    SshService.CommandResult jsonResult = jsonFuture.join();
+                    if (!yamlResult.isSuccess()) {
+                        showCommandResult(row.value("名称"), yamlResult);
                         return;
                     }
-                    Optional<String> yaml = showYamlEditor("编辑 " + row.kind().label() + " / " + row.value("名称"),
-                            result.stdout(), "应用");
-                    if (yaml.isEmpty()) {
+                    if (!jsonResult.isSuccess()) {
+                        showCommandResult(row.value("名称"), jsonResult);
+                        return;
+                    }
+                    Optional<String> resourceText = showResourceEditor(
+                            "编辑 " + row.kind().label() + " / " + row.value("名称"),
+                            yamlResult.stdout(), jsonResult.stdout());
+                    if (resourceText.isEmpty()) {
                         setStatusText("已取消编辑");
                         return;
                     }
-                    setStatusText("正在应用 YAML...");
-                    sessionManager.applyYaml(context.connId(), context.connInfo(), yaml.get()).thenAccept(applyResult ->
+                    setStatusText("正在应用资源配置...");
+                    sessionManager.applyYaml(context.connId(), context.connInfo(), resourceText.get()).thenAccept(applyResult ->
                             Platform.runLater(() -> handleMutationResult("编辑资源", applyResult)));
                 }));
     }
@@ -1126,15 +1138,11 @@ public class K8sViewController {
         }
     }
 
-    private Optional<String> showYamlEditor(String title, String yaml, String actionText) {
-        TextArea editor = new TextArea(yaml == null ? "" : yaml);
-        editor.setWrapText(false);
-        editor.setPrefColumnCount(110);
-        editor.setPrefRowCount(28);
-        editor.getStyleClass().add("detail-yaml");
+    private Optional<String> showYamlEditor(String title, String yaml) {
+        TextArea editor = resourceEditorTextArea(yaml);
         return DialogHelper.showCustomDialog(title, editor, List.of(
                 new DialogHelper.CustomDialogButton<>(
-                        actionText == null || actionText.isBlank() ? "应用" : actionText,
+                        "创建",
                         ButtonBar.ButtonData.OK_DONE,
                         dialog -> editor.getText()
                 ),
@@ -1144,6 +1152,70 @@ public class K8sViewController {
                         dialog -> null
                 )
         ));
+    }
+
+    private Optional<String> showResourceEditor(String title, String yaml, String json) {
+        TextArea editor = resourceEditorTextArea(yaml);
+        ToggleGroup formatGroup = new ToggleGroup();
+        ToggleButton yamlButton = new ToggleButton("YAML");
+        ToggleButton jsonButton = new ToggleButton("JSON");
+        yamlButton.setToggleGroup(formatGroup);
+        jsonButton.setToggleGroup(formatGroup);
+        yamlButton.getStyleClass().add("format-toggle-button");
+        jsonButton.getStyleClass().add("format-toggle-button");
+        yamlButton.setSelected(true);
+
+        HBox formatBar = new HBox(yamlButton, jsonButton);
+        formatBar.getStyleClass().add("format-toggle-bar");
+        formatBar.setAlignment(Pos.CENTER_LEFT);
+        VBox content = new VBox(formatBar, editor);
+        content.setFillWidth(true);
+        VBox.setVgrow(editor, Priority.ALWAYS);
+
+        final ResourceEditFormat[] currentFormat = {ResourceEditFormat.YAML};
+        final boolean[] updatingFormat = {false};
+        formatGroup.selectedToggleProperty().addListener((obs, oldToggle, newToggle) -> {
+            if (updatingFormat[0]) {
+                return;
+            }
+            if (newToggle == null) {
+                updatingFormat[0] = true;
+                try {
+                    oldToggle.setSelected(true);
+                } finally {
+                    updatingFormat[0] = false;
+                }
+                return;
+            }
+            ResourceEditFormat targetFormat = newToggle == jsonButton ? ResourceEditFormat.JSON : ResourceEditFormat.YAML;
+            if (targetFormat == currentFormat[0]) {
+                return;
+            }
+            editor.setText(targetFormat == ResourceEditFormat.JSON ? firstNonBlank(json, "") : firstNonBlank(yaml, ""));
+            currentFormat[0] = targetFormat;
+        });
+
+        return DialogHelper.showCustomDialog(title, content, List.of(
+                new DialogHelper.CustomDialogButton<>(
+                        "应用",
+                        ButtonBar.ButtonData.OK_DONE,
+                        dialog -> editor.getText()
+                ),
+                new DialogHelper.CustomDialogButton<>(
+                        "取消",
+                        ButtonBar.ButtonData.CANCEL_CLOSE,
+                        dialog -> null
+                )
+        ));
+    }
+
+    private TextArea resourceEditorTextArea(String content) {
+        TextArea editor = new TextArea(content == null ? "" : content);
+        editor.setWrapText(false);
+        editor.setPrefColumnCount(110);
+        editor.setPrefRowCount(28);
+        editor.getStyleClass().add("detail-yaml");
+        return editor;
     }
 
     private Optional<Integer> showScaleDialog(K8sRow row) {
@@ -2260,6 +2332,11 @@ public class K8sViewController {
     }
 
     private record ConnectionContext(String connId, ConnInfo connInfo) {
+    }
+
+    private enum ResourceEditFormat {
+        YAML,
+        JSON
     }
 
     private static final class LogListBuffer {

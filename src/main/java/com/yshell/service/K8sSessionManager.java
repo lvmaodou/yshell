@@ -88,6 +88,17 @@ public class K8sSessionManager {
                 "Get Kubernetes resource YAML failed");
     }
 
+    public CompletableFuture<SshService.CommandResult> getJson(String connId,
+                                                               ConnInfo connInfo,
+                                                               String kubectlType,
+                                                               String namespace,
+                                                               String name,
+                                                               boolean namespaced) {
+        return runKubectl(connId, connInfo,
+                session -> k8sService.getJson(session, kubectlType, namespace, name, namespaced),
+                "Get Kubernetes resource JSON failed");
+    }
+
     public CompletableFuture<SshService.CommandResult> describe(String connId,
                                                                 ConnInfo connInfo,
                                                                 String kubectlType,

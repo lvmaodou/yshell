@@ -99,6 +99,15 @@ public class K8sService {
                 + " " + shellQuote(name) + " -o yaml");
     }
 
+    public SshService.CommandResult getJson(SshService session,
+                                            String kubectlType,
+                                            String namespace,
+                                            String name,
+                                            boolean namespaced) {
+        return run(session, "kubectl get " + shellQuote(kubectlType) + namespaceFlag(namespace, namespaced)
+                + " " + shellQuote(name) + " -o json");
+    }
+
     public SshService.CommandResult describe(SshService session,
                                              String kubectlType,
                                              String namespace,
@@ -119,16 +128,6 @@ public class K8sService {
         return run(session, command);
     }
 
-    public SshService.CommandResult logs(SshService session,
-                                         String kubectlType,
-                                         String namespace,
-                                         String name,
-                                         boolean namespaced) {
-        String target = "pod".equals(kubectlType) ? shellQuote(name) : shellQuote(kubectlType + "/" + name);
-        return run(session, "kubectl logs" + namespaceFlag(namespace, namespaced)
-                + " " + target + " --all-containers=true --tail=300");
-    }
-
     public SshService.RemoteCommandHandle followLogs(SshService session,
                                                      String kubectlType,
                                                      String namespace,
@@ -139,13 +138,6 @@ public class K8sService {
         String target = "pod".equals(kubectlType) ? shellQuote(name) : shellQuote(kubectlType + "/" + name);
         return stream(session, "kubectl logs -f" + namespaceFlag(namespace, namespaced)
                 + " " + target + " --all-containers=true --tail=300", stdoutConsumer, stderrConsumer);
-    }
-
-    public SshService.CommandResult exec(SshService session, String namespace, String name, String command) {
-        String cleanCommand = command == null || command.isBlank() ? "pwd && ls -la" : command.trim();
-        return run(session, "kubectl exec -n " + shellQuote(namespace)
-                + " " + shellQuote(name)
-                + " -- sh -lc " + shellQuote(cleanCommand));
     }
 
     public SshService.CommandResult delete(SshService session,
