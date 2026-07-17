@@ -171,6 +171,7 @@ public class ThemeManager {
                 "visual-panel.css",
                 "ai-view.css",
                 "k8s-view.css",
+                "k8s-detail-view.css",
                 "docker-view.css",
                 "quick-connect.css"
         };
@@ -183,8 +184,4 @@ public class ThemeManager {
         }
     }
 
-    @FunctionalInterface
-    public interface ThemeChangeListener {
-        void onThemeChanged(String newTheme);
-    }
 }

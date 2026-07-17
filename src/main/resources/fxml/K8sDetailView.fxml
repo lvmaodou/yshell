@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+<?import java.lang.String?>
+<BorderPane xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="root"
+            fx:controller="com.yshell.controller.K8sDetailController"
+            stylesheets="@../css/k8s-detail-view.css">
+    <styleClass>
+        <String fx:value="k8s-detail-view"/>
+    </styleClass>
+
+    <top>
+        <HBox styleClass="detail-header">
+            <VBox styleClass="detail-header-text">
+                <Label fx:id="kindLabel" text="资源详情" styleClass="detail-kind"/>
+                <Label fx:id="titleLabel" text="-" styleClass="detail-title"/>
+                <Label fx:id="subtitleLabel" text="-" styleClass="detail-subtitle"/>
+            </VBox>
+            <Region HBox.hgrow="ALWAYS"/>
+            <HBox fx:id="actionBar" styleClass="detail-actions"/>
+            <Button fx:id="btnClose">
+                <styleClass>
+                    <String fx:value="tool-icon-btn "/>
+                    <String fx:value="detail-close-btn"/>
+                </styleClass>
+                <graphic>
+                    <FontIcon iconLiteral="fas-times" iconSize="12"/>
+                </graphic>
+            </Button>
+        </HBox>
+    </top>
+
+    <center>
+        <ScrollPane fitToWidth="true" styleClass="detail-scroll">
+            <VBox fx:id="overviewHost" styleClass="detail-overview"/>
+        </ScrollPane>
+    </center>
+</BorderPane>

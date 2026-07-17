@@ -4,7 +4,6 @@
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Button?>
-<?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.ScrollPane?>
@@ -58,13 +57,6 @@
                         <String fx:value="docker-table"/>
                         <String fx:value="k8s-table"/>
                     </styleClass>
-                    <columns>
-                        <TableColumn fx:id="colName" text="名称" prefWidth="230"/>
-                        <TableColumn fx:id="colNamespace" text="命名空间" prefWidth="140"/>
-                        <TableColumn fx:id="colStatus" text="状态" prefWidth="130"/>
-                        <TableColumn fx:id="colDetail" text="详情" prefWidth="260"/>
-                        <TableColumn fx:id="colAge" text="存活时间" prefWidth="110"/>
-                    </columns>
                 </TableView>
             </StackPane>
         </VBox>
