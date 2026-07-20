@@ -77,6 +77,22 @@ public class K8sSessionManager {
         }, workerExecutor);
     }
 
+    public CompletableFuture<Map<String, PodUsage>> podMetrics(String connId,
+                                                               ConnInfo connInfo,
+                                                               String namespace) {
+        if (connId == null || connInfo == null) {
+            return CompletableFuture.completedFuture(Map.of());
+        }
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return k8sService.podMetrics(ensureSession(connId, connInfo), namespace);
+            } catch (Exception e) {
+                LOGGER.debug("load kubernetes pod metrics failed for {}", connId, e);
+                return Map.of();
+            }
+        }, workerExecutor);
+    }
+
     public CompletableFuture<SshService.CommandResult> getYaml(String connId,
                                                                ConnInfo connInfo,
                                                                String kubectlType,
@@ -307,6 +323,9 @@ public class K8sSessionManager {
         public static ResourceListResult failed(String errorMessage) {
             return new ResourceListResult(false, errorMessage, List.of(), "");
         }
+    }
+
+    public record PodUsage(String cpu, String memory) {
     }
 
     @FunctionalInterface

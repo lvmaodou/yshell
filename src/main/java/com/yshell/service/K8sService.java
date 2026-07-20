@@ -10,7 +10,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.function.Consumer;
 
 public class K8sService {
@@ -88,6 +91,44 @@ public class K8sService {
             return K8sSessionManager.ResourceListResult.failed(
                     e.getMessage() == null ? "Load resources failed" : e.getMessage());
         }
+    }
+
+    public Map<String, K8sSessionManager.PodUsage> podMetrics(SshService session, String namespace) {
+        String path = namespace == null || namespace.isBlank()
+                ? "/apis/metrics.k8s.io/v1beta1/pods"
+                : "/apis/metrics.k8s.io/v1beta1/namespaces/" + namespace + "/pods";
+        SshService.CommandResult result = run(session, "kubectl get --raw " + shellQuote(path));
+        if (!result.isSuccess()) {
+            return Map.of();
+        }
+
+        JsonNode root = parseJson(result.stdout());
+        if (root == null || !root.path("items").isArray()) {
+            return Map.of();
+        }
+
+        Map<String, K8sSessionManager.PodUsage> metrics = new LinkedHashMap<>();
+        for (JsonNode item : root.path("items")) {
+            String podNamespace = item.path("metadata").path("namespace").asText("");
+            String podName = item.path("metadata").path("name").asText("");
+            if (podNamespace.isBlank() || podName.isBlank()) {
+                continue;
+            }
+
+            double cpuMillicores = 0;
+            double memoryBytes = 0;
+            JsonNode containers = item.path("containers");
+            if (containers.isArray()) {
+                for (JsonNode container : containers) {
+                    JsonNode usage = container.path("usage");
+                    cpuMillicores += cpuToMillicores(usage.path("cpu").asText(""));
+                    memoryBytes += memoryToBytes(usage.path("memory").asText(""));
+                }
+            }
+            metrics.put(podNamespace + "/" + podName,
+                    new K8sSessionManager.PodUsage(formatCpuMillicores(cpuMillicores), formatMemoryBytes(memoryBytes)));
+        }
+        return metrics;
     }
 
     public SshService.CommandResult getYaml(SshService session,
@@ -180,6 +221,77 @@ public class K8sService {
         String encoded = Base64.getEncoder().encodeToString(
                 (yaml == null ? "" : yaml).getBytes(StandardCharsets.UTF_8));
         return run(session, "printf %s " + shellQuote(encoded) + " | base64 -d | kubectl apply -f -");
+    }
+
+    private double cpuToMillicores(String value) {
+        if (value == null || value.isBlank()) {
+            return 0;
+        }
+        String normalized = value.trim();
+        try {
+            if (normalized.endsWith("n")) {
+                return Double.parseDouble(normalized.substring(0, normalized.length() - 1)) / 1_000_000;
+            }
+            if (normalized.endsWith("u")) {
+                return Double.parseDouble(normalized.substring(0, normalized.length() - 1)) / 1_000;
+            }
+            if (normalized.endsWith("m")) {
+                return Double.parseDouble(normalized.substring(0, normalized.length() - 1));
+            }
+            return Double.parseDouble(normalized) * 1000;
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
+    }
+
+    private double memoryToBytes(String value) {
+        if (value == null || value.isBlank()) {
+            return 0;
+        }
+        String normalized = value.trim();
+        String suffix = normalized.replaceFirst("^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)", "");
+        String number = normalized.substring(0, normalized.length() - suffix.length());
+        try {
+            double amount = Double.parseDouble(number);
+            return amount * switch (suffix) {
+                case "Ki" -> 1024D;
+                case "Mi" -> 1024D * 1024D;
+                case "Gi" -> 1024D * 1024D * 1024D;
+                case "Ti" -> 1024D * 1024D * 1024D * 1024D;
+                case "Pi" -> 1024D * 1024D * 1024D * 1024D * 1024D;
+                case "Ei" -> 1024D * 1024D * 1024D * 1024D * 1024D * 1024D;
+                case "k" -> 1000D;
+                case "M" -> 1000D * 1000D;
+                case "G" -> 1000D * 1000D * 1000D;
+                case "T" -> 1000D * 1000D * 1000D * 1000D;
+                case "P" -> 1000D * 1000D * 1000D * 1000D * 1000D;
+                case "E" -> 1000D * 1000D * 1000D * 1000D * 1000D * 1000D;
+                default -> 1D;
+            };
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
+    }
+
+    private String formatCpuMillicores(double millicores) {
+        return String.format(Locale.ROOT, "%.2fm", Math.max(0, millicores));
+    }
+
+    private String formatMemoryBytes(double bytes) {
+        double normalized = Math.max(0, bytes);
+        if (normalized >= 1024D * 1024D * 1024D * 1024D) {
+            return String.format(Locale.ROOT, "%.2fTi", normalized / 1024D / 1024D / 1024D / 1024D);
+        }
+        if (normalized >= 1024D * 1024D * 1024D) {
+            return String.format(Locale.ROOT, "%.2fGi", normalized / 1024D / 1024D / 1024D);
+        }
+        if (normalized >= 1024D * 1024D) {
+            return String.format(Locale.ROOT, "%.2fMi", normalized / 1024D / 1024D);
+        }
+        if (normalized >= 1024D) {
+            return String.format(Locale.ROOT, "%.2fKi", normalized / 1024D);
+        }
+        return String.format(Locale.ROOT, "%.0fB", normalized);
     }
 
     private SshService.CommandResult run(SshService sshService, String command) {

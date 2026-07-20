@@ -59,6 +59,7 @@ public class K8sViewController {
     private long snapshotSerial;
     private long rowSerial;
     private long detailSerial;
+    private long metricsSerial;
     private int currentPageIndex;
     private String statusDetailText = "";
 
@@ -140,6 +141,7 @@ public class K8sViewController {
         snapshotSerial++;
         rowSerial++;
         detailSerial++;
+        metricsSerial++;
         updateNamespaceChoices(List.of());
         showEmptyState();
         if (tabVisible) {
@@ -158,6 +160,7 @@ public class K8sViewController {
             snapshotSerial++;
             rowSerial++;
             detailSerial++;
+            metricsSerial++;
             updateNamespaceChoices(List.of());
             setVersionText("-");
             setStatusText("未连接");
@@ -296,7 +299,7 @@ public class K8sViewController {
             case "名称" -> 220;
             case "命名空间", "Storage Class", "访问模式", "Cluster IP", "Controller" -> 140;
             case "镜像", "标签", "Message", "Subjects", "Endpoints", "内部端点", "外部端点" -> 260;
-            case "CPU 可分配", "CPU 容量", "内存 可分配", "内存 容量", "Pods 容量" -> 160;
+            case "CPU 可分配", "CPU 容量", "内存 可分配", "内存 容量", "Pods 容量", "CPU 使用量", "内存使用量" -> 160;
             default -> 130;
         };
     }
@@ -747,6 +750,52 @@ public class K8sViewController {
         prevPageButton.setDisable(currentPageIndex <= 0 || filtered.isEmpty());
         nextPageButton.setDisable(currentPageIndex >= pageCount - 1 || filtered.isEmpty());
         lastPageButton.setDisable(currentPageIndex >= pageCount - 1 || filtered.isEmpty());
+        refreshPodMetricsForVisibleRows();
+    }
+
+    private void refreshPodMetricsForVisibleRows() {
+        if (activeKind != ResourceKind.PODS || visibleRows.isEmpty()) {
+            return;
+        }
+        ConnectionContext context = boundConnection();
+        ConnInfo connInfo = context == null ? null : context.connInfo();
+        String connId = context == null ? boundConnId : context.connId();
+        if (connId == null || connInfo == null || !ConnectionManager.getInstance().isConnected(connId)) {
+            return;
+        }
+
+        long metricsToken = ++metricsSerial;
+        String namespace = namespaceCombo.getValue();
+        String metricsNamespace = namespace == null || namespace.isBlank() || Objects.equals(namespace, ALL_NAMESPACES)
+                ? ""
+                : namespace;
+        sessionManager.podMetrics(connId, connInfo, metricsNamespace)
+                .thenAccept(metrics -> Platform.runLater(() -> {
+                    if (metricsToken != metricsSerial
+                            || activeKind != ResourceKind.PODS
+                            || !Objects.equals(activeConnId, connId)) {
+                        return;
+                    }
+                    boolean updated = false;
+                    for (K8sRow row : visibleRows) {
+                        if (row.kind() != ResourceKind.PODS) {
+                            continue;
+                        }
+                        K8sSessionManager.PodUsage usage = metrics.get(podMetricKey(row.raw()));
+                        row.values().put("CPU 使用量", usage == null ? "-" : firstNonBlank(usage.cpu(), "-"));
+                        row.values().put("内存使用量", usage == null ? "-" : firstNonBlank(usage.memory(), "-"));
+                        updated = true;
+                    }
+                    if (updated) {
+                        resourceTable.refresh();
+                    }
+                }));
+    }
+
+    private String podMetricKey(JsonNode pod) {
+        String namespace = firstNonBlank(nodeText(pod, "metadata", "namespace"), "-");
+        String name = nodeText(pod, "metadata", "name");
+        return namespace + "/" + name;
     }
 
     private int pageCount(List<K8sRow> rows) {
@@ -1693,7 +1742,9 @@ public class K8sViewController {
                     "QoS Class", firstNonBlank(nodeText(row.raw(), "status", "qosClass"), "-"),
                     "Restarts", firstNonBlank(row.value("重启次数"), "0"),
                     "Service Account", firstNonBlank(nodeText(row.raw(), "spec", "serviceAccountName"), "default"),
-                    "Image", firstNonBlank(row.value("镜像"), "-")
+                    "Image", firstNonBlank(row.value("镜像"), "-"),
+                    "CPU 使用量", firstNonBlank(row.value("CPU 使用量"), "-"),
+                    "内存使用量", firstNonBlank(row.value("内存使用量"), "-")
             );
         }
         if (row.kind() == ResourceKind.NODES) {
@@ -1805,6 +1856,7 @@ public class K8sViewController {
             case "Pods" -> podsFor(kind, item);
             case "节点" -> firstNonBlank(nodeText(item, "spec", "nodeName"), "-");
             case "重启次数" -> String.valueOf(restartCountFor(item));
+            case "CPU 使用量", "内存使用量" -> "-";
             case "Endpoints" -> firstNonBlank(ingressEndpoints(item), externalEndpointFor(item));
             case "Hosts" -> ingressHosts(item);
             case "Controller" -> firstNonBlank(nodeText(item, "spec", "controller"), "-");
@@ -2257,7 +2309,7 @@ public class K8sViewController {
                 List.of("状态", "名称", "命名空间", "镜像", "标签", "Pods", "创建时间"),
                 List.of(Action.DETAIL, Action.LOGS, Action.EDIT, Action.DELETE)),
         PODS(Category.WORKLOADS, "Pod", "pod", "api", true,
-                List.of("状态", "名称", "命名空间", "镜像", "标签", "节点", "重启次数", "CPU 使用率", "内存使用率", "创建时间"),
+                List.of("状态", "名称", "命名空间", "镜像", "标签", "节点", "重启次数", "CPU 使用量", "内存使用量", "创建时间"),
                 List.of(Action.DETAIL, Action.LOGS, Action.EXEC, Action.EDIT, Action.DELETE)),
         REPLICA_SETS(Category.WORKLOADS, "副本集", "replicaset", "frontend", true,
                 List.of("状态", "名称", "命名空间", "镜像", "标签", "Pods", "创建时间"),
