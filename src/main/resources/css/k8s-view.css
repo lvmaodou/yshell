@@ -129,6 +129,41 @@
     -fx-alignment: center-left;
 }
 
+.k8s-status-cell {
+    -fx-alignment: center;
+    -fx-spacing: 0;
+}
+
+.k8s-status-dot {
+    -fx-min-width: 9px;
+    -fx-min-height: 9px;
+    -fx-pref-width: 9px;
+    -fx-pref-height: 9px;
+    -fx-max-width: 9px;
+    -fx-max-height: 9px;
+    -fx-background-radius: 999px;
+}
+
+.k8s-status-dot.kd-success {
+    -fx-background-color: -fx-text-success;
+}
+
+.k8s-status-dot.kd-warning {
+    -fx-background-color: -fx-text-warning;
+}
+
+.k8s-status-dot.kd-error {
+    -fx-background-color: -fx-text-error;
+}
+
+.k8s-status-dot.kd-muted {
+    -fx-background-color: -fx-text-muted;
+}
+
+.k8s-status-label {
+    -fx-text-fill: -fx-text-primary;
+}
+
 .page-info {
     -fx-text-fill: -fx-text-secondary;
     -fx-font-size: 12px;

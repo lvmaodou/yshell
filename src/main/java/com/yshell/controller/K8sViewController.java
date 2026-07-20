@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.yshell.model.ConnInfo;
+import com.yshell.model.k8s.K8sResourceStatus;
 import com.yshell.service.ConnectionManager;
 import com.yshell.service.K8sSessionManager;
 import com.yshell.service.SshService;
@@ -22,10 +23,7 @@ import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.*;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -298,19 +296,91 @@ public class K8sViewController {
             TableColumn<K8sRow, String> column = new TableColumn<>(columnName);
             column.setPrefWidth(widthFor(columnName));
             column.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().value(columnName)));
-            column.setCellFactory(tableColumn -> createCopyableCell());
+            column.setCellFactory(tableColumn -> "状态".equals(columnName) ? createStatusCell() : createCopyableCell());
             resourceTable.getColumns().add(column);
         }
     }
 
     private double widthFor(String columnName) {
         return switch (columnName) {
-            case "状态", "暂停", "活跃任务", "重启次数", "Phase", "Ready", "类型", "Age" -> 90;
+            case "状态" -> 38;
+            case "暂停", "活跃任务", "重启次数", "Phase", "Ready", "类型", "Age" -> 90;
             case "名称" -> 220;
             case "命名空间", "Storage Class", "访问模式", "Cluster IP", "Controller" -> 140;
             case "镜像", "标签", "Message", "Subjects", "Endpoints", "内部端点", "外部端点" -> 260;
             case "CPU 可分配", "CPU 容量", "内存 可分配", "内存 容量", "Pods 容量", "CPU 使用量", "内存使用量" -> 160;
             default -> 130;
+        };
+    }
+
+    private TableCell<K8sRow, String> createStatusCell() {
+        return new TableCell<>() {
+            private final Region dot = new Region();
+            private final HBox content = new HBox(dot);
+            private final Tooltip tooltip = new Tooltip();
+            private boolean tooltipInstalled;
+
+            {
+                setAlignment(Pos.CENTER);
+                content.setAlignment(Pos.CENTER);
+                content.getStyleClass().add("k8s-status-cell");
+                dot.getStyleClass().add("k8s-status-dot");
+                tooltip.setShowDelay(new Duration(200));
+                content.setOnMouseClicked(event -> {
+                    K8sRow row = getTableRow() == null ? null : getTableRow().getItem();
+                    if (row == null || !row.status().eventDetailAvailable()
+                            || event.getButton() != MouseButton.PRIMARY) {
+                        return;
+                    }
+                    resourceTable.getSelectionModel().clearAndSelect(getIndex());
+                    showResourceAction(Action.DETAIL, row);
+                    event.consume();
+                });
+                content.setOnContextMenuRequested(event -> {
+                    K8sRow row = getTableRow() == null ? null : getTableRow().getItem();
+                    if (row != null) {
+                        resourceTable.getSelectionModel().clearAndSelect(getIndex());
+                        createContextMenu(row).show(content, event.getScreenX(), event.getScreenY());
+                    }
+                    event.consume();
+                });
+            }
+
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                dot.getStyleClass().removeAll("kd-success", "kd-warning", "kd-error", "kd-muted");
+                if (empty || getTableRow() == null || getTableRow().getItem() == null) {
+                    setText(null);
+                    setGraphic(null);
+                    uninstallStatusTooltip();
+                    content.setCursor(Cursor.DEFAULT);
+                    return;
+                }
+
+                K8sRow row = getTableRow().getItem();
+                K8sResourceStatus status = row.status();
+                dot.getStyleClass().add(status.level().cssClass());
+                tooltip.setText(status.eventDetailAvailable() ? status.text() + "，点击查看事件详情" : status.text());
+                installStatusTooltip();
+                content.setCursor(status.eventDetailAvailable() ? Cursor.HAND : Cursor.DEFAULT);
+                setText(null);
+                setGraphic(content);
+            }
+
+            private void installStatusTooltip() {
+                if (!tooltipInstalled) {
+                    Tooltip.install(content, tooltip);
+                    tooltipInstalled = true;
+                }
+            }
+
+            private void uninstallStatusTooltip() {
+                if (tooltipInstalled) {
+                    Tooltip.uninstall(content, tooltip);
+                    tooltipInstalled = false;
+                }
+            }
         };
     }
 
@@ -553,7 +623,8 @@ public class K8sViewController {
                     }
                     List<K8sRow> rows = new ArrayList<>(result.items().size());
                     for (JsonNode item : result.items()) {
-                        rows.add(new K8sRow(activeKind, valuesFor(activeKind, item), item));
+                        K8sResourceStatus status = K8sResourceStatus.resolve(activeKind.kubectlType(), item);
+                        rows.add(new K8sRow(activeKind, valuesFor(activeKind, item, status), item, status));
                     }
                     rows.sort(this::compareByCreationTimeDesc);
                     allRows.setAll(rows);
@@ -2048,17 +2119,17 @@ public class K8sViewController {
         return button;
     }
 
-    private Map<String, String> valuesFor(ResourceKind kind, JsonNode item) {
+    private Map<String, String> valuesFor(ResourceKind kind, JsonNode item, K8sResourceStatus status) {
         Map<String, String> values = new LinkedHashMap<>();
         for (String column : kind.columns()) {
-            values.put(column, valueFor(kind, column, item));
+            values.put(column, valueFor(kind, column, item, status));
         }
         return values;
     }
 
-    private String valueFor(ResourceKind kind, String column, JsonNode item) {
+    private String valueFor(ResourceKind kind, String column, JsonNode item, K8sResourceStatus status) {
         return switch (column) {
-            case "状态" -> statusFor(kind, item);
+            case "状态" -> status.text();
             case "名称" -> nodeText(item, "metadata", "name");
             case "命名空间" -> firstNonBlank(nodeText(item, "metadata", "namespace"), "-");
             case "镜像" -> imagesFor(item);
@@ -2070,7 +2141,6 @@ public class K8sViewController {
             case "Pods" -> podsFor(kind, item);
             case "节点" -> firstNonBlank(nodeText(item, "spec", "nodeName"), "-");
             case "重启次数" -> String.valueOf(restartCountFor(item));
-            case "CPU 使用量", "内存使用量" -> "-";
             case "Endpoints" -> firstNonBlank(ingressEndpoints(item), externalEndpointFor(item));
             case "Hosts" -> ingressHosts(item);
             case "Controller" -> firstNonBlank(nodeText(item, "spec", "controller"), "-");
@@ -2104,8 +2174,7 @@ public class K8sViewController {
             case "CPU 可分配" -> firstNonBlank(nodeText(item, "status", "allocatable", "cpu"), "-");
             case "CPU 容量" -> firstNonBlank(nodeText(item, "status", "capacity", "cpu"), "-");
             case "内存 可分配" -> firstNonBlank(nodeText(item, "status", "allocatable", "memory"), "-");
-            case "内存 容量" ->
-                    firstNonBlank(nodeText(item, "status", "capacity", "memory"), "-");
+            case "内存 容量" -> firstNonBlank(nodeText(item, "status", "capacity", "memory"), "-");
             case "Pods 容量" -> firstNonBlank(nodeText(item, "status", "capacity", "pods"), "-");
             case "Claim" -> claimFor(item);
             case "绑定状态" -> firstNonBlank(nodeText(item, "status", "phase"), statusFor(kind, item));
@@ -2115,28 +2184,14 @@ public class K8sViewController {
     }
 
     private String statusFor(ResourceKind kind, JsonNode item) {
+        K8sResourceStatus status = K8sResourceStatus.resolve(kind.kubectlType(), item);
         if (kind == ResourceKind.NODES) {
-            return "True".equalsIgnoreCase(readyFor(item)) ? "就绪" : "未就绪";
+            return status.text();
         }
         if (kind == ResourceKind.EVENTS) {
             return firstNonBlank(nodeText(item, "type"), "-");
         }
-        String phase = nodeText(item, "status", "phase");
-        if (!phase.isBlank()) {
-            return phase;
-        }
-        int desired = item.path("status").path("replicas").asInt(-1);
-        int ready = item.path("status").path("readyReplicas").asInt(item.path("status").path("availableReplicas").asInt(-1));
-        if (desired >= 0 || ready >= 0) {
-            return Math.max(ready, 0) + "/" + Math.max(desired, 0);
-        }
-        if (item.path("status").has("succeeded")) {
-            return item.path("status").path("succeeded").asInt() > 0 ? "Complete" : "Running";
-        }
-        if (kind == ResourceKind.CRON_JOBS) {
-            return nodeBoolean(item, "spec", "suspend") ? "Suspended" : "Active";
-        }
-        return "-";
+        return status.text();
     }
 
     private String readyFor(JsonNode item) {
@@ -2153,21 +2208,67 @@ public class K8sViewController {
     }
 
     private String podsFor(ResourceKind kind, JsonNode item) {
+        if (item == null || item.isMissingNode() || item.isNull()) {
+            return "-";
+        }
         if (kind == ResourceKind.NODES) {
             return firstNonBlank(nodeText(item, "status", "capacity", "pods"), "-");
         }
-        int ready = item.path("status").path("readyReplicas").asInt(item.path("status").path("availableReplicas").asInt(-1));
-        int desired = item.path("status").path("replicas").asInt(item.path("status").path("desiredNumberScheduled").asInt(-1));
-        if (desired < 0 && item.path("status").has("succeeded")) {
-            int succeeded = item.path("status").path("succeeded").asInt(0);
-            int active = item.path("status").path("active").asInt(0);
-            int failed = item.path("status").path("failed").asInt(0);
-            return "succeeded=" + succeeded + ",active=" + active + ",failed=" + failed;
+        return switch (kind) {
+            case DAEMON_SETS -> podsRatio(
+                    firstPresentInt(item,
+                            List.of("status", "numberReady"),
+                            List.of("status", "numberAvailable"),
+                            List.of("status", "currentNumberScheduled")).orElse(0),
+                    firstPresentInt(item,
+                            List.of("status", "desiredNumberScheduled"),
+                            List.of("status", "currentNumberScheduled")).orElse(0));
+            case JOBS -> jobPodsFor(item);
+            case DEPLOYMENTS, REPLICA_SETS, REPLICATION_CONTROLLERS, STATEFUL_SETS -> workloadPodsFor(item);
+            default -> "-";
+        };
+    }
+
+    private String workloadPodsFor(JsonNode item) {
+        int actual = firstPresentInt(item,
+                List.of("status", "replicas"),
+                List.of("status", "readyReplicas"),
+                List.of("status", "availableReplicas")).orElse(0);
+        int desired = firstPresentInt(item,
+                List.of("spec", "replicas"),
+                List.of("status", "replicas")).orElse(0);
+        return podsRatio(actual, desired);
+    }
+
+    private String jobPodsFor(JsonNode item) {
+        int active = firstPresentInt(item, List.of("status", "active")).orElse(0);
+        int succeeded = firstPresentInt(item, List.of("status", "succeeded")).orElse(0);
+        int failed = firstPresentInt(item, List.of("status", "failed")).orElse(0);
+        int desired = firstPresentInt(item,
+                List.of("spec", "completions"),
+                List.of("spec", "parallelism")).orElse(0);
+        return podsRatio(active + succeeded + failed, desired);
+    }
+
+    private String podsRatio(int actual, int desired) {
+        return Math.max(actual, 0) + "/" + Math.max(desired, 0);
+    }
+
+    @SafeVarargs
+    private OptionalInt firstPresentInt(JsonNode item, List<String>... paths) {
+        if (item == null) {
+            return OptionalInt.empty();
         }
-        if (ready >= 0 || desired >= 0) {
-            return Math.max(ready, 0) + "/" + Math.max(desired, 0);
+        for (List<String> path : paths) {
+            JsonNode current = item;
+            for (String field : path) {
+                current = current.path(field);
+            }
+            if (!current.isMissingNode() && !current.isNull()) {
+                return OptionalInt.of(current.asInt(0));
+            }
         }
-        return "-";
+        return OptionalInt.empty();
     }
 
     private String imagesFor(JsonNode item) {
@@ -2700,7 +2801,7 @@ public class K8sViewController {
     private record LogAppendResult(String text, int removedLines) {
     }
 
-    private record K8sRow(ResourceKind kind, Map<String, String> values, JsonNode raw) {
+    private record K8sRow(ResourceKind kind, Map<String, String> values, JsonNode raw, K8sResourceStatus status) {
 
         private String value(String column) {
             return values.getOrDefault(column, "");
