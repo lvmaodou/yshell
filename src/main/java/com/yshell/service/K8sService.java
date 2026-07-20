@@ -131,15 +131,6 @@ public class K8sService {
         return metrics;
     }
 
-    public SshService.CommandResult getYaml(SshService session,
-                                            String kubectlType,
-                                            String namespace,
-                                            String name,
-                                            boolean namespaced) {
-        return run(session, "kubectl get " + shellQuote(kubectlType) + namespaceFlag(namespace, namespaced)
-                + " " + shellQuote(name) + " -o yaml");
-    }
-
     public SshService.CommandResult getJson(SshService session,
                                             String kubectlType,
                                             String namespace,
@@ -188,6 +179,17 @@ public class K8sService {
                                            boolean namespaced) {
         return run(session, "kubectl delete " + shellQuote(kubectlType) + namespaceFlag(namespace, namespaced)
                 + " " + shellQuote(name));
+    }
+
+    public SshService.CommandResult patch(SshService session,
+                                          String kubectlType,
+                                          String namespace,
+                                          String name,
+                                          boolean namespaced,
+                                          String patchJson) {
+        return run(session, "kubectl patch " + shellQuote(kubectlType) + namespaceFlag(namespace, namespaced)
+                + " " + shellQuote(name)
+                + " --type=merge -p " + shellQuote(patchJson == null ? "{}" : patchJson));
     }
 
     public SshService.CommandResult scale(SshService session,

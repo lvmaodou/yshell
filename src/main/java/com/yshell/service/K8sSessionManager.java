@@ -93,17 +93,6 @@ public class K8sSessionManager {
         }, workerExecutor);
     }
 
-    public CompletableFuture<SshService.CommandResult> getYaml(String connId,
-                                                               ConnInfo connInfo,
-                                                               String kubectlType,
-                                                               String namespace,
-                                                               String name,
-                                                               boolean namespaced) {
-        return runKubectl(connId, connInfo,
-                session -> k8sService.getYaml(session, kubectlType, namespace, name, namespaced),
-                "Get Kubernetes resource YAML failed");
-    }
-
     public CompletableFuture<SshService.CommandResult> getJson(String connId,
                                                                ConnInfo connInfo,
                                                                String kubectlType,
@@ -170,6 +159,18 @@ public class K8sSessionManager {
         return runKubectl(connId, connInfo,
                 session -> k8sService.delete(session, kubectlType, namespace, name, namespaced),
                 "Delete Kubernetes resource failed");
+    }
+
+    public CompletableFuture<SshService.CommandResult> patch(String connId,
+                                                             ConnInfo connInfo,
+                                                             String kubectlType,
+                                                             String namespace,
+                                                             String name,
+                                                             boolean namespaced,
+                                                             String patchJson) {
+        return runKubectl(connId, connInfo,
+                session -> k8sService.patch(session, kubectlType, namespace, name, namespaced, patchJson),
+                "Patch Kubernetes resource failed");
     }
 
     public CompletableFuture<SshService.CommandResult> scale(String connId,

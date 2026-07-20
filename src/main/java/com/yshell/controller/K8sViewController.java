@@ -2,6 +2,9 @@ package com.yshell.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.yshell.model.ConnInfo;
 import com.yshell.service.ConnectionManager;
 import com.yshell.service.K8sSessionManager;
@@ -28,6 +31,11 @@ import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.nodes.Tag;
+import org.yaml.snakeyaml.representer.Represent;
+import org.yaml.snakeyaml.representer.Representer;
 
 import java.time.Instant;
 import java.util.*;
@@ -44,6 +52,8 @@ public class K8sViewController {
 
     private final K8sSessionManager sessionManager = K8sSessionManager.getInstance();
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper yamlObjectMapper = new ObjectMapper(new YAMLFactory());
+    private final Yaml editingYaml = createEditingYaml();
     private final Map<Category, Button> categoryButtons = new LinkedHashMap<>();
     private final Map<Category, VBox> childContainers = new LinkedHashMap<>();
     private final ObservableList<K8sRow> allRows = FXCollections.observableArrayList();
@@ -899,19 +909,20 @@ public class K8sViewController {
         long serial = ++detailSerial;
         CompletableFuture<SshService.CommandResult> describeFuture = sessionManager.describe(
                 context.connId(), context.connInfo(), row.kind().kubectlType(), rowNamespace(row), rowName(row), row.kind().namespaced());
-        CompletableFuture<SshService.CommandResult> yamlFuture = sessionManager.getYaml(
+        CompletableFuture<SshService.CommandResult> jsonFuture = sessionManager.getJson(
                 context.connId(), context.connInfo(), row.kind().kubectlType(), rowNamespace(row), rowName(row), row.kind().namespaced());
         CompletableFuture<SshService.CommandResult> eventsFuture = sessionManager.events(
                 context.connId(), context.connInfo(), rowNamespace(row), rowName(row), row.kind().namespaced());
 
-        CompletableFuture.allOf(describeFuture, yamlFuture, eventsFuture).thenRun(() ->
+        CompletableFuture.allOf(describeFuture, jsonFuture, eventsFuture).thenRun(() ->
                 Platform.runLater(() -> {
                     if (serial != detailSerial) {
                         return;
                     }
                     SshService.CommandResult describe = describeFuture.join();
-                    SshService.CommandResult yaml = yamlFuture.join();
+                    SshService.CommandResult json = jsonFuture.join();
                     SshService.CommandResult events = eventsFuture.join();
+                    String yaml = json.isSuccess() ? yamlForEditing(json.stdout()) : commandMessage(json);
 
                     List<K8sDetailController.DetailActionSpec> actionSpecs = new ArrayList<>();
                     for (Action action : row.kind().actions()) {
@@ -939,7 +950,7 @@ public class K8sViewController {
                             sections,
                             actionSpecs,
                             eventLines,
-                            commandMessage(yaml),
+                            yaml,
                             spec -> handleDetailAction(row, spec)
                     );
 
@@ -1079,34 +1090,32 @@ public class K8sViewController {
             return;
         }
         setStatusText("正在读取资源配置...");
-        CompletableFuture<SshService.CommandResult> yamlFuture = sessionManager.getYaml(
-                context.connId(), context.connInfo(), row.kind().kubectlType(),
-                rowNamespace(row), rowName(row), row.kind().namespaced());
         CompletableFuture<SshService.CommandResult> jsonFuture = sessionManager.getJson(
                 context.connId(), context.connInfo(), row.kind().kubectlType(),
                 rowNamespace(row), rowName(row), row.kind().namespaced());
-        CompletableFuture.allOf(yamlFuture, jsonFuture).thenRun(() ->
+        jsonFuture.thenAccept(jsonResult ->
                 Platform.runLater(() -> {
-                    SshService.CommandResult yamlResult = yamlFuture.join();
-                    SshService.CommandResult jsonResult = jsonFuture.join();
-                    if (!yamlResult.isSuccess()) {
-                        showCommandResult(row.value("名称"), yamlResult);
-                        return;
-                    }
                     if (!jsonResult.isSuccess()) {
                         showCommandResult(row.value("名称"), jsonResult);
                         return;
                     }
+                    String editableYaml = yamlForEditing(jsonResult.stdout());
                     Optional<String> resourceText = showResourceEditor(
                             "编辑 " + row.kind().label() + " / " + row.value("名称"),
-                            yamlResult.stdout(), jsonResult.stdout());
+                            editableYaml, jsonResult.stdout());
                     if (resourceText.isEmpty()) {
                         setStatusText("已取消编辑");
                         return;
                     }
-                    setStatusText("正在应用资源配置...");
-                    sessionManager.applyYaml(context.connId(), context.connInfo(), resourceText.get()).thenAccept(applyResult ->
-                            Platform.runLater(() -> handleMutationResult("编辑资源", applyResult)));
+                    Optional<String> patchJson = mergePatchForEditing(jsonResult.stdout(), resourceText.get());
+                    if (patchJson.isEmpty()) {
+                        setStatusText("未检测到修改");
+                        return;
+                    }
+                    setStatusText("正在保存资源修改...");
+                    sessionManager.patch(context.connId(), context.connInfo(), row.kind().kubectlType(),
+                                    rowNamespace(row), rowName(row), row.kind().namespaced(), patchJson.get())
+                            .thenAccept(patchResult -> Platform.runLater(() -> handleMutationResult("编辑资源", patchResult)));
                 }));
     }
 
@@ -1202,6 +1211,189 @@ public class K8sViewController {
                         dialog -> null
                 )
         ));
+    }
+
+    private String yamlForEditing(String json) {
+        if (json == null || json.isBlank()) {
+            return "";
+        }
+        try {
+            JsonNode root = objectMapper.readTree(json);
+            Object value = objectMapper.convertValue(root, Object.class);
+            return forceDataBlockScalars(editingYaml.dump(value));
+        } catch (Exception e) {
+            LOGGER.debug("format kubernetes resource yaml failed", e);
+            return "";
+        }
+    }
+
+    private String forceDataBlockScalars(String yaml) {
+        if (yaml == null || yaml.isBlank()) {
+            return firstNonBlank(yaml, "");
+        }
+        String[] lines = yaml.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
+        StringBuilder result = new StringBuilder(yaml.length());
+        boolean inData = false;
+        int dataIndent = -1;
+        int entryIndent = -1;
+        for (String line : lines) {
+            int indent = leadingSpaces(line);
+            String trimmed = line.trim();
+            if (!inData && indent == 0 && "data:".equals(trimmed)) {
+                inData = true;
+                dataIndent = indent;
+                entryIndent = dataIndent + 2;
+                appendLine(result, line);
+                continue;
+            }
+            if (inData && !trimmed.isEmpty() && indent <= dataIndent) {
+                inData = false;
+                dataIndent = -1;
+                entryIndent = -1;
+            }
+
+            if (inData && indent == entryIndent) {
+                String blockLine = dataBlockScalarLine(line, entryIndent);
+                if (blockLine != null) {
+                    result.append(blockLine);
+                    continue;
+                }
+            }
+            appendLine(result, line);
+        }
+        return result.toString();
+    }
+
+    private String dataBlockScalarLine(String line, int entryIndent) {
+        int colon = line.indexOf(':', entryIndent);
+        if (colon < 0) {
+            return null;
+        }
+        String value = line.substring(colon + 1).trim();
+        if (!value.startsWith("\"") || !(value.contains("\\n") || value.contains("\\r"))) {
+            return null;
+        }
+        try {
+            String text = unquoteYamlString(value);
+            if (!text.contains("\n") && !text.contains("\r")) {
+                return null;
+            }
+            StringBuilder block = new StringBuilder(line.length() + text.length());
+            block.append(line, 0, colon + 1).append(" |\n");
+            String blockIndent = " ".repeat(entryIndent + 2);
+            String normalized = text.replace("\r\n", "\n").replace('\r', '\n');
+            String[] textLines = normalized.split("\n", -1);
+            int limit = textLines.length;
+            if (limit > 0 && textLines[limit - 1].isEmpty()) {
+                limit--;
+            }
+            for (int i = 0; i < limit; i++) {
+                block.append(blockIndent).append(textLines[i]).append('\n');
+            }
+            return block.toString();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private String unquoteYamlString(String value) {
+        String text = value;
+        if (text.length() >= 2 && text.startsWith("\"") && text.endsWith("\"")) {
+            text = text.substring(1, text.length() - 1);
+        }
+        return unescapeTextNewlines(text).replace("\\\"", "\"");
+    }
+
+    private int leadingSpaces(String line) {
+        int count = 0;
+        while (count < line.length() && line.charAt(count) == ' ') {
+            count++;
+        }
+        return count;
+    }
+
+    private void appendLine(StringBuilder builder, String line) {
+        builder.append(line).append('\n');
+    }
+
+    private String unescapeTextNewlines(String text) {
+        return text
+                .replace("\\r\\n", "\n")
+                .replace("\\n", "\n")
+                .replace("\\r", "\n")
+                .replace("\\t", "\t");
+    }
+
+    private Yaml createEditingYaml() {
+        DumperOptions options = new DumperOptions();
+        options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+        options.setIndent(2);
+        options.setPrettyFlow(true);
+        options.setSplitLines(false);
+        options.setAllowUnicode(true);
+        return new Yaml(new BlockStringRepresenter(options), options);
+    }
+
+    private static final class BlockStringRepresenter extends Representer {
+        private BlockStringRepresenter(DumperOptions options) {
+            super(options);
+            representers.put(String.class, new BlockStringRepresent());
+        }
+
+        private final class BlockStringRepresent implements Represent {
+            @Override
+            public org.yaml.snakeyaml.nodes.Node representData(Object data) {
+                String value = data == null ? "" : data.toString();
+                if (value.contains("\n")) {
+                    return representScalar(Tag.STR, value, DumperOptions.ScalarStyle.LITERAL);
+                }
+                return representScalar(Tag.STR, value);
+            }
+        }
+    }
+
+    private Optional<String> mergePatchForEditing(String originalJson, String editedText) {
+        try {
+            JsonNode original = objectMapper.readTree(originalJson);
+            JsonNode edited = yamlObjectMapper.readTree(editedText);
+            JsonNode patch = jsonMergePatch(original, edited);
+            if (patch == null || (patch.isObject() && patch.isEmpty())) {
+                return Optional.empty();
+            }
+            return Optional.of(objectMapper.writeValueAsString(patch));
+        } catch (Exception e) {
+            LOGGER.debug("build kubernetes resource patch failed", e);
+            DialogHelper.showError("编辑资源", "资源内容格式不正确，无法生成 patch。\n" + firstNonBlank(e.getMessage(), ""));
+            return Optional.empty();
+        }
+    }
+
+    private JsonNode jsonMergePatch(JsonNode original, JsonNode edited) {
+        if (Objects.equals(original, edited)) {
+            return null;
+        }
+        if (original == null || edited == null || !original.isObject() || !edited.isObject()) {
+            return edited == null ? NullNode.getInstance() : edited;
+        }
+
+        ObjectNode patch = objectMapper.createObjectNode();
+        Iterator<String> originalFields = original.fieldNames();
+        while (originalFields.hasNext()) {
+            String field = originalFields.next();
+            if (!edited.has(field)) {
+                patch.set(field, NullNode.getInstance());
+            }
+        }
+
+        Iterator<Map.Entry<String, JsonNode>> editedFields = edited.fields();
+        while (editedFields.hasNext()) {
+            Map.Entry<String, JsonNode> entry = editedFields.next();
+            JsonNode childPatch = jsonMergePatch(original.get(entry.getKey()), entry.getValue());
+            if (childPatch != null) {
+                patch.set(entry.getKey(), childPatch);
+            }
+        }
+        return patch.isEmpty() ? null : patch;
     }
 
     private Optional<String> showResourceEditor(String title, String yaml, String json) {
