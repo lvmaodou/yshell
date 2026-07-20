@@ -3,9 +3,11 @@ package com.yshell.ui;
 import com.yshell.theme.ThemeManager;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -308,6 +310,7 @@ public final class DialogHelper {
         Label titleLabel = new Label(title == null || title.isBlank() ? "对话框" : title);
         titleLabel.getStyleClass().add("custom-dialog-title");
         titleLabel.setMaxWidth(Double.MAX_VALUE);
+        installWindowDrag(titleLabel);
 
         Node contentNode = content == null ? new VBox() : content;
         if (contentNode instanceof Region region) {
@@ -362,6 +365,30 @@ public final class DialogHelper {
         applyTheme(dialog);
         applyCustomDialogStyles(dialog, styleClasses);
         return dialog;
+    }
+
+    private static void installWindowDrag(Node dragHandle) {
+        final double[] dragOffset = new double[2];
+        dragHandle.setCursor(Cursor.HAND);
+        dragHandle.setOnMousePressed(event -> {
+            if (event.getButton() != MouseButton.PRIMARY) {
+                return;
+            }
+            dragOffset[0] = event.getSceneX();
+            dragOffset[1] = event.getSceneY();
+            event.consume();
+        });
+        dragHandle.setOnMouseDragged(event -> {
+            if (!event.isPrimaryButtonDown()) {
+                return;
+            }
+            Window window = dragHandle.getScene() == null ? null : dragHandle.getScene().getWindow();
+            if (window != null) {
+                window.setX(event.getScreenX() - dragOffset[0]);
+                window.setY(event.getScreenY() - dragOffset[1]);
+            }
+            event.consume();
+        });
     }
 
     private static <T> Button createCustomDialogButton(Dialog<T> dialog, CustomDialogButton<T> buttonConfig) {
