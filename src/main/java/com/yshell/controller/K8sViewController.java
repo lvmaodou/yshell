@@ -520,6 +520,7 @@ public class K8sViewController {
                     for (JsonNode item : result.items()) {
                         rows.add(new K8sRow(activeKind, valuesFor(activeKind, item), item));
                     }
+                    rows.sort(this::compareByCreationTimeDesc);
                     allRows.setAll(rows);
                     if (resetPage) {
                         currentPageIndex = 0;
@@ -2103,29 +2104,76 @@ public class K8sViewController {
         return current;
     }
 
-    private String ageSince(String timestamp) {
+    private int compareByCreationTimeDesc(K8sRow left, K8sRow right) {
+        long leftTime = creationTimestampMillis(left == null ? null : left.raw());
+        long rightTime = creationTimestampMillis(right == null ? null : right.raw());
+        if (leftTime == rightTime) {
+            String leftName = left == null ? "" : firstNonBlank(nodeText(left.raw(), "metadata", "name"), "");
+            String rightName = right == null ? "" : firstNonBlank(nodeText(right.raw(), "metadata", "name"), "");
+            return leftName.compareToIgnoreCase(rightName);
+        }
+        if (leftTime == Long.MIN_VALUE) {
+            return 1;
+        }
+        if (rightTime == Long.MIN_VALUE) {
+            return -1;
+        }
+        return Long.compare(rightTime, leftTime);
+    }
+
+    private long creationTimestampMillis(JsonNode item) {
+        Instant instant = parseTimestamp(nodeText(item, "metadata", "creationTimestamp"));
+        return instant == null ? Long.MIN_VALUE : instant.toEpochMilli();
+    }
+
+    private Instant parseTimestamp(String timestamp) {
         if (timestamp == null || timestamp.isBlank()) {
-            return "";
+            return null;
         }
         try {
-            Instant instant = Instant.parse(timestamp);
-            java.time.Duration duration = java.time.Duration.between(instant, Instant.now());
-            long days = duration.toDays();
-            if (days > 0) {
-                return days + "d";
-            }
-            long hours = duration.toHours();
-            if (hours > 0) {
-                return hours + "h";
-            }
-            long minutes = duration.toMinutes();
-            if (minutes > 0) {
-                return minutes + "m";
-            }
-            return Math.max(0, duration.toSeconds()) + "s";
+            return Instant.parse(timestamp);
         } catch (Exception ignored) {
-            return timestamp;
+            return null;
         }
+    }
+
+    private String ageSince(String timestamp) {
+        Instant instant = parseTimestamp(timestamp);
+        if (instant == null) {
+            return "";
+        }
+        java.time.Duration duration = java.time.Duration.between(instant, Instant.now());
+        if (duration.isNegative()) {
+            return "刚刚";
+        }
+
+        long seconds = duration.getSeconds();
+        if (seconds < 60) {
+            return Math.max(0, seconds) + "秒前";
+        }
+
+        long minutes = duration.toMinutes();
+        if (minutes < 60) {
+            return minutes + "分钟前";
+        }
+
+        long hours = duration.toHours();
+        if (hours < 24) {
+            return hours + "小时前";
+        }
+
+        long days = duration.toDays();
+        if (days < 30) {
+            return days + "天前";
+        }
+
+        if (days < 365) {
+            long months = Math.max(1L, days / 30);
+            return months + "个月前";
+        }
+
+        long years = Math.max(1L, days / 365);
+        return years + "年前";
     }
 
     private void setVisibleManaged(javafx.scene.Node node, boolean visible) {
@@ -2262,7 +2310,7 @@ public class K8sViewController {
                         "Memory requests", "Memory limits", "Memory capacity", "Pods", "创建时间"),
                 List.of(Action.DETAIL, Action.EDIT, Action.DELETE)),
         PERSISTENT_VOLUMES(Category.CLUSTER, "持久卷", "persistentvolume", "pv", false,
-                List.of("名称", "容量", "访问模式", "Reclaim Policy", "绑定状态", "Claim", "Storage Class", "Reason", "创建时间"),
+                List.of("状态", "名称", "容量", "访问模式", "Reclaim Policy", "绑定状态", "Claim", "Storage Class", "Reason", "创建时间"),
                 List.of(Action.DETAIL, Action.EDIT, Action.DELETE)),
         ROLE_BINDINGS(Category.CLUSTER, "角色绑定", "rolebinding", "role-binding", true,
                 List.of("名称", "命名空间", "创建时间"),
