@@ -169,6 +169,15 @@
     -fx-border-width: 0;
 }
 
+.k8s-table .table-row-cell:selected .docker-table-cell-text,
+.k8s-table .table-row-cell:selected .docker-table-cell-text:focused {
+    -fx-background-color: transparent;
+    -fx-control-inner-background: transparent;
+    -fx-background-insets: 0;
+    -fx-border-width: 0;
+    -fx-text-fill: -fx-text-inverse;
+}
+
 .config-pane {
     -fx-background-color: -fx-bg-primary;
     -fx-padding: 10px 12px 12px 12px;

@@ -329,6 +329,28 @@ public class K8sViewController {
                 textField.getStyleClass().add("docker-table-cell-text");
                 textField.prefWidthProperty().bind(widthProperty().subtract(12));
                 textField.setContextMenu(null);
+                textField.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+                    K8sRow row = getTableRow() == null ? null : getTableRow().getItem();
+                    if (row == null || event.getButton() != MouseButton.PRIMARY) {
+                        return;
+                    }
+                    MultipleSelectionModel<K8sRow> selectionModel = resourceTable.getSelectionModel();
+                    int rowIndex = getIndex();
+                    if (rowIndex < 0) {
+                        return;
+                    }
+                    if (event.isShortcutDown()) {
+                        if (selectionModel.isSelected(rowIndex)) {
+                            selectionModel.clearSelection(rowIndex);
+                        } else {
+                            selectionModel.select(rowIndex);
+                        }
+                    } else if (event.isShiftDown()) {
+                        selectionModel.select(rowIndex);
+                    } else if (!selectionModel.isSelected(rowIndex) || selectionModel.getSelectedIndices().size() != 1) {
+                        selectionModel.clearAndSelect(rowIndex);
+                    }
+                });
                 textField.setOnContextMenuRequested(event -> {
                     K8sRow row = getTableRow() == null ? null : getTableRow().getItem();
                     if (row != null) {
