@@ -296,7 +296,7 @@ public class K8sViewController {
             case "名称" -> 220;
             case "命名空间", "Storage Class", "访问模式", "Cluster IP", "Controller" -> 140;
             case "镜像", "标签", "Message", "Subjects", "Endpoints", "内部端点", "外部端点" -> 260;
-            case "CPU requests", "CPU limits", "Memory requests", "Memory limits", "Memory capacity" -> 160;
+            case "CPU 可分配", "CPU 容量", "内存 可分配", "内存 容量", "Pods 容量" -> 160;
             default -> 130;
         };
     }
@@ -1699,13 +1699,11 @@ public class K8sViewController {
         if (row.kind() == ResourceKind.NODES) {
             return row(
                     "Ready", firstNonBlank(row.value("Ready"), row.value("状态")),
-                    "CPU requests", firstNonBlank(row.value("CPU requests"), "-"),
-                    "CPU limits", firstNonBlank(row.value("CPU limits"), "-"),
-                    "CPU capacity", firstNonBlank(row.value("CPU capacity"), "-"),
-                    "Memory requests", firstNonBlank(row.value("Memory requests"), "-"),
-                    "Memory limits", firstNonBlank(row.value("Memory limits"), "-"),
-                    "Memory capacity", firstNonBlank(row.value("Memory capacity"), "-"),
-                    "Pods", firstNonBlank(row.value("Pods"), "-")
+                    "CPU 可分配", firstNonBlank(row.value("CPU 可分配"), "-"),
+                    "CPU 容量", firstNonBlank(row.value("CPU 容量"), "-"),
+                    "内存 可分配", firstNonBlank(row.value("内存 可分配"), "-"),
+                    "内存 容量", firstNonBlank(row.value("内存 容量"), "-"),
+                    "Pods 容量", firstNonBlank(row.value("Pods 容量"), "-")
             );
         }
         Map<String, String> info = new LinkedHashMap<>();
@@ -1837,11 +1835,12 @@ public class K8sViewController {
                     nodeText(item, "eventTime"))), "-");
             case "Phase" -> firstNonBlank(nodeText(item, "status", "phase"), statusFor(kind, item));
             case "Ready" -> readyFor(item);
-            case "CPU requests" -> firstNonBlank(nodeText(item, "status", "allocatable", "cpu"), "-");
-            case "CPU limits", "CPU capacity" -> firstNonBlank(nodeText(item, "status", "capacity", "cpu"), "-");
-            case "Memory requests" -> firstNonBlank(nodeText(item, "status", "allocatable", "memory"), "-");
-            case "Memory limits", "Memory capacity" ->
+            case "CPU 可分配" -> firstNonBlank(nodeText(item, "status", "allocatable", "cpu"), "-");
+            case "CPU 容量" -> firstNonBlank(nodeText(item, "status", "capacity", "cpu"), "-");
+            case "内存 可分配" -> firstNonBlank(nodeText(item, "status", "allocatable", "memory"), "-");
+            case "内存 容量" ->
                     firstNonBlank(nodeText(item, "status", "capacity", "memory"), "-");
+            case "Pods 容量" -> firstNonBlank(nodeText(item, "status", "capacity", "pods"), "-");
             case "Claim" -> claimFor(item);
             case "绑定状态" -> firstNonBlank(nodeText(item, "status", "phase"), statusFor(kind, item));
             case "Reclaim Policy" -> firstNonBlank(nodeText(item, "spec", "persistentVolumeReclaimPolicy"), "-");
@@ -2306,8 +2305,8 @@ public class K8sViewController {
                 List.of("名称", "命名空间", "标签", "创建时间"),
                 List.of(Action.DETAIL, Action.EDIT, Action.DELETE)),
         NODES(Category.CLUSTER, "节点", "node", "node", false,
-                List.of("状态", "名称", "标签", "Ready", "CPU requests", "CPU limits", "CPU capacity",
-                        "Memory requests", "Memory limits", "Memory capacity", "Pods", "创建时间"),
+                List.of("状态", "名称", "标签", "Ready", "CPU 可分配", "CPU 容量",
+                        "内存 可分配", "内存 容量", "Pods 容量", "创建时间"),
                 List.of(Action.DETAIL, Action.EDIT, Action.DELETE)),
         PERSISTENT_VOLUMES(Category.CLUSTER, "持久卷", "persistentvolume", "pv", false,
                 List.of("状态", "名称", "容量", "访问模式", "Reclaim Policy", "绑定状态", "Claim", "Storage Class", "Reason", "创建时间"),
