@@ -2031,7 +2031,10 @@ public class DockerViewController {
             DialogHelper.showWarning("进入容器", "当前连接没有可用终端");
             return;
         }
-        if (!terminalController.executeShellCommand("docker exec -it " + shellArg(row.commandTarget()) + " sh")) {
+        int backspaceSequence = context.connInfo() == null ? 2 : context.connInfo().getBackspaceKeySequence();
+        String command = "docker exec -it " + shellArg(row.commandTarget()) + " sh -lc "
+                + shellArg(containerBootstrapScript(backspaceSequence));
+        if (!terminalController.executeHiddenShellCommand(command)) {
             DialogHelper.showWarning("进入容器", "终端未就绪");
         }
     }
@@ -2185,6 +2188,17 @@ public class DockerViewController {
             return "''";
         }
         return "'" + value.replace("'", "'\"'\"'") + "'";
+    }
+
+    private String containerBootstrapScript(int backspaceSequence) {
+        String sttyErase = backspaceSequence == 1 ? "^H" : "^?";
+        return "rcfile=\"$(mktemp /tmp/yshell-inputrc.XXXXXX 2>/dev/null || printf '%s' /tmp/yshell-inputrc.$$)\"; "
+                + "printf '%s\\n' \"bind '\\\"\\\\e[3~\\\": delete-char'\" "
+                + "\"bind '\\\"\\\\177\\\": backward-delete-char'\" "
+                + "\"bind '\\\"\\\\C-h\\\": backward-delete-char'\" > \"$rcfile\"; "
+                + "if command -v bash >/dev/null 2>&1; then exec bash --noprofile --rcfile \"$rcfile\" -i; fi; "
+                + "stty erase '" + sttyErase + "' 2>/dev/null || true; "
+                + "exec sh -i";
     }
 
     private String imageReference(DockerRow row) {

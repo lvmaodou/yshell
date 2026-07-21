@@ -21,6 +21,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import javafx.animation.PauseTransition;
+import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.io.InputStream;
@@ -349,9 +351,38 @@ public class TerminalPanelController {
         return false;
     }
 
+    public boolean executeHiddenShellCommand(String command) {
+        if (command == null || command.isBlank() || currentShellService == null) {
+            return false;
+        }
+        String text = command.endsWith("\n") || command.endsWith("\r") ? command : command + "\n";
+        if (currentShellService.isShellOpen()) {
+            writeHiddenCommandToShell(text);
+            return true;
+        }
+        return false;
+    }
+
     private void writeCommandToShell(String command) {
         PanelManager.getInstance().toggleInteractivePanel(true);
         currentShellService.writeToShell(command.getBytes(StandardCharsets.UTF_8));
+        Platform.runLater(terminal::requestFocus);
+    }
+
+    private void writeHiddenCommandToShell(String command) {
+        PanelManager.getInstance().toggleInteractivePanel(true);
+        SshService service = currentShellService;
+        String bootstrap = "stty -echo 2>/dev/null; printf '\\033[A\\033[2K\\r'; "
+                + "read -r __yshell_cmd; stty echo 2>/dev/null; eval \"$__yshell_cmd\"\n";
+        service.writeToShell(bootstrap.getBytes(StandardCharsets.UTF_8));
+        PauseTransition delay = new PauseTransition(Duration.millis(80));
+        delay.setOnFinished(event -> {
+            if (service == currentShellService && service.isShellOpen()) {
+                service.writeToShell(command.getBytes(StandardCharsets.UTF_8));
+            }
+            terminal.requestFocus();
+        });
+        delay.play();
         Platform.runLater(terminal::requestFocus);
     }
 
