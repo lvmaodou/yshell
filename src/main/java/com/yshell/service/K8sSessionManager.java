@@ -2,6 +2,7 @@ package com.yshell.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.yshell.model.ConnInfo;
+import com.yshell.model.k8s.K8sDetailDtos;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,15 +105,30 @@ public class K8sSessionManager {
                 "Get Kubernetes resource JSON failed");
     }
 
-    public CompletableFuture<SshService.CommandResult> describe(String connId,
-                                                                ConnInfo connInfo,
-                                                                String kubectlType,
-                                                                String namespace,
-                                                                String name,
-                                                                boolean namespaced) {
-        return runKubectl(connId, connInfo,
-                session -> k8sService.describe(session, kubectlType, namespace, name, namespaced),
-                "Describe Kubernetes resource failed");
+    public CompletableFuture<K8sDetailResult> dashboardDetail(String connId,
+                                                              ConnInfo connInfo,
+                                                              String kubectlType,
+                                                              String namespace,
+                                                              String name,
+                                                              boolean namespaced) {
+        if (connId == null || connInfo == null || kubectlType == null || kubectlType.isBlank()
+                || name == null || name.isBlank()) {
+            return CompletableFuture.completedFuture(K8sDetailResult.failed("Missing connection or resource type"));
+        }
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return k8sService.dashboardDetail(
+                        ensureSession(connId, connInfo),
+                        kubectlType,
+                        namespace,
+                        name,
+                        namespaced
+                );
+            } catch (Exception e) {
+                return K8sDetailResult.failed(
+                        e.getMessage() == null ? "Build Kubernetes detail failed" : e.getMessage());
+            }
+        }, workerExecutor);
     }
 
     public CompletableFuture<SshService.CommandResult> events(String connId,
@@ -327,6 +343,16 @@ public class K8sSessionManager {
     }
 
     public record PodUsage(String cpu, String memory) {
+    }
+
+    public record K8sDetailResult(
+            boolean success,
+            String errorMessage,
+            K8sDetailDtos.ResourceDetailDto detail
+    ) {
+        public static K8sDetailResult failed(String errorMessage) {
+            return new K8sDetailResult(false, errorMessage, null);
+        }
     }
 
     @FunctionalInterface

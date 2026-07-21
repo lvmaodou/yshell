@@ -1000,64 +1000,75 @@ public class K8sViewController {
         }
 
         long serial = ++detailSerial;
-        CompletableFuture<SshService.CommandResult> describeFuture = sessionManager.describe(
-                context.connId(), context.connInfo(), row.kind().kubectlType(), rowNamespace(row), rowName(row), row.kind().namespaced());
-        CompletableFuture<SshService.CommandResult> jsonFuture = sessionManager.getJson(
-                context.connId(), context.connInfo(), row.kind().kubectlType(), rowNamespace(row), rowName(row), row.kind().namespaced());
-        CompletableFuture<SshService.CommandResult> eventsFuture = sessionManager.events(
-                context.connId(), context.connInfo(), rowNamespace(row), rowName(row), row.kind().namespaced());
+        sessionManager.dashboardDetail(
+                context.connId(),
+                context.connInfo(),
+                row.kind().kubectlType(),
+                rowNamespace(row),
+                rowName(row),
+                row.kind().namespaced()
+        ).thenAccept(result -> Platform.runLater(() -> {
+            if (serial != detailSerial) {
+                return;
+            }
+            if (result == null || !result.success() || result.detail() == null) {
+                String message = result == null ? "读取详情失败" : firstNonBlank(result.errorMessage(), "读取详情失败");
+                setStatusText(message);
+                DialogHelper.showError("查看详情", message);
+                return;
+            }
 
-        CompletableFuture.allOf(describeFuture, jsonFuture, eventsFuture).thenRun(() ->
-                Platform.runLater(() -> {
-                    if (serial != detailSerial) {
-                        return;
-                    }
-                    SshService.CommandResult describe = describeFuture.join();
-                    SshService.CommandResult json = jsonFuture.join();
-                    SshService.CommandResult events = eventsFuture.join();
-                    String yaml = json.isSuccess() ? yamlForEditing(json.stdout()) : commandMessage(json);
+            List<K8sDetailController.DetailActionSpec> actionSpecs = new ArrayList<>();
+            for (Action action : row.kind().actions()) {
+                if (action == Action.DETAIL) {
+                    continue;
+                }
+                actionSpecs.add(new K8sDetailController.DetailActionSpec(
+                        action.label(),
+                        kubectlHint(action, row),
+                        action == Action.EDIT || action == Action.SCALE || action == Action.TRIGGER
+                ));
+            }
 
-                    List<K8sDetailController.DetailActionSpec> actionSpecs = new ArrayList<>();
-                    for (Action action : row.kind().actions()) {
-                        if (action == Action.DETAIL) {
-                            continue;
-                        }
-                        actionSpecs.add(new K8sDetailController.DetailActionSpec(
-                                action.label(),
-                                kubectlHint(action, row),
-                                action == Action.EDIT || action == Action.SCALE || action == Action.TRIGGER
-                        ));
-                    }
-
-                    List<String> eventLines = parseEventLines(events);
-                    List<K8sDetailController.DetailSectionSpec> sections = new ArrayList<>();
-                    sections.add(K8sDetailController.DetailSectionSpec.kv("资源摘要", resourceSummaryFor(row)));
-                    sections.add(K8sDetailController.DetailSectionSpec.text("资源描述", commandMessage(describe)));
-
-                    K8sDetailController.DetailPageData data = new K8sDetailController.DetailPageData(
-                            row.kind().label(),
-                            row.kind().label() + "详情",
-                            row.value("名称") + namespaceSubtitle(row),
-                            metadataFor(row),
-                            resourceInfoFor(row),
-                            sections,
-                            actionSpecs,
-                            eventLines,
-                            yaml,
-                            spec -> handleDetailAction(row, spec)
-                    );
-
-                    K8sDetailController.show(resourceTable.getScene() == null ? null : resourceTable.getScene().getWindow(), data);
-                }));
+            setStatusText("资源详情已读取");
+            K8sDetailController.show(
+                    resourceTable.getScene() == null ? null : resourceTable.getScene().getWindow(),
+                    result.detail(),
+                    actionSpecs,
+                    spec -> handleDetailAction(row, spec)
+            );
+        }));
     }
 
     private void handleDetailAction(K8sRow row, K8sDetailController.DetailActionSpec spec) {
         Action action = Action.fromLabel(spec.label());
+        String message = spec.label() + "\n\n等效操作: " + spec.hint();
         if (action == null) {
-            DialogHelper.showInfo("Kubernetes", spec.label() + "\n\n等效操作: " + spec.hint());
+            DialogHelper.showInfo("Kubernetes", message);
             return;
         }
-        showResourceAction(action, row);
+        K8sRow targetRow = spec.hasResourceTarget() ? detailTargetRow(spec) : row;
+        if (targetRow == null) {
+            DialogHelper.showInfo("Kubernetes", message);
+            return;
+        }
+        showResourceAction(action, targetRow);
+    }
+
+    private K8sRow detailTargetRow(K8sDetailController.DetailActionSpec spec) {
+        ResourceKind kind = ResourceKind.fromKubectlType(spec.resourceKind());
+        if (kind == null) {
+            return null;
+        }
+        Map<String, String> values = new LinkedHashMap<>();
+        for (String column : kind.columns()) {
+            values.put(column, "-");
+        }
+        values.put("名称", spec.name());
+        if (kind.namespaced()) {
+            values.put("命名空间", firstNonBlank(spec.namespace(), "-"));
+        }
+        return new K8sRow(kind, values, null, null);
     }
 
     private void showLogs(K8sRow row) {
@@ -1865,45 +1876,6 @@ public class K8sViewController {
         return result.isSuccess() ? "执行成功" : "执行失败";
     }
 
-    private List<String> parseEventLines(SshService.CommandResult result) {
-        if (result == null || result.stdout() == null || result.stdout().isBlank()) {
-            return List.of();
-        }
-        try {
-            JsonNode root = objectMapper.readTree(result.stdout());
-            JsonNode items = root.path("items");
-            if (!items.isArray()) {
-                return List.of();
-            }
-            List<String> events = new ArrayList<>();
-            for (JsonNode item : items) {
-                String type = item.path("type").asText("-");
-                String reason = item.path("reason").asText("-");
-                String time = firstNonBlank(
-                        ageSince(firstNonBlank(item.path("lastTimestamp").asText(""),
-                                item.path("eventTime").asText(""))),
-                        "-"
-                );
-                String message = item.path("message").asText("");
-                events.add(type + "  " + reason + "  " + time + "  " + message);
-            }
-            return events;
-        } catch (Exception e) {
-            return result.stdout().lines()
-                    .filter(line -> !line.isBlank())
-                    .limit(50)
-                    .toList();
-        }
-    }
-
-    private Map<String, String> resourceSummaryFor(K8sRow row) {
-        Map<String, String> summary = new LinkedHashMap<>(resourceInfoFor(row));
-        summary.put("kubectl", "kubectl get " + row.kind().kubectlType()
-                + (row.kind().namespaced() ? " -n " + rowNamespace(row) : "")
-                + " " + rowName(row) + " -o yaml");
-        return summary;
-    }
-
     private String resourceTemplate(ResourceKind kind, String namespace) {
         String name = kind.namePrefix() + "-example";
         String nsLine = kind.namespaced() ? "  namespace: " + firstNonBlank(namespace, "default") + "\n" : "";
@@ -2007,73 +1979,6 @@ public class K8sViewController {
             case ROLES -> "Role";
             case SERVICE_ACCOUNTS -> "ServiceAccount";
         };
-    }
-
-    private String namespaceSubtitle(K8sRow row) {
-        String namespace = row.value("命名空间");
-        if (namespace == null || namespace.isBlank() || "-".equals(namespace)) {
-            return "";
-        }
-        return " / " + namespace;
-    }
-
-    private Map<String, String> metadataFor(K8sRow row) {
-        Map<String, String> metadata = new LinkedHashMap<>();
-        metadata.put("名称", row.value("名称"));
-        if (row.kind().namespaced()) {
-            metadata.put("命名空间", row.value("命名空间"));
-        }
-        metadata.put("标签", firstNonBlank(row.value("标签"), "-"));
-        metadata.put("注解", annotationsFor(row.raw()));
-        metadata.put("创建时间", firstNonBlank(nodeText(row.raw(), "metadata", "creationTimestamp"),
-                firstNonBlank(row.value("创建时间"), row.value("Age"))));
-        return metadata;
-    }
-
-    private Map<String, String> resourceInfoFor(K8sRow row) {
-        if (row.kind() == ResourceKind.PODS) {
-            return row(
-                    "Node", firstNonBlank(row.value("节点"), "node-1"),
-                    "Status", firstNonBlank(row.value("状态"), "Running"),
-                    "IP", firstNonBlank(nodeText(row.raw(), "status", "podIP"), "-"),
-                    "QoS Class", firstNonBlank(nodeText(row.raw(), "status", "qosClass"), "-"),
-                    "Restarts", firstNonBlank(row.value("重启次数"), "0"),
-                    "Service Account", firstNonBlank(nodeText(row.raw(), "spec", "serviceAccountName"), "default"),
-                    "Image", firstNonBlank(row.value("镜像"), "-"),
-                    "CPU 使用量", firstNonBlank(row.value("CPU 使用量"), "-"),
-                    "内存使用量", firstNonBlank(row.value("内存使用量"), "-")
-            );
-        }
-        if (row.kind() == ResourceKind.NODES) {
-            return row(
-                    "Ready", firstNonBlank(row.value("Ready"), row.value("状态")),
-                    "CPU 可分配", firstNonBlank(row.value("CPU 可分配"), "-"),
-                    "CPU 容量", firstNonBlank(row.value("CPU 容量"), "-"),
-                    "内存 可分配", firstNonBlank(row.value("内存 可分配"), "-"),
-                    "内存 容量", firstNonBlank(row.value("内存 容量"), "-"),
-                    "Pods 容量", firstNonBlank(row.value("Pods 容量"), "-")
-            );
-        }
-        Map<String, String> info = new LinkedHashMap<>();
-        for (Map.Entry<String, String> entry : row.values().entrySet()) {
-            String key = entry.getKey();
-            if ("名称".equals(key) || "命名空间".equals(key) || "标签".equals(key) || "创建时间".equals(key)) {
-                continue;
-            }
-            info.put(key, entry.getValue());
-        }
-        if (info.isEmpty()) {
-            info.put("资源类型", row.kind().label());
-        }
-        return info;
-    }
-
-    private Map<String, String> row(String... keyValues) {
-        Map<String, String> row = new LinkedHashMap<>();
-        for (int i = 0; i + 1 < keyValues.length; i += 2) {
-            row.put(keyValues[i], keyValues[i + 1]);
-        }
-        return row;
     }
 
     private String firstNonBlank(String first, String second) {
@@ -2313,10 +2218,6 @@ public class K8sViewController {
 
     private String labelsFor(JsonNode item) {
         return objectToPairs(item.path("metadata").path("labels"), 6);
-    }
-
-    private String annotationsFor(JsonNode item) {
-        return objectToPairs(item == null ? null : item.path("metadata").path("annotations"), 4);
     }
 
     private String typeFor(ResourceKind kind, JsonNode item) {
@@ -2754,6 +2655,18 @@ public class K8sViewController {
                 }
             }
             return CRON_JOBS;
+        }
+
+        private static ResourceKind fromKubectlType(String kubectlType) {
+            if (kubectlType == null || kubectlType.isBlank()) {
+                return null;
+            }
+            for (ResourceKind kind : values()) {
+                if (Objects.equals(kind.kubectlType, kubectlType)) {
+                    return kind;
+                }
+            }
+            return null;
         }
     }
 

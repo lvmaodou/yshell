@@ -122,16 +122,6 @@
     -fx-spacing: 6px;
 }
 
-.tool-icon-btn {
-    -fx-padding: 0;
-    -fx-min-width: 30px;
-    -fx-min-height: 28px;
-    -fx-pref-width: 30px;
-    -fx-pref-height: 28px;
-    -fx-max-width: 30px;
-    -fx-max-height: 28px;
-}
-
 .docker-tool-icon {
     -fx-icon-color: -fx-text-primary;
 }

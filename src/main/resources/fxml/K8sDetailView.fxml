@@ -24,7 +24,7 @@
             <Button fx:id="btnClose">
                 <styleClass>
                     <String fx:value="tool-icon-btn "/>
-                    <String fx:value="detail-close-btn"/>
+                    <String fx:value="button-close"/>
                 </styleClass>
                 <graphic>
                     <FontIcon iconLiteral="fas-times" iconSize="12"/>
