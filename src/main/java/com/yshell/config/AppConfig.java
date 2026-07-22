@@ -65,10 +65,33 @@ public class AppConfig {
     }
 
     public static class Ai {
-        public boolean enabled = false;
+        public boolean enabled = true;
+        public String selectedConnectionId = "";
+        public List<AiModelConnection> connections = new ArrayList<>();
+
+        public String provider = "OpenAI Compatible";
         public String model = "";
+        public String models = "";
         public String apiKey = "";
-        public String baseUrl = "";
+        public String baseUrl = AiModelConnection.OPENAI_BASE_URL;
+        public boolean streamOutput = true;
+        public boolean thinkingEnabled = false;
+        public double temperature = 0.1;
+        public int maxOutputTokens = 4096;
+    }
+
+    public static class AiModelConnection {
+        public static final String OPENAI_BASE_URL = "https://api.openai.com/v1";
+        public static final String ANTHROPIC_BASE_URL = "https://api.anthropic.com/v1";
+        public static final String GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+
+        public String id = "";
+        public String name = "";
+        public String apiFormat = "OPENAI_CHAT_COMPLETIONS";
+        public String baseUrl = OPENAI_BASE_URL;
+        public String apiKey = "";
+        public String model = "";
+        public boolean imageInputSupported = false;
     }
 
     public static class Docker {

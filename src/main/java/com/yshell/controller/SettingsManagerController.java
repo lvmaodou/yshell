@@ -122,14 +122,21 @@ public class SettingsManagerController {
     @FXML
     private CheckBox aiEnabled;
     @FXML
-    private TextField aiModelField;
+    private TableView<AppConfig.AiModelConnection> aiConnectionTable;
     @FXML
-    private PasswordField aiApiKeyField;
+    private TableColumn<AppConfig.AiModelConnection, String> aiConnectionNameColumn;
     @FXML
-    private TextField aiBaseUrlField;
+    private TableColumn<AppConfig.AiModelConnection, String> aiConnectionModelColumn;
+    @FXML
+    private Button btnAddAiConnection;
+    @FXML
+    private Button btnEditAiConnection;
+    @FXML
+    private Button btnDeleteAiConnection;
 
     private Stage dialogStage;
     private final ObservableList<AppConfig.DockerRegistry> dockerRegistries = FXCollections.observableArrayList();
+    private final ObservableList<AppConfig.AiModelConnection> aiConnections = FXCollections.observableArrayList();
 
     public void setDialogStage(Stage stage) {
         this.dialogStage = stage;
@@ -189,6 +196,10 @@ public class SettingsManagerController {
         registryPasswordColumn.setCellValueFactory(data -> new SimpleStringProperty(maskPassword(data.getValue().password)));
         dockerRegistryTable.setItems(dockerRegistries);
 
+        aiConnectionNameColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().name));
+        aiConnectionModelColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().model));
+        aiConnectionTable.setItems(aiConnections);
+
         btnChooseDownloadDirectory.setOnAction(e -> chooseDownloadDirectory());
         btnOpenConfigDir.setOnAction(e -> openDirectory(configDirectory()));
         btnOpenLogDir.setOnAction(e -> openDirectory(Paths.get(new LogDirectoryPropertyDefiner().getPropertyValue())));
@@ -198,6 +209,9 @@ public class SettingsManagerController {
         btnAddRegistry.setOnAction(e -> addDockerRegistry());
         btnEditRegistry.setOnAction(e -> editDockerRegistry());
         btnDeleteRegistry.setOnAction(e -> deleteDockerRegistry());
+        btnAddAiConnection.setOnAction(e -> addAiConnection());
+        btnEditAiConnection.setOnAction(e -> editAiConnection());
+        btnDeleteAiConnection.setOnAction(e -> deleteAiConnection());
     }
 
     private void loadSettings() {
@@ -216,9 +230,7 @@ public class SettingsManagerController {
         clearFinishedWhenDone.setSelected(settings.isTransferClearFinishedWhenDone());
 
         aiEnabled.setSelected(settings.isAiEnabled());
-        aiModelField.setText(settings.getAiModel());
-        aiApiKeyField.setText(settings.getAiApiKey());
-        aiBaseUrlField.setText(settings.getAiBaseUrl());
+        refreshAiConnections();
         refreshDockerRegistries();
     }
 
@@ -245,14 +257,179 @@ public class SettingsManagerController {
         clearFinishedWhenDone.selectedProperty().addListener((obs, old, value) -> settings.setTransferClearFinishedWhenDone(value));
 
         aiEnabled.selectedProperty().addListener((obs, old, value) -> settings.setAiEnabled(value));
-        aiModelField.textProperty().addListener((obs, old, value) -> settings.setAiModel(value));
-        aiApiKeyField.textProperty().addListener((obs, old, value) -> settings.setAiApiKey(value));
-        aiBaseUrlField.textProperty().addListener((obs, old, value) -> settings.setAiBaseUrl(value));
     }
 
     private void refreshDockerRegistries() {
         dockerRegistries.setAll(settings.getDockerRegistries());
         dockerRegistryTable.refresh();
+    }
+
+    private void refreshAiConnections() {
+        aiConnections.setAll(settings.getAiConnections());
+        aiConnectionTable.refresh();
+    }
+
+    private void addAiConnection() {
+        AppConfig.AiModelConnection edited = editAiConnectionDialog(null);
+        if (edited == null) {
+            return;
+        }
+        aiConnections.add(edited);
+        settings.setAiConnections(new ArrayList<>(aiConnections));
+        if (settings.getSelectedAiConnectionId().isBlank()) {
+            settings.setSelectedAiConnectionId(edited.id);
+        }
+        refreshAiConnections();
+    }
+
+    private void editAiConnection() {
+        AppConfig.AiModelConnection selected = aiConnectionTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            DialogHelper.showWarning("AI 连接", "请先选择一条模型连接配置");
+            return;
+        }
+        AppConfig.AiModelConnection edited = editAiConnectionDialog(selected);
+        if (edited == null) {
+            return;
+        }
+        int index = aiConnections.indexOf(selected);
+        if (index >= 0) {
+            aiConnections.set(index, edited);
+            settings.setAiConnections(new ArrayList<>(aiConnections));
+            refreshAiConnections();
+        }
+    }
+
+    private void deleteAiConnection() {
+        AppConfig.AiModelConnection selected = aiConnectionTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            DialogHelper.showWarning("AI 连接", "请先选择一条模型连接配置");
+            return;
+        }
+        if (aiConnections.size() <= 1) {
+            DialogHelper.showWarning("AI 连接", "至少保留一条模型连接配置");
+            return;
+        }
+        if (!DialogHelper.showConfirmYesNo("删除模型连接", "确定要删除 \"" + selected.name + "\" 吗？")) {
+            return;
+        }
+        aiConnections.remove(selected);
+        settings.setAiConnections(new ArrayList<>(aiConnections));
+        if (selected.id.equals(settings.getSelectedAiConnectionId())) {
+            settings.setSelectedAiConnectionId(aiConnections.get(0).id);
+        }
+        refreshAiConnections();
+    }
+
+    private AppConfig.AiModelConnection editAiConnectionDialog(AppConfig.AiModelConnection source) {
+        AppConfig.AiModelConnection initial = source == null ? settings.defaultAiConnection() : copyAiConnection(source);
+        TextField nameField = new TextField(initial.name);
+        ComboBox<String> formatCombo = new ComboBox<>(FXCollections.observableArrayList(
+                "OpenAI Chat Completions",
+                "OpenAI Responses v1",
+                "Anthropic Messages",
+                "Gemini Native"
+        ));
+        formatCombo.setValue(apiFormatLabel(initial.apiFormat));
+        TextField baseUrlField = new TextField(initial.baseUrl);
+        baseUrlField.setPromptText(baseUrlExample(initial.apiFormat));
+        PasswordField apiKeyField = new PasswordField();
+        apiKeyField.setText(initial.apiKey);
+        TextField modelField = new TextField(initial.model);
+        modelField.setPromptText("请输入模型 ID");
+        CheckBox imageInputSupported = new CheckBox("允许上传、粘贴并发送图片");
+        imageInputSupported.setSelected(initial.imageInputSupported);
+        formatCombo.valueProperty().addListener((obs, old, value) -> {
+            String oldCode = apiFormatCode(old);
+            String newCode = apiFormatCode(value);
+            baseUrlField.setPromptText(baseUrlExample(newCode));
+            if (baseUrlField.getText() == null || baseUrlField.getText().isBlank()
+                    || defaultBaseUrlForFormat(oldCode).equals(baseUrlField.getText().trim())) {
+                baseUrlField.setText(defaultBaseUrlForFormat(newCode));
+            }
+        });
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(16, 18, 8, 18));
+        grid.addRow(0, new Label("名称"), nameField);
+        grid.addRow(1, new Label("接口格式"), formatCombo);
+        grid.addRow(2, new Label("Base URL"), baseUrlField);
+        grid.addRow(3, new Label("API Key"), apiKeyField);
+        grid.addRow(4, new Label("模型"), modelField);
+        grid.addRow(5, new Label("图片输入"), imageInputSupported);
+        GridPane.setFillWidth(nameField, true);
+        GridPane.setFillWidth(formatCombo, true);
+        GridPane.setFillWidth(baseUrlField, true);
+        GridPane.setFillWidth(apiKeyField, true);
+        GridPane.setFillWidth(modelField, true);
+        grid.getColumnConstraints().addAll(createLabelColumn(), createFieldColumn());
+
+        boolean ok = DialogHelper.showCustomDialog(source == null ? "新增模型连接" : "编辑模型连接", grid,
+                        button -> button != null && button.getButtonData() == ButtonBar.ButtonData.OK_DONE ? Boolean.TRUE : null)
+                .isPresent();
+        if (!ok) {
+            return null;
+        }
+        String name = trimOrNull(nameField.getText());
+        String baseUrl = trimOrNull(baseUrlField.getText());
+        String model = trimOrNull(modelField.getText());
+        if (name == null || baseUrl == null || model == null) {
+            DialogHelper.showWarning("AI 连接", "名称、Base URL 和模型不能为空");
+            return null;
+        }
+        AppConfig.AiModelConnection connection = new AppConfig.AiModelConnection();
+        connection.id = initial.id == null || initial.id.isBlank() ? java.util.UUID.randomUUID().toString() : initial.id;
+        connection.name = name;
+        connection.apiFormat = apiFormatCode(formatCombo.getValue());
+        connection.baseUrl = baseUrl;
+        connection.apiKey = trimToEmpty(apiKeyField.getText());
+        connection.model = model;
+        connection.imageInputSupported = imageInputSupported.isSelected();
+        return connection;
+    }
+
+    private AppConfig.AiModelConnection copyAiConnection(AppConfig.AiModelConnection source) {
+        AppConfig.AiModelConnection copy = new AppConfig.AiModelConnection();
+        copy.id = source.id;
+        copy.name = source.name;
+        copy.apiFormat = source.apiFormat;
+        copy.baseUrl = source.baseUrl;
+        copy.apiKey = source.apiKey;
+        copy.model = source.model;
+        copy.imageInputSupported = source.imageInputSupported;
+        return copy;
+    }
+
+    private String apiFormatLabel(String value) {
+        return switch (value) {
+            case "OPENAI_RESPONSES" -> "OpenAI Responses v1";
+            case "ANTHROPIC_MESSAGES" -> "Anthropic Messages";
+            case "GEMINI_NATIVE" -> "Gemini Native";
+            default -> "OpenAI Chat Completions";
+        };
+    }
+
+    private String apiFormatCode(String label) {
+        return switch (label) {
+            case "OpenAI Responses v1" -> "OPENAI_RESPONSES";
+            case "Anthropic Messages" -> "ANTHROPIC_MESSAGES";
+            case "Gemini Native" -> "GEMINI_NATIVE";
+            default -> "OPENAI_CHAT_COMPLETIONS";
+        };
+    }
+
+    private String defaultBaseUrlForFormat(String apiFormat) {
+        return switch (apiFormat) {
+            case "ANTHROPIC_MESSAGES" -> AppConfig.AiModelConnection.ANTHROPIC_BASE_URL;
+            case "GEMINI_NATIVE" -> AppConfig.AiModelConnection.GEMINI_BASE_URL;
+            default -> AppConfig.AiModelConnection.OPENAI_BASE_URL;
+        };
+    }
+
+    private String baseUrlExample(String apiFormat) {
+        return "例如：" + defaultBaseUrlForFormat(apiFormat);
     }
 
     private void addDockerRegistry() {
@@ -427,6 +604,10 @@ public class SettingsManagerController {
 
     private void selectTab(int index) {
         settingsTabPane.getSelectionModel().select(index);
+    }
+
+    public void selectAiSettings() {
+        selectTab(8);
     }
 
     private void updateNavSelection(int index) {

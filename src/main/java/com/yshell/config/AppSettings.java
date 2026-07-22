@@ -169,16 +169,30 @@ public class AppSettings {
     }
 
     public String getAiModel() {
-        return config().ai.model;
+        String model = config().ai.model;
+        return model == null ? "" : model;
     }
 
     public void setAiModel(String model) {
-        config().ai.model = model == null ? "" : model;
+        config().ai.model = model == null ? "" : model.trim();
+        store.save();
+    }
+
+    public List<String> getAiModels() {
+        return getAiConnections().stream().map(this::formatAiConnection).toList();
+    }
+
+    public String getAiModelsText() {
+        return config().ai.models == null ? "" : config().ai.models;
+    }
+
+    public void setAiModelsText(String models) {
+        config().ai.models = models == null ? "" : models.trim();
         store.save();
     }
 
     public String getAiApiKey() {
-        return config().ai.apiKey;
+        return config().ai.apiKey == null ? "" : config().ai.apiKey;
     }
 
     public void setAiApiKey(String apiKey) {
@@ -187,12 +201,111 @@ public class AppSettings {
     }
 
     public String getAiBaseUrl() {
-        return config().ai.baseUrl;
+        String baseUrl = config().ai.baseUrl;
+        return baseUrl == null || baseUrl.isBlank() ? AppConfig.AiModelConnection.OPENAI_BASE_URL : baseUrl.trim();
     }
 
     public void setAiBaseUrl(String baseUrl) {
-        config().ai.baseUrl = baseUrl == null ? "" : baseUrl;
+        config().ai.baseUrl = baseUrl == null ? "" : baseUrl.trim();
         store.save();
+    }
+
+    public String getAiProvider() {
+        String provider = config().ai.provider;
+        return provider == null || provider.isBlank() ? "OpenAI Compatible" : provider;
+    }
+
+    public void setAiProvider(String provider) {
+        config().ai.provider = provider == null ? "OpenAI Compatible" : provider.trim();
+        store.save();
+    }
+
+    public boolean isAiStreamOutputEnabled() {
+        return config().ai.streamOutput;
+    }
+
+    public void setAiStreamOutputEnabled(boolean enabled) {
+        config().ai.streamOutput = enabled;
+        store.save();
+    }
+
+    public boolean isAiThinkingEnabled() {
+        return config().ai.thinkingEnabled;
+    }
+
+    public void setAiThinkingEnabled(boolean enabled) {
+        config().ai.thinkingEnabled = enabled;
+        store.save();
+    }
+
+    public double getAiTemperature() {
+        return clampDouble(config().ai.temperature);
+    }
+
+    public void setAiTemperature(double temperature) {
+        config().ai.temperature = clampDouble(temperature);
+        store.save();
+    }
+
+    public int getAiMaxOutputTokens() {
+        return clamp(config().ai.maxOutputTokens, 256, 65536);
+    }
+
+    public void setAiMaxOutputTokens(int maxOutputTokens) {
+        config().ai.maxOutputTokens = clamp(maxOutputTokens, 256, 65536);
+        store.save();
+    }
+
+    public List<AppConfig.AiModelConnection> getAiConnections() {
+        return new ArrayList<>(config().ai.connections);
+    }
+
+    public void setAiConnections(List<AppConfig.AiModelConnection> connections) {
+        config().ai.connections = connections == null ? new ArrayList<>() : new ArrayList<>(connections);
+        if (config().ai.connections.isEmpty()) {
+            AppConfig.AiModelConnection connection = defaultAiConnection();
+            config().ai.connections.add(connection);
+            config().ai.selectedConnectionId = connection.id;
+        } else if (getSelectedAiConnection() == null) {
+            config().ai.selectedConnectionId = config().ai.connections.get(0).id;
+        }
+        store.save();
+    }
+
+    public AppConfig.AiModelConnection getSelectedAiConnection() {
+        String selectedId = config().ai.selectedConnectionId;
+        for (AppConfig.AiModelConnection connection : config().ai.connections) {
+            if (connection != null && connection.id != null && connection.id.equals(selectedId)) {
+                return connection;
+            }
+        }
+        return config().ai.connections.isEmpty() ? null : config().ai.connections.get(0);
+    }
+
+    public void setSelectedAiConnectionId(String id) {
+        config().ai.selectedConnectionId = id == null ? "" : id;
+        store.save();
+    }
+
+    public String getSelectedAiConnectionId() {
+        return config().ai.selectedConnectionId == null ? "" : config().ai.selectedConnectionId;
+    }
+
+    public String formatAiConnection(AppConfig.AiModelConnection connection) {
+        if (connection == null) {
+            return "";
+        }
+        return connection.name == null || connection.name.isBlank() ? connection.model : connection.name;
+    }
+
+    public AppConfig.AiModelConnection defaultAiConnection() {
+        AppConfig.AiModelConnection connection = new AppConfig.AiModelConnection();
+        connection.id = java.util.UUID.randomUUID().toString();
+        connection.name = "新建连接";
+        connection.apiFormat = "OPENAI_CHAT_COMPLETIONS";
+        connection.baseUrl = AppConfig.AiModelConnection.OPENAI_BASE_URL;
+        connection.model = "";
+        return connection;
     }
 
     public List<AppConfig.DockerRegistry> getDockerRegistries() {
@@ -214,6 +327,13 @@ public class AppSettings {
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private static double clampDouble(double value) {
+        if (Double.isNaN(value) || Double.isInfinite(value)) {
+            return 0.0;
+        }
+        return Math.max(0.0, Math.min(2.0, value));
     }
 
     private static String blankToDefault(String value) {

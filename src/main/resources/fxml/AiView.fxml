@@ -2,154 +2,84 @@
 
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import java.lang.*?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+<?import java.lang.String?>
 <VBox xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.yshell.controller.AiViewController"
       stylesheets="@../css/ai-view.css">
     <styleClass>
         <String fx:value="ai-view"/>
     </styleClass>
-    <HBox>
-        <styleClass>
-            <String fx:value="ai-toolbar"/>
-        </styleClass>
-        <ComboBox fx:id="aiModelSelector">
-            <styleClass>
-                <String fx:value="model-selector"/>
-            </styleClass>
-        </ComboBox>
-        <Region styleClass="toolbar-spacer"/>
-        <Button text="🔄">
-            <styleClass>
-                <String fx:value="tool-btn"/>
-            </styleClass>
-        </Button>
-        <Button text="📋">
-            <styleClass>
-                <String fx:value="tool-btn"/>
-            </styleClass>
-        </Button>
-        <Button text="🌙">
-            <styleClass>
-                <String fx:value="tool-btn"/>
-            </styleClass>
-        </Button>
-    </HBox>
 
-    <VBox VBox.vgrow="ALWAYS">
-        <styleClass>
-            <String fx:value="ai-content"/>
-        </styleClass>
-        <ScrollPane styleClass="chat-scroll" fitToWidth="true" VBox.vgrow="ALWAYS">
-            <VBox fx:id="chatMessages">
-                <styleClass>
-                    <String fx:value="chat-messages"/>
-                </styleClass>
-                <HBox>
-                    <styleClass>
-                        <String fx:value="message-container"/>
-                        <String fx:value="user"/>
-                    </styleClass>
-                    <Label text="👤" styleClass="message-avatar"/>
-                    <VBox styleClass="message-content">
-                        <Label text="用户" styleClass="message-author"/>
-                        <Label text="你好，帮我解释一下什么是Docker容器？">
-                            <styleClass>
-                                <String fx:value="message-text"/>
-                            </styleClass>
-                        </Label>
-                    </VBox>
+    <BorderPane VBox.vgrow="ALWAYS">
+        <left>
+            <VBox styleClass="ai-sidebar">
+                <HBox styleClass="ai-sidebar-header">
+                    <Label text="历史问答" styleClass="ai-sidebar-title"/>
                 </HBox>
-
-                <HBox>
-                    <styleClass>
-                        <String fx:value="message-container"/>
-                    </styleClass>
-                    <Label text="🤖" styleClass="message-avatar"/>
-                    <VBox styleClass="message-content">
-                        <Label text="AI助手" styleClass="message-author"/>
-                        <Label text="Docker容器是一种轻量级的虚拟化技术，可以将应用程序及其依赖项打包成一个独立的、可移植的容器中。容器共享宿主机的操作系统内核，但拥有自己独立的文件系统、进程空间和网络接口。">
-                            <styleClass>
-                                <String fx:value="message-text"/>
-                            </styleClass>
-                        </Label>
-                    </VBox>
-                </HBox>
-
-                <HBox>
-                    <styleClass>
-                        <String fx:value="message-container"/>
-                        <String fx:value="user"/>
-                    </styleClass>
-                    <Label text="👤" styleClass="message-avatar"/>
-                    <VBox styleClass="message-content">
-                        <Label text="用户" styleClass="message-author"/>
-                        <Label text="那Docker和Kubernetes有什么关系？">
-                            <styleClass>
-                                <String fx:value="message-text"/>
-                            </styleClass>
-                        </Label>
-                    </VBox>
-                </HBox>
-
-                <HBox>
-                    <styleClass>
-                        <String fx:value="message-container"/>
-                    </styleClass>
-                    <Label text="🤖" styleClass="message-avatar"/>
-                    <VBox styleClass="message-content">
-                        <Label text="AI助手" styleClass="message-author"/>
-                        <Label text="Docker和Kubernetes是紧密相关但不同层面的技术：Docker负责打包容器，Kubernetes负责管理容器。">
-                            <styleClass>
-                                <String fx:value="message-text"/>
-                            </styleClass>
-                        </Label>
-                    </VBox>
-                </HBox>
+                <ListView fx:id="historyList" VBox.vgrow="ALWAYS" styleClass="ai-history-list"/>
             </VBox>
-        </ScrollPane>
+        </left>
 
-        <VBox>
-            <styleClass>
-                <String fx:value="input-area"/>
-            </styleClass>
-            <HBox styleClass="input-toolbar">
-                <Button text="📎">
-                    <styleClass>
-                        <String fx:value="input-btn"/>
-                    </styleClass>
-                </Button>
-                <Button text="🔤">
-                    <styleClass>
-                        <String fx:value="input-btn"/>
-                    </styleClass>
-                </Button>
-                <Button text="📊">
-                    <styleClass>
-                        <String fx:value="input-btn"/>
-                    </styleClass>
-                </Button>
-                <Region styleClass="toolbar-spacer"/>
-                <Button text="💡">
-                    <styleClass>
-                        <String fx:value="input-btn"/>
-                    </styleClass>
-                </Button>
-            </HBox>
-            <TextArea fx:id="inputArea" promptText="输入您的问题..." styleClass="input-textarea"/>
-            <HBox styleClass="input-footer">
-                <Label text="Shift + Enter 换行">
-                    <styleClass>
-                        <String fx:value="input-hint"/>
-                    </styleClass>
-                </Label>
-                <Button text="发送">
-                    <styleClass>
-                        <String fx:value="send-btn"/>
-                        <String fx:value="button-primary"/>
-                    </styleClass>
-                </Button>
-            </HBox>
-        </VBox>
-    </VBox>
+        <center>
+            <BorderPane styleClass="ai-main">
+                <top>
+                    <HBox styleClass="ai-toolbar">
+                        <Button text="新开话题" onAction="#newTopic" styleClass="button-cancel">
+                            <graphic>
+                                <FontIcon iconLiteral="fas-plus" iconSize="12"/>
+                            </graphic>
+                        </Button>
+                        <Button text="配置" onAction="#openAiSettings" styleClass="button-cancel">
+                            <graphic>
+                                <FontIcon iconLiteral="fas-cog" iconSize="12"/>
+                            </graphic>
+                        </Button>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Label fx:id="statusLabel" text="就绪" styleClass="ai-status"/>
+                    </HBox>
+                </top>
+
+                <center>
+                    <ScrollPane fx:id="chatScroll" fitToWidth="true" styleClass="chat-scroll">
+                        <VBox fx:id="chatMessages" styleClass="chat-messages"/>
+                    </ScrollPane>
+                </center>
+
+                <bottom>
+                    <VBox styleClass="input-area">
+                        <FlowPane fx:id="attachmentBar" styleClass="attachment-bar" visible="false" managed="false"/>
+                        <TextArea fx:id="inputArea"
+                                  promptText="输入 Linux、Docker、K8s 命令问题；可直接粘贴图片；选中内容Ctrl+c复制，Ctrl+Enter终端执行"
+                                  wrapText="true" styleClass="input-textarea"/>
+                        <HBox styleClass="input-footer">
+                            <ComboBox fx:id="aiModelSelector" promptText="选择模型" styleClass="model-selector"/>
+                            <Button fx:id="btnUploadImage" text="上传图片" onAction="#uploadImage"
+                                    styleClass="button-cancel" style="-fx-font-size: 11px">
+                                <graphic>
+                                    <FontIcon iconLiteral="fas-image" iconSize="11"/>
+                                </graphic>
+                            </Button>
+                            <Label text="思考" styleClass="input-option-label"/>
+                            <ComboBox fx:id="thinkingModeSelector" promptText="强度"
+                                      styleClass="thinking-selector"/>
+                            <Label text="流式输出" styleClass="input-option-label"/>
+                            <CheckBox fx:id="streamToggle" styleClass="input-check"/>
+                            <Region HBox.hgrow="ALWAYS"/>
+                            <Label text="Enter发送 Ctrl+Enter换行" styleClass="input-hint"/>
+                            <Button fx:id="btnSend" text="发送" onAction="#sendMessage">
+                                <styleClass>
+                                    <String fx:value="send-btn"/>
+                                    <String fx:value="button-primary"/>
+                                </styleClass>
+                                <graphic>
+                                    <FontIcon iconLiteral="fas-paper-plane" iconSize="11"/>
+                                </graphic>
+                            </Button>
+                        </HBox>
+                    </VBox>
+                </bottom>
+            </BorderPane>
+        </center>
+    </BorderPane>
 </VBox>

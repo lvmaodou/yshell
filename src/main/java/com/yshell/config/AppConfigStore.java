@@ -7,12 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.file.*;
 import java.util.ArrayList;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 
 public class AppConfigStore {
     private static final Logger LOGGER = LoggerFactory.getLogger(AppConfigStore.class);
@@ -36,10 +32,6 @@ public class AppConfigStore {
 
     public synchronized AppConfig getConfig() {
         return config;
-    }
-
-    public Path getConfigDir() {
-        return configDir;
     }
 
     public Path getConfigPath() {
@@ -94,6 +86,7 @@ public class AppConfigStore {
         if (config.commands == null) config.commands = new AppConfig.Commands();
         if (config.layout == null) config.layout = new AppConfig.Layout();
         if (config.ai == null) config.ai = new AppConfig.Ai();
+        if (config.ai.connections == null) config.ai.connections = new ArrayList<>();
         if (config.docker == null) config.docker = new AppConfig.Docker();
         if (config.docker.registries == null) config.docker.registries = new ArrayList<>();
         if (!"vs-light".equals(config.appearance.theme) && !"vs-dark".equals(config.appearance.theme)) {
@@ -110,9 +103,15 @@ public class AppConfigStore {
             config.transfer.uploadChooserDirectory = System.getProperty("user.home");
         }
         if (isBlank(config.transfer.duplicateStrategy)) config.transfer.duplicateStrategy = "ASK";
+        if (isBlank(config.ai.provider)) config.ai.provider = "OpenAI Compatible";
         if (config.ai.model == null) config.ai.model = "";
+        if (config.ai.models == null) config.ai.models = "";
         if (config.ai.apiKey == null) config.ai.apiKey = "";
-        if (config.ai.baseUrl == null) config.ai.baseUrl = "";
+        if (isBlank(config.ai.baseUrl)) config.ai.baseUrl = AppConfig.AiModelConnection.OPENAI_BASE_URL;
+        config.ai.temperature = clampDouble(config.ai.temperature);
+        config.ai.maxOutputTokens = clamp(config.ai.maxOutputTokens, 256, 65536);
+        migrateAiConnection();
+        normalizeAiConnections();
         for (AppConfig.DockerRegistry registry : config.docker.registries) {
             if (registry == null) {
                 continue;
@@ -124,8 +123,70 @@ public class AppConfigStore {
         }
     }
 
+    private void migrateAiConnection() {
+        if (!config.ai.connections.isEmpty()) {
+            return;
+        }
+        AppConfig.AiModelConnection connection = new AppConfig.AiModelConnection();
+        connection.id = java.util.UUID.randomUUID().toString();
+        connection.name = isBlank(config.ai.model) ? "未命名连接" : config.ai.model;
+        connection.apiFormat = "OPENAI_CHAT_COMPLETIONS";
+        connection.baseUrl = config.ai.baseUrl;
+        connection.apiKey = config.ai.apiKey;
+        connection.model = config.ai.model;
+        config.ai.connections.add(connection);
+        config.ai.selectedConnectionId = connection.id;
+    }
+
+    private void normalizeAiConnections() {
+        for (AppConfig.AiModelConnection connection : config.ai.connections) {
+            if (connection == null) {
+                continue;
+            }
+            if (isBlank(connection.id)) connection.id = java.util.UUID.randomUUID().toString();
+            if (isBlank(connection.name)) connection.name = isBlank(connection.model) ? "未命名连接" : connection.model;
+            if (!isSupportedAiApiFormat(connection.apiFormat)) {
+                connection.apiFormat = "OPENAI_CHAT_COMPLETIONS";
+            }
+            if (isBlank(connection.baseUrl)) connection.baseUrl = defaultBaseUrlForFormat(connection.apiFormat);
+            if (connection.apiKey == null) connection.apiKey = "";
+            if (connection.model == null) connection.model = "";
+        }
+        config.ai.connections.removeIf(connection -> connection == null || isBlank(connection.id));
+        if (config.ai.connections.isEmpty()) {
+            migrateAiConnection();
+        }
+        boolean selectedExists = config.ai.connections.stream()
+                .anyMatch(connection -> connection.id.equals(config.ai.selectedConnectionId));
+        if (!selectedExists) {
+            config.ai.selectedConnectionId = config.ai.connections.get(0).id;
+        }
+    }
+
     private int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private double clampDouble(double value) {
+        if (Double.isNaN(value) || Double.isInfinite(value)) {
+            return 0.0;
+        }
+        return Math.max(0.0, Math.min(2.0, value));
+    }
+
+    private boolean isSupportedAiApiFormat(String value) {
+        return "OPENAI_CHAT_COMPLETIONS".equals(value)
+                || "OPENAI_RESPONSES".equals(value)
+                || "ANTHROPIC_MESSAGES".equals(value)
+                || "GEMINI_NATIVE".equals(value);
+    }
+
+    private String defaultBaseUrlForFormat(String apiFormat) {
+        return switch (apiFormat) {
+            case "ANTHROPIC_MESSAGES" -> AppConfig.AiModelConnection.ANTHROPIC_BASE_URL;
+            case "GEMINI_NATIVE" -> AppConfig.AiModelConnection.GEMINI_BASE_URL;
+            default -> AppConfig.AiModelConnection.OPENAI_BASE_URL;
+        };
     }
 
     private boolean isBlank(String value) {

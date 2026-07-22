@@ -33,7 +33,7 @@
                 <String fx:value="visual-tab"/>
             </styleClass>
         </Label>
-        <Label fx:id="tabAi" text="ai" managed="false" visible="false">
+        <Label fx:id="tabAi" text="AI助手">
             <styleClass>
                 <String fx:value="label-tab"/>
                 <String fx:value="visual-tab"/>
