@@ -7,6 +7,7 @@ import java.util.List;
 public class AiConversation {
     public String id;
     public String title = "新话题";
+    public String hostKey = "";
     public String createdAt;
     public String updatedAt;
     public List<AiChatMessage> messages = new ArrayList<>();
@@ -14,8 +15,9 @@ public class AiConversation {
     public AiConversation() {
     }
 
-    public AiConversation(String id) {
+    public AiConversation(String id, String hostKey) {
         this.id = id == null ? "" : id;
+        this.hostKey = hostKey == null ? "" : hostKey;
         this.createdAt = Instant.now().toString();
         this.updatedAt = this.createdAt;
     }

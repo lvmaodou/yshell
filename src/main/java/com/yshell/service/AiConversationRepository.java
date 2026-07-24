@@ -13,12 +13,14 @@ import java.nio.file.*;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class AiConversationRepository {
     private static final Logger LOGGER = LoggerFactory.getLogger(AiConversationRepository.class);
     private static final AiConversationRepository INSTANCE = new AiConversationRepository();
-    private static final int MAX_CONVERSATIONS = 50;
+    private static final int MAX_CONVERSATIONS_PER_HOST = 50;
 
     private final ObjectMapper mapper = new ObjectMapper()
             .enable(SerializationFeature.INDENT_OUTPUT)
@@ -44,8 +46,23 @@ public class AiConversationRepository {
         return new ArrayList<>(conversations);
     }
 
+    public synchronized List<AiConversation> list(String hostKey) {
+        String normalizedHostKey = normalizeHostKey(hostKey);
+        if (normalizedHostKey.isBlank()) {
+            return List.of();
+        }
+        sortAndTrim();
+        return conversations.stream()
+                .filter(conversation -> normalizedHostKey.equals(normalizeHostKey(conversation.hostKey)))
+                .toList();
+    }
+
     public synchronized AiConversation create() {
-        AiConversation conversation = new AiConversation(java.util.UUID.randomUUID().toString());
+        return create("");
+    }
+
+    public synchronized AiConversation create(String hostKey) {
+        AiConversation conversation = new AiConversation(java.util.UUID.randomUUID().toString(), normalizeHostKey(hostKey));
         conversations.add(0, conversation);
         save();
         return conversation;
@@ -55,6 +72,7 @@ public class AiConversationRepository {
         if (conversation == null || conversation.id == null || conversation.id.isBlank()) {
             return;
         }
+        conversation.hostKey = normalizeHostKey(conversation.hostKey);
         conversations.removeIf(existing -> conversation.id.equals(existing.id));
         conversations.add(0, conversation);
         save();
@@ -109,6 +127,7 @@ public class AiConversationRepository {
             if (conversation.title == null || conversation.title.isBlank()) {
                 conversation.title = "新话题";
             }
+            conversation.hostKey = normalizeHostKey(conversation.hostKey);
             if (conversation.messages == null) {
                 conversation.messages = new ArrayList<>();
             }
@@ -135,9 +154,17 @@ public class AiConversationRepository {
     private void sortAndTrim() {
         conversations.sort(Comparator.comparing((AiConversation item) ->
                 instantOrDefault(item.updatedAt)).reversed());
-        if (conversations.size() > MAX_CONVERSATIONS) {
-            conversations = new ArrayList<>(conversations.subList(0, MAX_CONVERSATIONS));
+        Map<String, Integer> conversationCounts = new HashMap<>();
+        List<AiConversation> retained = new ArrayList<>();
+        for (AiConversation conversation : conversations) {
+            String hostKey = normalizeHostKey(conversation.hostKey);
+            int count = conversationCounts.getOrDefault(hostKey, 0);
+            if (count < MAX_CONVERSATIONS_PER_HOST) {
+                retained.add(conversation);
+                conversationCounts.put(hostKey, count + 1);
+            }
         }
+        conversations = retained;
     }
 
     private Instant instantOrDefault(String value) {
@@ -155,5 +182,16 @@ public class AiConversationRepository {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private String normalizeHostKey(String hostKey) {
+        if (hostKey == null) {
+            return "";
+        }
+        String normalized = hostKey.trim().toLowerCase(java.util.Locale.ROOT);
+        if (normalized.length() > 1 && normalized.startsWith("[") && normalized.endsWith("]")) {
+            return normalized.substring(1, normalized.length() - 1);
+        }
+        return normalized;
     }
 }

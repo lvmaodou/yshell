@@ -2,12 +2,14 @@ package com.yshell.controller;
 
 import com.yshell.config.AppConfig;
 import com.yshell.config.AppSettings;
+import com.yshell.model.ConnInfo;
 import com.yshell.model.ai.AiChatMessage;
 import com.yshell.model.ai.AiConversation;
 import com.yshell.model.ai.AiImageAttachment;
 import com.yshell.service.AiChatService;
 import com.yshell.service.AiConversationRepository;
 import com.yshell.service.ConnectionManager;
+import com.yshell.service.SshService;
 import com.yshell.terminal.Imm32;
 import com.yshell.theme.ThemeManager;
 import com.yshell.ui.ApplicationIcons;
@@ -48,10 +50,7 @@ import java.nio.file.Files;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 public class AiViewController {
     private static final Logger LOGGER = LoggerFactory.getLogger(AiViewController.class);
@@ -64,6 +63,7 @@ public class AiViewController {
     private final List<AiImageAttachment> pendingImages = new ArrayList<>();
 
     private AiConversation currentConversation;
+    private String activeHostKey = "";
     private NativeMarkdownView activeAssistantView;
     private NativeMarkdownView activeThinkingView;
     private VBox activeThinkingBox;
@@ -107,16 +107,30 @@ public class AiViewController {
         configureInputAreaIme();
         configureInputPromptFont();
         inputArea.addEventFilter(KeyEvent.KEY_PRESSED, this::handleInputKeyPressed);
+        showForConnection(ConnectionManager.getInstance().getCurrentConnectionId());
+        refreshAttachments();
+    }
+
+    public void showForConnection(String connId) {
+        String hostKey = hostKeyForConnection(connId);
+        if (hostKey.equals(activeHostKey) && currentConversation != null) {
+            return;
+        }
+        if (sending) {
+            cancelCurrentResponse();
+        }
+        activeHostKey = hostKey;
+        currentConversation = null;
+        pendingImages.clear();
+        inputArea.clear();
         reloadHistories();
-        if (histories.isEmpty()) {
-            currentConversation = repository.create();
-            reloadHistories();
-        } else {
+        if (!activeHostKey.isBlank() && !histories.isEmpty()) {
             currentConversation = histories.get(0);
         }
         historyList.getSelectionModel().select(currentConversation);
         renderConversation(currentConversation);
         refreshAttachments();
+        setStatus(activeHostKey.isBlank() ? "请选择已连接的服务器" : "就绪");
     }
 
     @FXML
@@ -124,7 +138,10 @@ public class AiViewController {
         if (sending) {
             cancelCurrentResponse();
         }
-        currentConversation = repository.create();
+        if (ensureActiveHost()) {
+            return;
+        }
+        currentConversation = repository.create(activeHostKey);
         pendingImages.clear();
         inputArea.clear();
         reloadHistories();
@@ -201,8 +218,11 @@ public class AiViewController {
         if (text.isBlank() && pendingImages.isEmpty()) {
             return;
         }
+        if (ensureActiveHost()) {
+            return;
+        }
         if (currentConversation == null) {
-            currentConversation = repository.create();
+            currentConversation = repository.create(activeHostKey);
         }
         AppConfig.AiModelConnection connection = selectedConnection();
         if (!pendingImages.isEmpty() && !connection.imageInputSupported) {
@@ -305,7 +325,7 @@ public class AiViewController {
     }
 
     private void reloadHistories() {
-        histories.setAll(repository.list());
+        histories.setAll(repository.list(activeHostKey));
     }
 
     private void deleteConversation(AiConversation conversation) {
@@ -315,13 +335,41 @@ public class AiViewController {
         repository.delete(conversation.id);
         reloadHistories();
         if (histories.isEmpty()) {
-            currentConversation = repository.create();
-            reloadHistories();
+            currentConversation = null;
         } else if (currentConversation != null && currentConversation.id.equals(conversation.id)) {
             currentConversation = histories.get(0);
         }
         historyList.getSelectionModel().select(currentConversation);
         renderConversation(currentConversation);
+    }
+
+    private boolean ensureActiveHost() {
+        if (!activeHostKey.isBlank()) {
+            return false;
+        }
+        DialogHelper.showWarning("AI助手", "请先选择已连接的服务器。");
+        return true;
+    }
+
+    private String hostKeyForConnection(String connId) {
+        SshService service = ConnectionManager.getInstance().getConnectionById(connId);
+        ConnInfo connInfo = service == null ? null : service.getConnInfo();
+        if (connInfo == null && connId != null
+                && connId.equals(ConnectionManager.getInstance().getCurrentConnectionId())) {
+            connInfo = ConnectionManager.getInstance().getCurrentConnection();
+        }
+        return normalizeHostKey(connInfo == null ? "" : connInfo.getHost());
+    }
+
+    private String normalizeHostKey(String host) {
+        if (host == null) {
+            return "";
+        }
+        String normalized = host.trim().toLowerCase(Locale.ROOT);
+        if (normalized.length() > 1 && normalized.startsWith("[") && normalized.endsWith("]")) {
+            return normalized.substring(1, normalized.length() - 1);
+        }
+        return normalized;
     }
 
     private void renderConversation(AiConversation conversation) {

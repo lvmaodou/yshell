@@ -63,6 +63,9 @@ public class VisualPanelController {
     private VBox aiView;
 
     @FXML
+    private AiViewController aiViewController;
+
+    @FXML
     public void initialize() {
         setupViewConstraints();
 
@@ -96,6 +99,9 @@ public class VisualPanelController {
         if (k8sViewController != null) {
             k8sViewController.showForConnection(activeConnectionId);
             k8sViewController.setTabVisible(false);
+        }
+        if (aiViewController != null) {
+            aiViewController.showForConnection(activeConnectionId);
         }
         applyTab(tabForConnection(activeConnectionId));
         refreshTerminalVisibilityButton();
@@ -132,6 +138,9 @@ public class VisualPanelController {
             if (k8sViewController != null) {
                 k8sViewController.showForConnection(connId);
             }
+            if (aiViewController != null) {
+                aiViewController.showForConnection(connId);
+            }
             refreshTerminalVisibilityButton();
             return;
         }
@@ -139,6 +148,9 @@ public class VisualPanelController {
             selectedTabsByConnection.put(activeConnectionId, activeTab);
         }
         activeConnectionId = connId;
+        if (aiViewController != null) {
+            aiViewController.showForConnection(connId);
+        }
         applyTab(tabForConnection(connId));
         refreshTerminalVisibilityButton();
     }
@@ -155,6 +167,9 @@ public class VisualPanelController {
         if (k8sViewController != null) {
             k8sViewController.showForConnection(activeConnectionId);
         }
+        if (aiViewController != null) {
+            aiViewController.showForConnection(activeConnectionId);
+        }
         refreshTerminalVisibilityButton();
     }
 
@@ -169,6 +184,9 @@ public class VisualPanelController {
         }
         if (k8sViewController != null) {
             k8sViewController.showForConnection(activeConnectionId);
+        }
+        if (aiViewController != null) {
+            aiViewController.showForConnection(activeConnectionId);
         }
         if (tabFiles != null) tabFiles.getStyleClass().remove("active");
         if (tabDocker != null) tabDocker.getStyleClass().remove("active");
