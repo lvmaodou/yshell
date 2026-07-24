@@ -1492,9 +1492,7 @@ public class K8sViewController {
             }
         }
 
-        Iterator<Map.Entry<String, JsonNode>> editedFields = edited.fields();
-        while (editedFields.hasNext()) {
-            Map.Entry<String, JsonNode> entry = editedFields.next();
+        for (Map.Entry<String, JsonNode> entry : edited.properties()) {
             JsonNode childPatch = jsonMergePatch(original.get(entry.getKey()), entry.getValue());
             if (childPatch != null) {
                 patch.set(entry.getKey(), childPatch);
@@ -2339,7 +2337,7 @@ public class K8sViewController {
             return "-";
         }
         List<String> values = new ArrayList<>();
-        Iterator<Map.Entry<String, JsonNode>> fields = object.fields();
+        Iterator<Map.Entry<String, JsonNode>> fields = object.properties().iterator();
         while (fields.hasNext() && values.size() < limit) {
             Map.Entry<String, JsonNode> entry = fields.next();
             values.add(entry.getKey() + "=" + entry.getValue().asText());

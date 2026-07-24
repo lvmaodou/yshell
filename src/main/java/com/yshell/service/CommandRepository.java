@@ -53,7 +53,7 @@ public class CommandRepository {
                     }
             );
             normalize(commands);
-            if (commands.isEmpty() && !isSeeded()) {
+            if (commands.isEmpty() && isSeeded()) {
                 return seedDefaults();
             }
             markSeeded();
@@ -92,14 +92,14 @@ public class CommandRepository {
     }
 
     private void markSeeded() {
-        if (!isSeeded()) {
+        if (isSeeded()) {
             AppConfigStore.getInstance().getConfig().commands.seeded = true;
             AppConfigStore.getInstance().save();
         }
     }
 
     private boolean isSeeded() {
-        return AppConfigStore.getInstance().getConfig().commands.seeded;
+        return !AppConfigStore.getInstance().getConfig().commands.seeded;
     }
 
     public void save(List<Command> commands) {

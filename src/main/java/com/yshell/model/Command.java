@@ -29,14 +29,6 @@ public class Command {
         return new Command(UUID.randomUUID().toString(), "category", name);
     }
 
-    public static Command createCommand(String name, String command, String description, String categoryId) {
-        Command cmd = new Command(UUID.randomUUID().toString(), "command", name);
-        cmd.setCommand(command);
-        cmd.setDescription(description);
-        cmd.setCategoryId(categoryId);
-        return cmd;
-    }
-
     public String getId() {
         return id;
     }

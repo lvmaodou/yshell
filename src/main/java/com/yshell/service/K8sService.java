@@ -1785,9 +1785,7 @@ public class K8sService {
     private Map<String, String> labelsFromObject(JsonNode labels) {
         Map<String, String> map = new LinkedHashMap<>();
         if (labels != null && labels.isObject()) {
-            Iterator<Map.Entry<String, JsonNode>> fields = labels.fields();
-            while (fields.hasNext()) {
-                Map.Entry<String, JsonNode> entry = fields.next();
+            for (Map.Entry<String, JsonNode> entry : labels.properties()) {
                 map.put(entry.getKey(), entry.getValue().asText());
             }
         }
@@ -1969,9 +1967,7 @@ public class K8sService {
     private Map<String, String> stringMap(JsonNode node) {
         Map<String, String> values = new LinkedHashMap<>();
         if (node != null && node.isObject()) {
-            Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
-            while (fields.hasNext()) {
-                Map.Entry<String, JsonNode> field = fields.next();
+            for (Map.Entry<String, JsonNode> field : node.properties()) {
                 values.put(field.getKey(), field.getValue().asText(""));
             }
         }

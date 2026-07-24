@@ -53,10 +53,6 @@ public class AppConfigStore {
         }
     }
 
-    public synchronized void reload() {
-        load();
-    }
-
     private void load() {
         try {
             Files.createDirectories(configDir);
