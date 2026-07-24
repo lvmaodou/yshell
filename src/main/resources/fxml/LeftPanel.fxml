@@ -424,6 +424,9 @@
                     <styleClass>
                         <String fx:value="left-connection-title-btn"/>
                     </styleClass>
+                    <tooltip>
+                        <Tooltip text="新建连接" showDelay="200ms"/>
+                    </tooltip>
                     <graphic>
                         <FontIcon iconLiteral="fas-plug" iconSize="12"/>
                     </graphic>
@@ -432,6 +435,9 @@
                     <styleClass>
                         <String fx:value="left-connection-title-btn"/>
                     </styleClass>
+                    <tooltip>
+                        <Tooltip text="新建文件夹" showDelay="200ms"/>
+                    </tooltip>
                     <graphic>
                         <FontIcon iconLiteral="fas-folder-plus" iconSize="12"/>
                     </graphic>
@@ -440,6 +446,9 @@
                     <styleClass>
                         <String fx:value="left-connection-title-btn"/>
                     </styleClass>
+                    <tooltip>
+                        <Tooltip text="展开" showDelay="200ms"/>
+                    </tooltip>
                     <graphic>
                         <FontIcon iconLiteral="fas-angle-double-down" iconSize="12"/>
                     </graphic>
@@ -448,6 +457,9 @@
                     <styleClass>
                         <String fx:value="left-connection-title-btn"/>
                     </styleClass>
+                    <tooltip>
+                        <Tooltip text="折叠" showDelay="200ms"/>
+                    </tooltip>
                     <graphic>
                         <FontIcon iconLiteral="fas-angle-double-up" iconSize="12"/>
                     </graphic>

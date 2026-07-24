@@ -191,6 +191,7 @@ public class LeftPanelController implements Initializable {
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
     private boolean updatingNetworkInterfaces;
     private boolean networkChartInitialized;
+    private boolean connectionTreeExpansionInitialized;
     private List<String> pendingNetworkInterfaceItems;
 
     private final ObservableList<ProcessInfo> processListData = FXCollections.observableArrayList();
@@ -390,7 +391,12 @@ public class LeftPanelController implements Initializable {
                 .forEach(node -> buildConnectionTreeNode(root, node, connectionData));
 
         connectionTreeView.setRoot(root);
-        restoreExpandedIds(root, expandedIds);
+        if (connectionTreeExpansionInitialized) {
+            restoreExpandedIds(root, expandedIds);
+        } else {
+            expandTreeItem(root);
+            connectionTreeExpansionInitialized = true;
+        }
         selectConnectionNode(selectedId != null ? selectedId : activeConnInfo != null ? activeConnInfo.getId() : null);
     }
 
