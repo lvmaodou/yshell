@@ -6,7 +6,7 @@
 
     <groupId>com.shell</groupId>
     <artifactId>YShell</artifactId>
-    <version>2.0.0</version>
+    <version>3.0.0</version>
     <packaging>jar</packaging>
 
     <name>YShell</name>
