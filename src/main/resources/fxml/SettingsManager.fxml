@@ -171,9 +171,9 @@
                                 </columns>
                             </TableView>
                             <HBox styleClass="button-row">
-                                <Button fx:id="btnAddRegistry" text="新增" styleClass="button-cancel"/>
+                                <Button fx:id="btnAddRegistry" text="新增" styleClass="button-primary"/>
                                 <Button fx:id="btnEditRegistry" text="编辑" styleClass="button-cancel"/>
-                                <Button fx:id="btnDeleteRegistry" text="删除" styleClass="button-cancel"/>
+                                <Button fx:id="btnDeleteRegistry" text="删除" styleClass="button-danger"/>
                             </HBox>
                         </VBox>
                     </VBox>
