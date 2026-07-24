@@ -186,7 +186,7 @@ public class HelpMenu extends Popup {
                 return version;
             }
         }
-        return "1.0.0";
+        return "--";
     }
 
     private String resolveOperatingSystem() {
