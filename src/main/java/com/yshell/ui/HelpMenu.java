@@ -28,6 +28,8 @@ public class HelpMenu extends Popup {
     private static final Logger LOGGER = LoggerFactory.getLogger(HelpMenu.class);
     private static final String APPLICATION_NAME = "YShell";
     private static final String PROJECT_URL = "https://github.com/lvmaodou/yshell";
+    private static final String FAQ_URL = PROJECT_URL + "/blob/master/doc/faq.md";
+    private static final String USAGE_GUIDE_URL = PROJECT_URL + "/blob/master/doc/usage-guide.md";
     private final VBox menuContainer;
 
     public HelpMenu() {
@@ -138,39 +140,15 @@ public class HelpMenu extends Popup {
     }
 
     private void showFAQ() {
-        DialogHelper.showInfoWithHeader("常见问题", "常见问题",
-                """
-                        连接失败
-                        检查主机、端口、用户名、密码或私钥，并确认服务器 SSH 服务可访问。
-                        
-                        私钥无法登录
-                        确认私钥格式、文件权限和 passphrase，必要时先用系统 ssh 命令验证。
-                        
-                        文件传输失败
-                        确认账号有目标目录读写权限，并检查远程磁盘空间是否充足。
-                        
-                        终端显示异常
-                        确认远程环境变量 LANG/LC_ALL 使用 UTF-8 编码。""");
+        openUrl(FAQ_URL);
     }
 
     private void openOfficialWebsite() {
-        openUrl();
+        openUrl(PROJECT_URL);
     }
 
     private void showHelp() {
-        DialogHelper.showInfoWithHeader("使用帮助", "快速使用",
-                """
-                        新建连接
-                        在左侧连接列表中新建服务器，填写主机、端口、用户和认证信息。
-                        
-                        打开终端
-                        双击连接项打开终端会话，连接成功后可直接执行命令。
-                        
-                        管理文件
-                        在文件面板浏览远程目录，支持上传、下载、重命名、删除和权限修改。
-                        
-                        常用命令
-                        在命令管理中维护常用命令，并对当前会话执行。""");
+        openUrl(USAGE_GUIDE_URL);
     }
 
     private String resolveApplicationVersion() {
@@ -195,16 +173,16 @@ public class HelpMenu extends Popup {
                 + " (" + System.getProperty("os.arch", "unknown") + ")";
     }
 
-    private void openUrl() {
+    private void openUrl(String url) {
         try {
             if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
-                DialogHelper.showWarning("打开失败", "当前系统不支持自动打开浏览器，请手动访问：\n" + HelpMenu.PROJECT_URL);
+                DialogHelper.showWarning("打开失败", "当前系统不支持自动打开浏览器，请手动访问：\n" + url);
                 return;
             }
-            Desktop.getDesktop().browse(URI.create(HelpMenu.PROJECT_URL));
+            Desktop.getDesktop().browse(URI.create(url));
         } catch (Exception e) {
-            LOGGER.error("Failed to open url: {}", HelpMenu.PROJECT_URL, e);
-            DialogHelper.showError("打开失败", "无法打开链接：\n" + HelpMenu.PROJECT_URL + "\n\n" + e.getMessage());
+            LOGGER.error("Failed to open url: {}", url, e);
+            DialogHelper.showError("打开失败", "无法打开链接：\n" + url + "\n\n" + e.getMessage());
         }
     }
 

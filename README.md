@@ -126,6 +126,30 @@
 
 > 主界面展示：左侧服务器列表与实时监控面板，右侧多标签页终端和 SFTP 文件浏览器。
 
+### Docker 管理
+
+<p align="center">
+  <img src="doc/docker.png" alt="YShell Docker 管理界面" width="1000">
+</p>
+
+> Docker 管理：查看并管理远端容器、镜像、网络、存储卷和 Docker 配置。
+
+### Kubernetes 管理
+
+<p align="center">
+  <img src="doc/k8s.png" alt="YShell Kubernetes 管理界面" width="1000">
+</p>
+
+> Kubernetes 管理：按资源类型和命名空间浏览集群资源，支持搜索、分页与常用资源操作。
+
+### AI 助手
+
+<p align="center">
+  <img src="doc/ai.png" alt="YShell AI 助手界面" width="1000">
+</p>
+
+> AI 助手：支持多模型对话、图片提问、历史会话、流式回答，以及将确认后的命令发送到当前终端执行。
+
 ---
 
 ## 快速开始
