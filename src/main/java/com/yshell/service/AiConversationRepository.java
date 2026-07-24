@@ -68,6 +68,15 @@ public class AiConversationRepository {
         save();
     }
 
+    public synchronized void clear() {
+        conversations.clear();
+        try {
+            Files.deleteIfExists(historyPath);
+        } catch (Exception e) {
+            LOGGER.warn("clear ai conversations failed: {}", historyPath, e);
+        }
+    }
+
     private void load() {
         try {
             Files.createDirectories(historyDir);

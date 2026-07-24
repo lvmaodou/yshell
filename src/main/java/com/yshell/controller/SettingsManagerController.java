@@ -4,9 +4,8 @@ import com.yshell.config.AppConfig;
 import com.yshell.config.AppSettings;
 import com.yshell.config.ShortcutRegistry;
 import com.yshell.logging.LogDirectoryPropertyDefiner;
+import com.yshell.service.AiConversationRepository;
 import com.yshell.theme.ThemeManager;
-import com.yshell.transfer.CompressedTransferManager;
-import com.yshell.transfer.TransferManager;
 import com.yshell.ui.DialogHelper;
 import com.yshell.ui.LayoutConfig;
 import com.yshell.ui.WindowDragResize;
@@ -114,9 +113,7 @@ public class SettingsManagerController {
     @FXML
     private Button btnOpenLogDir;
     @FXML
-    private Button btnClearRecentFiles;
-    @FXML
-    private Button btnClearTransferQueue;
+    private Button btnClearAiHistory;
     @FXML
     private Button btnResetLayout;
     @FXML
@@ -203,8 +200,7 @@ public class SettingsManagerController {
         btnChooseDownloadDirectory.setOnAction(e -> chooseDownloadDirectory());
         btnOpenConfigDir.setOnAction(e -> openDirectory(configDirectory()));
         btnOpenLogDir.setOnAction(e -> openDirectory(Paths.get(new LogDirectoryPropertyDefiner().getPropertyValue())));
-        btnClearRecentFiles.setOnAction(e -> clearRecentFiles());
-        btnClearTransferQueue.setOnAction(e -> clearTransferQueue());
+        btnClearAiHistory.setOnAction(e -> clearAiHistory());
         btnResetLayout.setOnAction(e -> resetLayout());
         btnAddRegistry.setOnAction(e -> addDockerRegistry());
         btnEditRegistry.setOnAction(e -> editDockerRegistry());
@@ -558,24 +554,10 @@ public class SettingsManagerController {
         }
     }
 
-    private void clearRecentFiles() {
-        if (DialogHelper.showConfirmYesNo("清空最近文件", "确定要清空编辑器最近文件列表吗？")) {
-            EditorViewController.clearRecentFiles();
-            DialogHelper.showInfo("完成", "最近文件已清空。");
-        }
-    }
-
-    private void clearTransferQueue() {
-        if (!DialogHelper.showConfirmYesNo("清空传输队列", "确定要清空当前连接的传输队列吗？")) {
-            return;
-        }
-        String connId = com.yshell.service.ConnectionManager.getInstance().getCurrentConnectionId();
-        if (connId != null) {
-            TransferManager.getInstance().clearTasks(connId);
-            CompressedTransferManager.getInstance().clearFinished(connId);
-            DialogHelper.showInfo("完成", "当前连接的传输队列已清理。");
-        } else {
-            DialogHelper.showInfo("提示", "当前没有选中的连接。");
+    private void clearAiHistory() {
+        if (DialogHelper.showConfirmYesNo("清空AI历史会话", "确定要清空所有AI历史会话吗？此操作无法撤销。")) {
+            AiConversationRepository.getInstance().clear();
+            DialogHelper.showInfo("完成", "AI历史会话已清空。");
         }
     }
 

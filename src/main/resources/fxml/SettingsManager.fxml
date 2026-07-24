@@ -209,8 +209,7 @@
                         <VBox styleClass="form-section">
                             <Label text="维护" styleClass="form-section-title"/>
                             <HBox styleClass="button-row">
-                                <Button fx:id="btnClearRecentFiles" text="清空最近文件" styleClass="button-cancel"/>
-                                <Button fx:id="btnClearTransferQueue" text="清空传输队列" styleClass="button-cancel"/>
+                                <Button fx:id="btnClearAiHistory" text="清空AI历史会话" styleClass="button-cancel"/>
                                 <Button fx:id="btnResetLayout" text="重置布局" styleClass="button-cancel"/>
                             </HBox>
                         </VBox>
