@@ -244,10 +244,8 @@ public class K8sViewController {
     }
 
     private void configureFilters() {
-        namespaceCombo.setItems(FXCollections.observableArrayList(
-                ALL_NAMESPACES
-        ));
-        namespaceCombo.getSelectionModel().select(ALL_NAMESPACES);
+        namespaceCombo.setItems(FXCollections.observableArrayList());
+        namespaceCombo.getSelectionModel().clearSelection();
         namespaceCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
             currentPageIndex = 0;
             if (updatingNamespaceChoices) {
@@ -662,9 +660,11 @@ public class K8sViewController {
                     .forEach(namespaceItems::add);
         }
         List<String> items = new ArrayList<>(namespaceItems);
-        items.add(ALL_NAMESPACES);
+        if (!namespaceItems.isEmpty()) {
+            items.add(ALL_NAMESPACES);
+        }
         String previous = namespaceCombo.getValue();
-        String defaultSelection = namespaceItems.isEmpty() ? ALL_NAMESPACES : namespaceItems.get(0);
+        String defaultSelection = namespaceItems.isEmpty() ? null : namespaceItems.get(0);
         boolean defaultToFirstNamespace = !namespaceInitialized && !namespaceItems.isEmpty();
         updatingNamespaceChoices = true;
         try {
@@ -673,8 +673,10 @@ public class K8sViewController {
                     && items.contains(previous)
                     && !(defaultToFirstNamespace && Objects.equals(previous, ALL_NAMESPACES))) {
                 namespaceCombo.getSelectionModel().select(previous);
-            } else {
+            } else if (defaultSelection != null) {
                 namespaceCombo.getSelectionModel().select(defaultSelection);
+            } else {
+                namespaceCombo.getSelectionModel().clearSelection();
             }
         } finally {
             updatingNamespaceChoices = false;
