@@ -74,7 +74,7 @@
                 </Button>
             </VBox>
 
-            <VBox styleClass="docker-side-status">
+            <VBox fx:id="dockerSideStatus" styleClass="docker-side-status">
                 <HBox styleClass="status-row">
                     <Label text="Docker"/>
                     <Label fx:id="lblDockerVersion" text="-" styleClass="status-value"/>

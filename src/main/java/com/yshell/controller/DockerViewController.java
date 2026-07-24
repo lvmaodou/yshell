@@ -19,6 +19,7 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.geometry.*;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.*;
@@ -49,6 +50,7 @@ public class DockerViewController {
     private boolean tabVisible;
     private long refreshSerial;
     private long configSerial;
+    private String statusDetailText = "";
 
     @FXML
     private Button navContainers;
@@ -74,6 +76,8 @@ public class DockerViewController {
     private Label lblApiVersion;
     @FXML
     private Label lblDockerStatus;
+    @FXML
+    private VBox dockerSideStatus;
     @FXML
     private HBox toolbarActions;
     @FXML
@@ -105,6 +109,7 @@ public class DockerViewController {
         configureTable();
         configureActions();
         configureConfigEditorIme();
+        configureStatusLabel();
         ConnectionManager.getInstance().addOnConnectionStateChangedListener(
                 () -> Platform.runLater(() -> Platform.runLater(this::onConnectionStateChanged)));
         switchSection(Section.CONTAINERS);
@@ -2688,7 +2693,95 @@ public class DockerViewController {
     }
 
     private void setStatus(String value) {
-        lblDockerStatus.setText(value == null || value.isBlank() ? "-" : value);
+        if (lblDockerStatus == null) {
+            return;
+        }
+        String fullText = value == null || value.isBlank() ? "-" : value;
+        statusDetailText = fullText;
+        lblDockerStatus.setText(statusSummary(fullText));
+        lblDockerStatus.setTooltip(new Tooltip(hasStatusDetail(fullText) ? "点击查看完整信息" : fullText));
+        lblDockerStatus.setCursor(hasStatusDetail(fullText) ? Cursor.HAND : Cursor.DEFAULT);
+        if (dockerSideStatus != null) {
+            dockerSideStatus.setCursor(hasStatusDetail(fullText) ? Cursor.HAND : Cursor.DEFAULT);
+        }
+    }
+
+    private void configureStatusLabel() {
+        if (lblDockerStatus == null) {
+            return;
+        }
+        if (dockerSideStatus != null) {
+            dockerSideStatus.setOnMouseClicked(this::showStatusDetail);
+        }
+        lblDockerStatus.setWrapText(false);
+        lblDockerStatus.setTextOverrun(OverrunStyle.ELLIPSIS);
+        lblDockerStatus.setMaxWidth(Double.MAX_VALUE);
+        lblDockerStatus.setPickOnBounds(true);
+    }
+
+    private void showStatusDetail(MouseEvent event) {
+        if (!hasStatusDetail(statusDetailText)) {
+            return;
+        }
+        TextArea area = new TextArea(statusDetailText);
+        area.setEditable(false);
+        area.setWrapText(false);
+        area.setPrefColumnCount(100);
+        area.setPrefRowCount(18);
+        DialogHelper.<Void>showCustomDialog("Docker 状态详情", area, List.of(
+                new DialogHelper.CustomDialogButton<>("确定", ButtonBar.ButtonData.OK_DONE, dialog -> null)
+        ));
+        if (event != null) {
+            event.consume();
+        }
+    }
+
+    private boolean hasStatusDetail(String value) {
+        String text = value == null || value.isBlank() ? "-" : value;
+        String lower = text.toLowerCase(Locale.ROOT);
+        return text.contains("\n")
+                || text.contains("\r")
+                || text.length() > 80
+                || lower.contains("error")
+                || lower.contains("failed")
+                || lower.contains("refused")
+                || lower.contains("forbidden")
+                || lower.contains("unauthorized")
+                || lower.contains("timeout")
+                || lower.contains("permission denied")
+                || text.contains("失败")
+                || text.contains("错误")
+                || text.contains("不可用")
+                || text.contains("未授权")
+                || text.contains("权限不足");
+    }
+
+    private String statusSummary(String value) {
+        String text = (value == null || value.isBlank() ? "-" : value).replace("\r", "\n");
+        if (text.equals("-")) {
+            return text;
+        }
+        String compact = text.replaceAll("\\s+", " ").trim();
+        String lower = compact.toLowerCase(Locale.ROOT);
+        if (lower.contains("permission denied")) {
+            return "Docker 加载失败：权限不足";
+        }
+        if (lower.contains("connection refused")) {
+            return "Docker 加载失败：连接被拒绝";
+        }
+        if (lower.contains("unauthorized")) {
+            return "Docker 加载失败：未授权";
+        }
+        if (lower.contains("timed out") || lower.contains("timeout")) {
+            return "Docker 加载失败：连接超时";
+        }
+        if (lower.contains("no such host")) {
+            return "Docker 加载失败：无法解析主机";
+        }
+        if (compact.length() <= 80) {
+            return compact;
+        }
+        return compact.substring(0, 77) + "...";
     }
 
     private boolean contains(String value, String query) {

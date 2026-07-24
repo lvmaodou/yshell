@@ -103,6 +103,10 @@
     -fx-wrap-text: true;
 }
 
+.docker-side-status .status-message {
+    -fx-wrap-text: false;
+}
+
 .docker-content {
     -fx-background-color: -fx-bg-primary;
     -fx-fill-height: true;
