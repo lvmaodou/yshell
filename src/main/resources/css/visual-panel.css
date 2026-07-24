@@ -15,6 +15,18 @@
     -fx-font-size: 11px;
 }
 
+.visual-terminal-toggle {
+    -fx-content-display: graphic-only;
+    -fx-padding: 4px;
+    -fx-min-width: 24px;
+    -fx-min-height: 24px;
+    -fx-background-color: -fx-bg-tertiary;
+}
+
+.visual-terminal-toggle:disabled {
+    -fx-opacity: 0.45;
+}
+
 .content-area {
     -fx-background-color: -fx-bg-primary;
     -fx-pref-width: 100%;

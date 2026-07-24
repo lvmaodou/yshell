@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.StackPane?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 <?import java.lang.*?>
 <VBox xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.yshell.controller.VisualPanelController">
@@ -39,6 +38,19 @@
                 <String fx:value="visual-tab"/>
             </styleClass>
         </Label>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button fx:id="btnTerminalVisibility" onAction="#toggleTerminalVisibility">
+            <styleClass>
+                <String fx:value="button-icon-mini"/>
+                <String fx:value="visual-terminal-toggle"/>
+            </styleClass>
+            <tooltip>
+                <Tooltip text="终端显示" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon fx:id="terminalVisibilityIcon" iconLiteral="fas-eye-slash"/>
+            </graphic>
+        </Button>
     </HBox>
 
     <StackPane fx:id="contentArea" VBox.vgrow="ALWAYS">

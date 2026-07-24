@@ -39,6 +39,7 @@ public class PanelManager {
     private Supplier<Node> visualPanelSupplier;
 
     private final List<Consumer<Boolean>> bottomPanelListeners = new ArrayList<>();
+    private final List<Consumer<Boolean>> interactivePanelListeners = new ArrayList<>();
     private final List<Consumer<Boolean>> terminalFullscreenListeners = new ArrayList<>();
     private final Set<SplitPane> autoSaveSplitPanes = Collections.newSetFromMap(new IdentityHashMap<>());
     private double rememberedLeftPanelWidth = DEFAULT_LEFT_PANEL_WIDTH;
@@ -125,6 +126,13 @@ public class PanelManager {
 
     public void removeBottomPanelVisibilityListener(Consumer<Boolean> listener) {
         bottomPanelListeners.remove(listener);
+    }
+
+    public void addInteractivePanelVisibilityListener(Consumer<Boolean> listener) {
+        if (listener != null && !interactivePanelListeners.contains(listener)) {
+            interactivePanelListeners.add(listener);
+            listener.accept(interactivePanelVisible);
+        }
     }
 
     public void addTerminalFullscreenListener(Consumer<Boolean> listener) {
@@ -263,6 +271,7 @@ public class PanelManager {
         interactivePanelVisible = visible;
         DropdownMenu.GlobalState.getInstance().setInteractivePanelVisible(visible);
         if (contentSplitPane == null || terminalPanelNode == null) {
+            fireInteractivePanelListeners();
             LayoutConfig.getInstance().requestSave();
             return;
         }
@@ -277,6 +286,7 @@ public class PanelManager {
         } else {
             contentSplitPane.getItems().remove(terminalPanelNode);
         }
+        fireInteractivePanelListeners();
         LayoutConfig.getInstance().requestSave();
     }
 
@@ -468,6 +478,12 @@ public class PanelManager {
         }
     }
 
+    private void fireInteractivePanelListeners() {
+        for (Consumer<Boolean> listener : new ArrayList<>(interactivePanelListeners)) {
+            listener.accept(interactivePanelVisible);
+        }
+    }
+
     private void fireTerminalFullscreenListeners() {
         for (Consumer<Boolean> listener : new ArrayList<>(terminalFullscreenListeners)) {
             listener.accept(terminalFullscreenActive);
@@ -556,10 +572,6 @@ public class PanelManager {
 
     public boolean isSystemInfoVisible() {
         return systemInfoVisible;
-    }
-
-    public boolean isForceConnectionInfoVisible() {
-        return forceConnectionInfoVisible;
     }
 
     public boolean isSystemInfoPanelVisible() {

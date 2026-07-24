@@ -364,13 +364,13 @@ public class TerminalPanelController {
     }
 
     private void writeCommandToShell(String command) {
-        PanelManager.getInstance().toggleInteractivePanel(true);
+        setInteractivePanelVisible(true);
         currentShellService.writeToShell(command.getBytes(StandardCharsets.UTF_8));
         Platform.runLater(terminal::requestFocus);
     }
 
     private void writeHiddenCommandToShell(String command) {
-        PanelManager.getInstance().toggleInteractivePanel(true);
+        setInteractivePanelVisible(true);
         SshService service = currentShellService;
         String bootstrap = "stty -echo 2>/dev/null; printf '\\033[A\\033[2K\\r'; "
                 + "read -r __yshell_cmd; stty echo 2>/dev/null; eval \"$__yshell_cmd\"\n";
@@ -712,8 +712,14 @@ public class TerminalPanelController {
         if (!visible && !isBottomPanelVisibleForCurrentConnection()) {
             visible = true;
         }
+        if (!visible) {
+            captureCurrentBottomPanelLayout();
+        }
         setInteractivePanelVisibleForCurrentConnection(visible);
         PanelManager.getInstance().toggleInteractivePanel(visible);
+        if (visible) {
+            restoreCurrentBottomPanelLayout();
+        }
     }
 
     public void applyInteractivePanelState() {
@@ -722,6 +728,9 @@ public class TerminalPanelController {
         PanelManager pm = PanelManager.getInstance();
         if (pm.isInteractivePanelVisible() != visible) {
             pm.toggleInteractivePanel(visible);
+        }
+        if (visible) {
+            restoreCurrentBottomPanelLayout();
         }
     }
 

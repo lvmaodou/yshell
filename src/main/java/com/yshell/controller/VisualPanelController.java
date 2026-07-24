@@ -1,21 +1,27 @@
 package com.yshell.controller;
 
 import com.yshell.service.ConnectionManager;
+import com.yshell.ui.PanelManager;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 public class VisualPanelController {
     private static final String DEFAULT_TAB = "files";
     private final Map<String, String> selectedTabsByConnection = new ConcurrentHashMap<>();
     private String activeConnectionId;
     private String activeTab = DEFAULT_TAB;
+    private final Consumer<Boolean> terminalVisibilityListener =
+            visible -> Platform.runLater(this::refreshTerminalVisibilityButton);
 
     @FXML
     private Label tabFiles;
@@ -28,6 +34,12 @@ public class VisualPanelController {
 
     @FXML
     private Label tabAi;
+
+    @FXML
+    private Button btnTerminalVisibility;
+
+    @FXML
+    private FontIcon terminalVisibilityIcon;
 
     @FXML
     private StackPane contentArea;
@@ -59,6 +71,7 @@ public class VisualPanelController {
                 () -> Platform.runLater(this::onConnectionStateChanged));
         ConnectionManager.getInstance().addOnConnectionClosedListener(
                 selectedTabsByConnection::remove);
+        PanelManager.getInstance().addInteractivePanelVisibilityListener(terminalVisibilityListener);
 
         if (tabFiles != null) {
             tabFiles.setOnMouseClicked(e -> switchTab("files"));
@@ -85,6 +98,7 @@ public class VisualPanelController {
             k8sViewController.setTabVisible(false);
         }
         applyTab(tabForConnection(activeConnectionId));
+        refreshTerminalVisibilityButton();
     }
 
     private void setupViewConstraints() {
@@ -118,6 +132,7 @@ public class VisualPanelController {
             if (k8sViewController != null) {
                 k8sViewController.showForConnection(connId);
             }
+            refreshTerminalVisibilityButton();
             return;
         }
         if (activeConnectionId != null && activeTab != null) {
@@ -125,6 +140,7 @@ public class VisualPanelController {
         }
         activeConnectionId = connId;
         applyTab(tabForConnection(connId));
+        refreshTerminalVisibilityButton();
     }
 
     private void onConnectionStateChanged() {
@@ -139,6 +155,7 @@ public class VisualPanelController {
         if (k8sViewController != null) {
             k8sViewController.showForConnection(activeConnectionId);
         }
+        refreshTerminalVisibilityButton();
     }
 
     private String tabForConnection(String connId) {
@@ -195,5 +212,33 @@ public class VisualPanelController {
         }
         view.setVisible(visible);
         view.setManaged(visible);
+    }
+
+    @FXML
+    private void toggleTerminalVisibility() {
+        TerminalPanelController terminalController = terminalControllerForActiveConnection();
+        if (terminalController == null) {
+            return;
+        }
+        terminalController.setInteractivePanelVisible(!terminalController.isInteractivePanelVisible());
+        refreshTerminalVisibilityButton();
+    }
+
+    private void refreshTerminalVisibilityButton() {
+        TerminalPanelController terminalController = terminalControllerForActiveConnection();
+        boolean terminalVisible = terminalController != null && terminalController.isInteractivePanelVisible();
+        if (btnTerminalVisibility != null) {
+            btnTerminalVisibility.setDisable(terminalController == null);
+            btnTerminalVisibility.setAccessibleText(terminalVisible ? "隐藏终端" : "显示终端");
+        }
+        if (terminalVisibilityIcon != null) {
+            terminalVisibilityIcon.setIconLiteral(terminalVisible ? "fas-eye-slash" : "fas-eye");
+        }
+    }
+
+    private TerminalPanelController terminalControllerForActiveConnection() {
+        return activeConnectionId == null
+                ? null
+                : ConnectionManager.getInstance().getTerminalPanelController(activeConnectionId);
     }
 }
