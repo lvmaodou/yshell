@@ -18,8 +18,10 @@ import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.spec.ECGenParameterSpec;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -93,6 +95,22 @@ public class SshKeyService {
         SshKeyRepository.getInstance().upsert(keyInfo);
     }
 
+    public void deleteKey(SshKeyInfo keyInfo) throws IOException {
+        if (keyInfo == null) {
+            return;
+        }
+
+        Set<Path> keyFiles = new LinkedHashSet<>();
+        addKeyFilePath(keyFiles, keyInfo.getPrivateKeyPath());
+        addKeyFilePath(keyFiles, keyInfo.getPublicKeyPath());
+        for (Path keyFile : keyFiles) {
+            deleteKeyFile(keyFile);
+        }
+
+        sessionPassphrases.remove(cacheKey(keyInfo.getPrivateKeyPath()));
+        SshKeyRepository.getInstance().delete(keyInfo.getId());
+    }
+
     public String readPublicKey(SshKeyInfo keyInfo) throws IOException {
         if (keyInfo == null) {
             return "";
@@ -154,6 +172,23 @@ public class SshKeyService {
 
     private String cacheKey(String privateKeyPath) {
         return privateKeyPath != null ? privateKeyPath : "";
+    }
+
+    private void addKeyFilePath(Set<Path> keyFiles, String keyFilePath) {
+        if (keyFilePath == null || keyFilePath.isBlank()) {
+            return;
+        }
+        keyFiles.add(Paths.get(keyFilePath).toAbsolutePath().normalize());
+    }
+
+    private void deleteKeyFile(Path keyFile) throws IOException {
+        if (!Files.exists(keyFile) && !Files.isSymbolicLink(keyFile)) {
+            return;
+        }
+        if (!Files.isRegularFile(keyFile) && !Files.isSymbolicLink(keyFile)) {
+            throw new IOException("SSH key path is not a file: " + keyFile);
+        }
+        Files.deleteIfExists(keyFile);
     }
 
     private KeyPair loadFirstKeyPair(Path privateKeyPath, String passphrase) throws IOException {

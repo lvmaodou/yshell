@@ -196,11 +196,15 @@ public class KeyManagerController {
             DialogHelper.showWarning("请选择要删除的密钥");
             return;
         }
-        if (!DialogHelper.showConfirm("确认删除", "确定删除密钥 \"" + selected.getName() + "\" 吗？\n不会删除磁盘上的私钥文件。")) {
+        if (!DialogHelper.showConfirm("确认删除", "确定删除密钥 \"" + selected.getName() + "\" 吗？\n对应的私钥和公钥文件也会被永久删除。")) {
             return;
         }
-        SshKeyRepository.getInstance().delete(selected.getId());
-        loadData();
+        try {
+            SshKeyService.getInstance().deleteKey(selected);
+            loadData();
+        } catch (Exception e) {
+            DialogHelper.showError("删除失败", e.getMessage());
+        }
     }
 
     private void copyPublicKey() {

@@ -749,6 +749,52 @@
                         editor.updateOptions({readOnly: !!flag});
                     },
 
+                    isFindWidgetInputFocused: function () {
+                        var activeElement = document.activeElement;
+                        var tagName = activeElement && activeElement.tagName;
+                        return !!((tagName === 'INPUT' || tagName === 'TEXTAREA')
+                            && activeElement.closest
+                            && activeElement.closest('.find-widget'));
+                    },
+
+                    getFindWidgetSelection: function () {
+                        var activeElement = document.activeElement;
+                        var tagName = activeElement && activeElement.tagName;
+                        if ((tagName !== 'INPUT' && tagName !== 'TEXTAREA')
+                            || !activeElement.closest
+                            || !activeElement.closest('.find-widget')) {
+                            return '';
+                        }
+                        return activeElement.value.substring(
+                            activeElement.selectionStart,
+                            activeElement.selectionEnd
+                        );
+                    },
+
+                    replaceFindWidgetSelection: function (text) {
+                        var activeElement = document.activeElement;
+                        var tagName = activeElement && activeElement.tagName;
+                        if ((tagName !== 'INPUT' && tagName !== 'TEXTAREA')
+                            || !activeElement.closest
+                            || !activeElement.closest('.find-widget')) {
+                            return false;
+                        }
+
+                        var value = activeElement.value || '';
+                        var start = activeElement.selectionStart || 0;
+                        var end = activeElement.selectionEnd || start;
+                        var replacement = (text == null) ? '' : String(text);
+                        var cursor = start + replacement.length;
+
+                        activeElement.value = value.substring(0, start)
+                            + replacement + value.substring(end);
+                        activeElement.setSelectionRange(cursor, cursor);
+                        var inputEvent = document.createEvent('Event');
+                        inputEvent.initEvent('input', true, false);
+                        activeElement.dispatchEvent(inputEvent);
+                        return true;
+                    },
+
                     // ===== 查找 / 替换 =====
                     find: function () {
                         var action = editor.getAction('actions.find');

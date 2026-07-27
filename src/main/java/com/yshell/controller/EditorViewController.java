@@ -251,10 +251,6 @@ public class EditorViewController {
         Platform.runLater(() -> globalFontSize.set(Math.max(8, Math.min(40, fontSize))));
     }
 
-    public static synchronized void clearRecentFiles() {
-        recentFiles.clear();
-    }
-
     private static void createNewWindow() {
         try {
             FXMLLoader loader = new FXMLLoader(
@@ -1145,6 +1141,52 @@ public class EditorViewController {
         });
     }
 
+    private boolean isFindWidgetInputFocused(TabState state) {
+        return Boolean.parseBoolean(callEditorApiSync(state, "isFindWidgetInputFocused"));
+    }
+
+    private void handleFindWidgetClipboardShortcut(TabState state, KeyEvent event) {
+        final KeyCode code = event.getCode();
+        if (code == KeyCode.C) {
+            copyFindWidgetSelectionToSystemClipboard(state);
+            event.consume();
+        } else if (code == KeyCode.V) {
+            String text = readSystemClipboardText();
+            if (text != null) {
+                callEditorApi(state, "replaceFindWidgetSelection", text);
+                event.consume();
+            }
+        } else if (code == KeyCode.X) {
+            copyFindWidgetSelectionToSystemClipboard(state);
+            callEditorApi(state, "replaceFindWidgetSelection", "");
+            event.consume();
+        }
+    }
+
+    private void copyFindWidgetSelectionToSystemClipboard(TabState state) {
+        String selected = callEditorApiSync(state, "getFindWidgetSelection");
+        if (selected == null || selected.isEmpty()) return;
+
+        try {
+            Clipboard clipboard = Clipboard.getSystemClipboard();
+            ClipboardContent content = new ClipboardContent();
+            content.putString(selected);
+            clipboard.setContent(content);
+        } catch (Exception ex) {
+            LOGGER.warn("clipboard: copy find-widget selection failed: {}", ex.toString());
+        }
+    }
+
+    private String readSystemClipboardText() {
+        try {
+            Clipboard clipboard = Clipboard.getSystemClipboard();
+            return clipboard.hasString() ? clipboard.getString() : null;
+        } catch (Exception ex) {
+            LOGGER.warn("clipboard: read system clipboard failed: {}", ex.toString());
+            return null;
+        }
+    }
+
     /**
      * 同步调用 window.editorAPI[methodName]，并把返回值转成字符串。
      * 主要用于剪贴板流程：需要"立即拿到 Monaco 当前选中文本"或"立即完成粘贴"。
@@ -1451,6 +1493,10 @@ public class EditorViewController {
             if (e.isConsumed()) return;
             // 只处理 "Ctrl + C/V/X"（不区分大小写），不处理 Shift 等其他修饰
             if (!e.isControlDown() || e.isAltDown() || e.isMetaDown() || e.isShiftDown()) return;
+            if (isFindWidgetInputFocused(state)) {
+                handleFindWidgetClipboardShortcut(state, e);
+                return;
+            }
             // 只读模式下不允许"粘贴/剪切"
             final boolean readonly = state.readOnly.get();
             final KeyCode code = e.getCode();
