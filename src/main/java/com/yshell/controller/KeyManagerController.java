@@ -23,6 +23,7 @@ import javafx.stage.Stage;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 public class KeyManagerController {
@@ -68,7 +69,10 @@ public class KeyManagerController {
 
     private final ObservableList<SshKeyInfo> keys = FXCollections.observableArrayList();
     private static final List<Integer> ED25519_BITS = List.of(256);
+    private static final List<Integer> ECDSA_BITS = List.of(256, 384, 521);
     private static final List<Integer> RSA_BITS = List.of(2048, 3072, 4096);
+    private static final List<Integer> DSA_BITS = List.of(1024);
+    private static final String DEFAULT_AUTHORIZED_KEYS_PATH = "~/.ssh/authorized_keys";
     private Stage dialogStage;
 
     public void setDialogStage(Stage stage) {
@@ -134,7 +138,7 @@ public class KeyManagerController {
             return;
         }
 
-        Optional<KeyFormData> form = showKeyForm("导入密钥", file.getName(), "", false, false);
+        Optional<KeyFormData> form = showKeyForm("导入密钥", file.getName(), false, true);
         if (form.isEmpty()) {
             return;
         }
@@ -142,8 +146,7 @@ public class KeyManagerController {
         try {
             SshKeyService.getInstance().importKey(file.toPath(),
                     form.get().name(),
-                    form.get().passphrase(),
-                    form.get().savePassphrase());
+                    form.get().passphrase());
             loadData();
         } catch (Exception e) {
             DialogHelper.showError("导入失败", e.getMessage());
@@ -157,25 +160,21 @@ public class KeyManagerController {
             return;
         }
 
-        Optional<KeyFormData> form = showKeyForm("编辑密钥",
-                selected.getName(),
-                selected.getPassphrase(),
-                selected.isSavePassphrase(),
-                false);
+        Optional<KeyFormData> form = showKeyForm("编辑密钥", selected.getName(), false, false);
         if (form.isEmpty()) {
             return;
         }
 
         selected.setName(form.get().name());
-        selected.setPassphrase(form.get().savePassphrase() ? form.get().passphrase() : "");
-        selected.setSavePassphrase(form.get().savePassphrase());
+        selected.setPassphrase("");
+        selected.setSavePassphrase(false);
         selected.setModifiedTime(System.currentTimeMillis());
         SshKeyRepository.getInstance().upsert(selected);
         loadData();
     }
 
     private void generateKey() {
-        Optional<KeyFormData> form = showKeyForm("生成密钥", "id_ed25519", "", false, true);
+        Optional<KeyFormData> form = showKeyForm("生成密钥", "", true, true);
         if (form.isEmpty()) {
             return;
         }
@@ -184,8 +183,7 @@ public class KeyManagerController {
             SshKeyService.getInstance().generateKey(form.get().name(),
                     form.get().type(),
                     form.get().bits(),
-                    form.get().passphrase(),
-                    form.get().savePassphrase());
+                    form.get().passphrase());
             loadData();
         } catch (Exception e) {
             DialogHelper.showError("生成失败", e.getMessage());
@@ -234,36 +232,82 @@ public class KeyManagerController {
             return;
         }
 
+        String targetPath = DialogHelper.showTextInput(
+                "安装 SSH 公钥",
+                "请输入服务端实际读取公钥的授权文件路径。默认路径适用于 OpenSSH 标准配置；不自动检测服务端配置。",
+                "目标 authorized_keys 路径（支持 ~/... 或绝对路径）",
+                DEFAULT_AUTHORIZED_KEYS_PATH
+        );
+        if (targetPath == null) {
+            return;
+        }
+
         try {
             String publicKey = SshKeyService.getInstance().readPublicKey(selected);
-            String command = "mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && "
-                    + "{ grep -qxF " + shellQuote(publicKey) + " ~/.ssh/authorized_keys || "
-                    + "echo " + shellQuote(publicKey) + " >> ~/.ssh/authorized_keys; } && "
-                    + "chmod 600 ~/.ssh/authorized_keys\n";
+            String command = buildAuthorizedKeysInstallCommand(publicKey, targetPath);
             service.writeToShell(command.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             DialogHelper.showError("安装失败", e.getMessage());
         }
     }
 
+    private String buildAuthorizedKeysInstallCommand(String publicKey, String targetPath) {
+        String createDirectory = DEFAULT_AUTHORIZED_KEYS_PATH.equals(targetPath)
+                ? "mkdir -p -- \"$target_dir\" && chmod 700 -- \"$target_dir\" && "
+                : "mkdir -p -- \"$target_dir\" && ";
+        return remotePathAssignment(targetPath)
+                + "target_dir=$(dirname -- \"$target_path\")\n"
+                + createDirectory
+                + "touch -- \"$target_path\" && "
+                + "{ grep -qxF " + shellQuote(publicKey) + " \"$target_path\" || "
+                + "printf '%s\\n' " + shellQuote(publicKey) + " >> \"$target_path\"; } && "
+                + "chmod 600 -- \"$target_path\"\n";
+    }
+
+    private String remotePathAssignment(String targetPath) {
+        if (targetPath.startsWith("~/")) {
+            return "target_path=\"$HOME/\"" + shellQuote(targetPath.substring(2)) + "\n";
+        }
+        return "target_path=" + shellQuote(targetPath) + "\n";
+    }
+
     private Optional<KeyFormData> showKeyForm(String title,
                                               String defaultName,
-                                              String defaultPassphrase,
-                                              boolean defaultSavePassphrase,
-                                              boolean includeGenerationOptions) {
+                                              boolean includeGenerationOptions,
+                                              boolean includePassphrase) {
         TextField nameField = new TextField(defaultName != null ? defaultName : "");
         PasswordField passphraseField = new PasswordField();
-        passphraseField.setText(defaultPassphrase != null ? defaultPassphrase : "");
-        CheckBox savePassphrase = new CheckBox("保存 passphrase");
-        savePassphrase.setSelected(defaultSavePassphrase);
         ComboBox<String> typeCombo = new ComboBox<>();
-        typeCombo.getItems().addAll("ED25519", "RSA");
+        typeCombo.getItems().addAll("ED25519", "ECDSA", "RSA", "DSA");
         typeCombo.setValue("ED25519");
         ComboBox<Integer> bitsCombo = new ComboBox<>();
         bitsCombo.getItems().setAll(ED25519_BITS);
         bitsCombo.setValue(256);
         bitsCombo.setDisable(true);
-        typeCombo.valueProperty().addListener((obs, oldType, newType) -> updateBitsOptions(newType, bitsCombo));
+        if (includeGenerationOptions) {
+            boolean[] autoGeneratedName = {defaultName == null || defaultName.isBlank()};
+            boolean[] updatingDefaultName = {false};
+            Runnable updateDefaultName = () -> {
+                if (!autoGeneratedName[0]) {
+                    return;
+                }
+                Integer bits = bitsCombo.getValue();
+                updatingDefaultName[0] = true;
+                nameField.setText(defaultKeyName(typeCombo.getValue(), bits != null ? bits : 0));
+                updatingDefaultName[0] = false;
+            };
+            nameField.textProperty().addListener((obs, oldName, newName) -> {
+                if (!updatingDefaultName[0]) {
+                    autoGeneratedName[0] = false;
+                }
+            });
+            typeCombo.valueProperty().addListener((obs, oldType, newType) -> {
+                updateBitsOptions(newType, bitsCombo);
+                updateDefaultName.run();
+            });
+            bitsCombo.valueProperty().addListener((obs, oldBits, newBits) -> updateDefaultName.run());
+            updateDefaultName.run();
+        }
 
         GridPane grid = new GridPane();
         grid.getStyleClass().add("key-form-grid");
@@ -271,11 +315,11 @@ public class KeyManagerController {
         if (includeGenerationOptions) {
             grid.addRow(1, new Label("类型"), typeCombo);
             grid.addRow(2, new Label("长度"), bitsCombo);
-            grid.addRow(3, new Label("Passphrase"), passphraseField);
-            grid.addRow(4, new Label(""), savePassphrase);
-        } else {
+            if (includePassphrase) {
+                grid.addRow(3, new Label("Passphrase"), passphraseField);
+            }
+        } else if (includePassphrase) {
             grid.addRow(1, new Label("Passphrase"), passphraseField);
-            grid.addRow(2, new Label(""), savePassphrase);
         }
 
         return DialogHelper.showCustomDialog(title, grid, button -> {
@@ -286,8 +330,7 @@ public class KeyManagerController {
                     nameField.getText() != null ? nameField.getText().trim() : "",
                     typeCombo.getValue(),
                     bitsCombo.getValue() != null ? bitsCombo.getValue() : 0,
-                    passphraseField.getText(),
-                    savePassphrase.isSelected()
+                    passphraseField.getText()
             );
         }, "custom-dialog-content-body", "key-form-dialog");
     }
@@ -307,7 +350,7 @@ public class KeyManagerController {
         addPropertyRow(grid, 3, "指纹", selected.getFingerprint());
         addPropertyRow(grid, 4, "私钥路径", selected.getPrivateKeyPath());
         addPropertyRow(grid, 5, "公钥路径", selected.getPublicKeyPath());
-        addPropertyRow(grid, 6, "保存 passphrase", selected.isSavePassphrase() ? "是" : "否");
+        addPropertyRow(grid, 6, "是否使用口令", passphraseProtectionStatus(selected));
 
         DialogHelper.showCustomDialog("密钥属性", grid, button -> null, "custom-dialog-content-body", "key-properties-dialog");
     }
@@ -323,20 +366,48 @@ public class KeyManagerController {
         grid.addRow(row, labelNode, valueField);
     }
 
+    private String passphraseProtectionStatus(SshKeyInfo keyInfo) {
+        Boolean passphraseProtected = keyInfo.getPassphraseProtected();
+        if (passphraseProtected == null) {
+            return "未知（重新导入后可识别）";
+        }
+        return passphraseProtected ? "是" : "否";
+    }
+
     private SshKeyInfo selectedKey() {
         return keyTableView.getSelectionModel().getSelectedItem();
     }
 
     private void updateBitsOptions(String keyType, ComboBox<Integer> bitsCombo) {
-        if ("RSA".equals(keyType)) {
-            bitsCombo.getItems().setAll(RSA_BITS);
-            bitsCombo.setValue(4096);
-            bitsCombo.setDisable(false);
-        } else {
-            bitsCombo.getItems().setAll(ED25519_BITS);
-            bitsCombo.setValue(256);
-            bitsCombo.setDisable(true);
+        switch (keyType) {
+            case "RSA" -> {
+                bitsCombo.getItems().setAll(RSA_BITS);
+                bitsCombo.setValue(4096);
+                bitsCombo.setDisable(false);
+            }
+            case "ECDSA" -> {
+                bitsCombo.getItems().setAll(ECDSA_BITS);
+                bitsCombo.setValue(256);
+                bitsCombo.setDisable(false);
+            }
+            case "DSA" -> {
+                bitsCombo.getItems().setAll(DSA_BITS);
+                bitsCombo.setValue(1024);
+                bitsCombo.setDisable(true);
+            }
+            default -> {
+                bitsCombo.getItems().setAll(ED25519_BITS);
+                bitsCombo.setValue(256);
+                bitsCombo.setDisable(true);
+            }
         }
+    }
+
+    private String defaultKeyName(String keyType, int bits) {
+        String normalizedType = keyType == null || keyType.isBlank()
+                ? "key"
+                : keyType.toLowerCase(Locale.ROOT);
+        return "id_" + normalizedType + "_" + bits;
     }
 
     private String shellQuote(String text) {
@@ -347,6 +418,6 @@ public class KeyManagerController {
         return value != null ? value : "";
     }
 
-    private record KeyFormData(String name, String type, int bits, String passphrase, boolean savePassphrase) {
+    private record KeyFormData(String name, String type, int bits, String passphrase) {
     }
 }

@@ -1,6 +1,7 @@
 package com.yshell.service;
 
 import com.yshell.model.*;
+import com.yshell.ui.DialogHelper;
 import javafx.application.Platform;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.auth.keyboard.UserAuthKeyboardInteractiveFactory;
@@ -518,18 +519,9 @@ public class SshService {
                 if (keyPath == null || keyPath.isEmpty()) {
                     throw new IOException("未指定私钥文件路径");
                 }
-                FileKeyPairProvider provider = new FileKeyPairProvider(Paths.get(keyPath));
-                if (resolvedKey.passphrase() != null && !resolvedKey.passphrase().isBlank()) {
-                    provider.setPasswordFinder(org.apache.sshd.common.config.keys.FilePasswordProvider.of(resolvedKey.passphrase()));
-                }
-                Iterable<KeyPair> keys = provider.loadKeys(session);
-                boolean any = false;
+                List<KeyPair> keys = loadPrivateKeys(session, keyPath);
                 for (KeyPair kp : keys) {
                     session.addPublicKeyIdentity(kp);
-                    any = true;
-                }
-                if (!any) {
-                    throw new IOException("未能在 " + keyPath + " 中找到任何密钥");
                 }
             } else if (connInfo.getAuthenticationType() == 3) {
                 session.setUserInteraction(passwordBackedUserInteraction());
@@ -565,6 +557,79 @@ public class SshService {
             if (client != null) {
                 client.stop();
             }
+        }
+    }
+
+    private List<KeyPair> loadPrivateKeys(ClientSession session, String keyPath) throws IOException {
+        SshKeyService keyService = SshKeyService.getInstance();
+        String cachedPassphrase = keyService.getSessionPassphrase(keyPath);
+        if (cachedPassphrase != null) {
+            try {
+                return loadKeyPairs(session, keyPath, cachedPassphrase);
+            } catch (IOException ignored) {
+                keyService.forgetSessionPassphrase(keyPath);
+            }
+        }
+
+        try {
+            List<KeyPair> keys = loadKeyPairs(session, keyPath, null);
+            if (!keys.isEmpty()) {
+                return keys;
+            }
+        } catch (IOException ignored) {
+        }
+
+        Optional<DialogHelper.PassphraseInput> input = requestPassphrase(keyPath);
+        if (input.isEmpty()) {
+            throw new IOException("已取消输入私钥口令：" + keyPath);
+        }
+
+        try {
+            List<KeyPair> keys = loadKeyPairs(session, keyPath, input.get().passphrase());
+            if (keys.isEmpty()) {
+                throw new IOException("未能在 " + keyPath + " 中找到任何密钥");
+            }
+            if (input.get().rememberForSession()) {
+                keyService.rememberSessionPassphrase(keyPath, input.get().passphrase());
+            }
+            return keys;
+        } catch (IOException e) {
+            throw new IOException("无法加载私钥，请检查 passphrase 或密钥格式：" + keyPath, e);
+        }
+    }
+
+    private List<KeyPair> loadKeyPairs(ClientSession session, String keyPath, String passphrase) throws IOException {
+        FileKeyPairProvider provider = new FileKeyPairProvider(Paths.get(keyPath));
+        if (passphrase != null && !passphrase.isBlank()) {
+            provider.setPasswordFinder(org.apache.sshd.common.config.keys.FilePasswordProvider.of(passphrase));
+        }
+        List<KeyPair> keys = new ArrayList<>();
+        for (KeyPair keyPair : provider.loadKeys(session)) {
+            keys.add(keyPair);
+        }
+        return keys;
+    }
+
+    private Optional<DialogHelper.PassphraseInput> requestPassphrase(String keyPath) throws IOException {
+        if (Platform.isFxApplicationThread()) {
+            return DialogHelper.showSshKeyPassphraseInput(keyPath);
+        }
+
+        CompletableFuture<Optional<DialogHelper.PassphraseInput>> result = new CompletableFuture<>();
+        try {
+            Platform.runLater(() -> {
+                try {
+                    result.complete(DialogHelper.showSshKeyPassphraseInput(keyPath));
+                } catch (RuntimeException e) {
+                    result.completeExceptionally(e);
+                }
+            });
+            return result.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("等待私钥口令输入时被中断", e);
+        } catch (ExecutionException | IllegalStateException e) {
+            throw new IOException("无法显示私钥口令输入窗口", e);
         }
     }
 

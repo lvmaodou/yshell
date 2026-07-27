@@ -17,8 +17,11 @@ import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.spec.ECGenParameterSpec;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SshKeyService {
 
@@ -26,6 +29,7 @@ public class SshKeyService {
     private static final String KEY_DIR = "keys";
 
     private static SshKeyService instance;
+    private final Map<String, String> sessionPassphrases = new ConcurrentHashMap<>();
 
     public static synchronized SshKeyService getInstance() {
         if (instance == null) {
@@ -37,14 +41,22 @@ public class SshKeyService {
     private SshKeyService() {
     }
 
-    public void importKey(Path privateKeyPath, String name, String passphrase, boolean savePassphrase)
+    public void importKey(Path privateKeyPath, String name, String passphrase)
             throws IOException {
-        KeyPair keyPair = loadFirstKeyPair(privateKeyPath, passphrase);
-        SshKeyInfo keyInfo = buildInfo(privateKeyPath, keyPair, name, passphrase, savePassphrase);
+        KeyPair keyPair;
+        boolean passphraseProtected;
+        try {
+            keyPair = loadFirstKeyPair(privateKeyPath, null);
+            passphraseProtected = false;
+        } catch (IOException ignored) {
+            keyPair = loadFirstKeyPair(privateKeyPath, passphrase);
+            passphraseProtected = true;
+        }
+        SshKeyInfo keyInfo = buildInfo(privateKeyPath, keyPair, name, passphraseProtected);
         SshKeyRepository.getInstance().upsert(keyInfo);
     }
 
-    public void generateKey(String name, String type, int bits, String passphrase, boolean savePassphrase)
+    public void generateKey(String name, String type, int bits, String passphrase)
             throws IOException, GeneralSecurityException {
         String normalizedType = type == null ? "ED25519" : type.trim().toUpperCase(Locale.ROOT);
         KeyPair keyPair = generateKeyPair(normalizedType, bits);
@@ -75,7 +87,8 @@ public class SshKeyService {
         }
         setOwnerOnlyPermissions(privatePath);
 
-        SshKeyInfo keyInfo = buildInfo(privatePath, keyPair, name, passphrase, savePassphrase);
+        SshKeyInfo keyInfo = buildInfo(privatePath, keyPair, name,
+                passphrase != null && !passphrase.isBlank());
         keyInfo.setPublicKeyPath(publicPath.toString());
         SshKeyRepository.getInstance().upsert(keyInfo);
     }
@@ -90,25 +103,40 @@ public class SshKeyService {
                 return Files.readString(publicPath, StandardCharsets.UTF_8).trim();
             }
         }
-        KeyPair keyPair = loadFirstKeyPair(Paths.get(keyInfo.getPrivateKeyPath()), keyInfo.getPassphrase());
+        KeyPair keyPair = loadFirstKeyPair(Paths.get(keyInfo.getPrivateKeyPath()),
+                getSessionPassphrase(keyInfo.getPrivateKeyPath()));
         return PublicKeyEntry.toString(keyPair.getPublic()) + " " + safeName(keyInfo.getName());
     }
 
     public ResolvedKey resolve(String idOrPath) {
         if (idOrPath == null || idOrPath.isBlank()) {
-            return new ResolvedKey("", "");
+            return new ResolvedKey("");
         }
         return SshKeyRepository.getInstance()
                 .findById(idOrPath)
-                .map(key -> new ResolvedKey(key.getPrivateKeyPath(), key.getPassphrase()))
-                .orElseGet(() -> new ResolvedKey(idOrPath, ""));
+                .map(key -> new ResolvedKey(key.getPrivateKeyPath()))
+                .orElseGet(() -> new ResolvedKey(idOrPath));
+    }
+
+    public String getSessionPassphrase(String privateKeyPath) {
+        return sessionPassphrases.get(cacheKey(privateKeyPath));
+    }
+
+    public void rememberSessionPassphrase(String privateKeyPath, String passphrase) {
+        if (passphrase == null || passphrase.isBlank()) {
+            return;
+        }
+        sessionPassphrases.put(cacheKey(privateKeyPath), passphrase);
+    }
+
+    public void forgetSessionPassphrase(String privateKeyPath) {
+        sessionPassphrases.remove(cacheKey(privateKeyPath));
     }
 
     private SshKeyInfo buildInfo(Path privateKeyPath,
                                  KeyPair keyPair,
                                  String name,
-                                 String passphrase,
-                                 boolean savePassphrase) {
+                                 boolean passphraseProtected) {
         SshKeyInfo keyInfo = new SshKeyInfo();
         keyInfo.setName(name != null && !name.isBlank() ? name : privateKeyPath.getFileName().toString());
         keyInfo.setPrivateKeyPath(privateKeyPath.toString());
@@ -118,9 +146,14 @@ public class SshKeyService {
         keyInfo.setType(KeyUtils.getKeyType(keyPair));
         keyInfo.setBits(KeyUtils.getKeySize(keyPair.getPublic()));
         keyInfo.setFingerprint(KeyUtils.getFingerPrint(keyPair.getPublic()));
-        keyInfo.setSavePassphrase(savePassphrase);
-        keyInfo.setPassphrase(savePassphrase ? (passphrase != null ? passphrase : "") : "");
+        keyInfo.setSavePassphrase(false);
+        keyInfo.setPassphrase("");
+        keyInfo.setPassphraseProtected(passphraseProtected);
         return keyInfo;
+    }
+
+    private String cacheKey(String privateKeyPath) {
+        return privateKeyPath != null ? privateKeyPath : "";
     }
 
     private KeyPair loadFirstKeyPair(Path privateKeyPath, String passphrase) throws IOException {
@@ -140,14 +173,29 @@ public class SshKeyService {
             return KeyUtils.generateKeyPair(KeyPairProvider.SSH_RSA, normalizeRsaBits(bits));
         }
         if ("ECDSA".equals(type) || "EC".equals(type)) {
-            return KeyUtils.generateKeyPair(KeyUtils.EC_ALGORITHM, bits > 0 ? bits : 256);
+            return generateEcdsaKeyPair(bits);
         }
-        try {
+        if ("DSA".equals(type)) {
+            KeyPairGenerator generator = KeyPairGenerator.getInstance("DSA");
+            generator.initialize(1024);
+            return generator.generateKeyPair();
+        }
+        if ("ED25519".equals(type)) {
             KeyPairGenerator generator = KeyPairGenerator.getInstance("Ed25519");
             return generator.generateKeyPair();
-        } catch (GeneralSecurityException e) {
-            return KeyUtils.generateKeyPair(KeyPairProvider.SSH_RSA, 4096);
         }
+        throw new GeneralSecurityException("Unsupported SSH key type: " + type);
+    }
+
+    private KeyPair generateEcdsaKeyPair(int bits) throws GeneralSecurityException {
+        String curve = switch (bits) {
+            case 384 -> "secp384r1";
+            case 521 -> "secp521r1";
+            default -> "secp256r1";
+        };
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
+        generator.initialize(new ECGenParameterSpec(curve));
+        return generator.generateKeyPair();
     }
 
     private int normalizeRsaBits(int bits) {
@@ -193,6 +241,6 @@ public class SshKeyService {
         return name != null ? name.replaceAll("\\s+", "_") : "yshell-key";
     }
 
-    public record ResolvedKey(String privateKeyPath, String passphrase) {
+    public record ResolvedKey(String privateKeyPath) {
     }
 }

@@ -47,7 +47,9 @@ public class SshKeyRepository {
         try {
             List<SshKeyInfo> keys = objectMapper.readValue(dataFilePath.toFile(), new TypeReference<>() {
             });
-            normalize(keys);
+            if (normalize(keys)) {
+                save(keys);
+            }
             return keys;
         } catch (IOException e) {
             LOGGER.error("Load SSH keys failed: {}", dataFilePath, e);
@@ -98,17 +100,22 @@ public class SshKeyRepository {
         save(keys);
     }
 
-    private void normalize(List<SshKeyInfo> keys) {
+    private boolean normalize(List<SshKeyInfo> keys) {
         if (keys == null) {
-            return;
+            return false;
         }
+        boolean changed = false;
         for (SshKeyInfo key : keys) {
             if (key.getId() == null || key.getId().isBlank()) {
                 key.setId(UUID.randomUUID().toString().replace("-", ""));
+                changed = true;
             }
-            if (!key.isSavePassphrase()) {
+            if (key.isSavePassphrase() || (key.getPassphrase() != null && !key.getPassphrase().isBlank())) {
+                key.setSavePassphrase(false);
                 key.setPassphrase("");
+                changed = true;
             }
         }
+        return changed;
     }
 }

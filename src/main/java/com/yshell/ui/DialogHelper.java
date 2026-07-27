@@ -8,10 +8,7 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseButton;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
@@ -39,6 +36,9 @@ public final class DialogHelper {
     public record CustomDialogButton<T>(String text,
                                         ButtonBar.ButtonData buttonData,
                                         Function<Dialog<T>, T> action) {
+    }
+
+    public record PassphraseInput(String passphrase, boolean rememberForSession) {
     }
 
     // ========== 错误提示 ==========
@@ -90,15 +90,6 @@ public final class DialogHelper {
     /**
      * 显示信息提示对话框
      *
-     * @param message 信息内容
-     */
-    public static void showInfo(String message) {
-        showInfo("提示", message);
-    }
-
-    /**
-     * 显示信息提示对话框
-     *
      * @param title   对话框标题
      * @param message 信息内容
      */
@@ -130,16 +121,6 @@ public final class DialogHelper {
         Alert alert = createAlert(Alert.AlertType.CONFIRMATION, title, message);
         Optional<ButtonType> result = alert.showAndWait();
         return result.isPresent() && result.get() == ButtonType.OK;
-    }
-
-    /**
-     * 显示确认对话框（是/否）
-     *
-     * @param message 确认信息内容
-     * @return 用户是否点击了"是"
-     */
-    public static boolean showConfirmYesNo(String message) {
-        return showConfirmYesNo("确认", message);
     }
 
     /**
@@ -275,6 +256,26 @@ public final class DialogHelper {
         if (result.isEmpty()) return null;
         String val = result.get();
         return val.trim().isEmpty() ? null : val.trim();
+    }
+
+    public static Optional<PassphraseInput> showSshKeyPassphraseInput(String privateKeyPath) {
+        PasswordField passphraseField = new PasswordField();
+        passphraseField.setPromptText("输入私钥口令");
+        CheckBox rememberForSession = new CheckBox("仅在本次应用运行期间记住");
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.addRow(0, new Label("私钥"), new Label(privateKeyPath == null ? "" : privateKeyPath));
+        grid.addRow(1, new Label("Passphrase"), passphraseField);
+        grid.add(rememberForSession, 1, 2);
+
+        return showCustomDialog("SSH 私钥口令", grid, button -> {
+            if (button.getButtonData() != ButtonBar.ButtonData.OK_DONE) {
+                return null;
+            }
+            return new PassphraseInput(passphraseField.getText(), rememberForSession.isSelected());
+        }, "custom-dialog-content-body", "key-form-dialog");
     }
 
     public static <T> Optional<T> showCustomDialog(String title,

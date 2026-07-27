@@ -12,6 +12,7 @@ public class SshKeyInfo {
     private String publicKeyPath;
     private String passphrase;
     private boolean savePassphrase;
+    private Boolean passphraseProtected;
     private String description;
     private long createTime;
     private long modifiedTime;
@@ -92,6 +93,14 @@ public class SshKeyInfo {
 
     public void setSavePassphrase(boolean savePassphrase) {
         this.savePassphrase = savePassphrase;
+    }
+
+    public Boolean getPassphraseProtected() {
+        return passphraseProtected;
+    }
+
+    public void setPassphraseProtected(Boolean passphraseProtected) {
+        this.passphraseProtected = passphraseProtected;
     }
 
     public String getDescription() {
