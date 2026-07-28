@@ -40,6 +40,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 /**
@@ -150,6 +151,7 @@ public class JediTermFxTerminal extends Region implements TerminalDisplay {
     private boolean alternateScreenBuffer = false;
     private String pendingModeScanTail = "";
     private BiConsumer<Integer, Integer> onTerminalResize;
+    private Consumer<byte[]> localInputHandler;
 
     // ===== 回调 =====
     private Runnable onCloseCallback;
@@ -475,6 +477,16 @@ public class JediTermFxTerminal extends Region implements TerminalDisplay {
         this.onTerminalResize = onTerminalResize;
     }
 
+    public void setLocalInputHandler(Consumer<byte[]> localInputHandler) {
+        this.localInputHandler = localInputHandler;
+    }
+
+    public void clearPendingInput() {
+        synchronized (pendingInput) {
+            pendingInput.reset();
+        }
+    }
+
     /**
      * 发送用户输入到远端 shell 的 stdin。
      * 若 shell 尚未绑定（例如刚切换 Tab 但 openShell 还未返回），
@@ -483,6 +495,11 @@ public class JediTermFxTerminal extends Region implements TerminalDisplay {
      */
     public void writeBytes(byte[] data) {
         if (data == null || data.length == 0) return;
+        Consumer<byte[]> inputHandler = localInputHandler;
+        if (inputHandler != null) {
+            inputHandler.accept(Arrays.copyOf(data, data.length));
+            return;
+        }
         if (remoteOutput != null) {
             try {
                 remoteOutput.write(data);

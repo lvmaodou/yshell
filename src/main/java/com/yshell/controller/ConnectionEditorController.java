@@ -246,7 +246,7 @@ public class ConnectionEditorController {
 
             // 认证方式：authenticationType 2=私钥，否则密码
             if (conn.getAuthenticationType() == 2 || (conn.getSecretKeyId() != null && !conn.getSecretKeyId().isEmpty())) {
-                sshAuthMethod.setValue("公钥");
+                sshAuthMethod.setValue("私钥");
             } else if (conn.getAuthenticationType() == 3) {
                 sshAuthMethod.setValue("键盘交互");
             } else {
@@ -345,7 +345,7 @@ public class ConnectionEditorController {
     }
 
     private void setupComboBoxes() {
-        sshAuthMethod.getItems().addAll("密码", "公钥", "键盘交互");
+        sshAuthMethod.getItems().addAll("密码", "私钥", "键盘交互");
         sshAuthMethod.setValue("密码");
 
         sshCharEncoding.getItems().setAll(availableTerminalEncodings());
@@ -695,7 +695,7 @@ public class ConnectionEditorController {
             Integer port = parseRequiredPort(sshConnPort, "SSH端口");
             if (port == null) return;
             String authMethod = sshAuthMethod.getValue();
-            if ("公钥".equals(authMethod)) {
+            if ("私钥".equals(authMethod)) {
                 String keyValue = selectedSshKeyValue != null && !selectedSshKeyValue.isBlank()
                         ? selectedSshKeyValue
                         : trim(sshPrivateKeyPath);
@@ -717,7 +717,7 @@ public class ConnectionEditorController {
             conn.setDescription(trim(sshConnNotes));
 
             // 认证方式
-            if ("公钥".equals(authMethod)) {
+            if ("私钥".equals(authMethod)) {
                 conn.setAuthenticationType(2);
                 String keyValue = selectedSshKeyValue != null && !selectedSshKeyValue.isBlank()
                         ? selectedSshKeyValue
@@ -844,7 +844,7 @@ public class ConnectionEditorController {
     }
 
     private void toggleSshAuthMethod() {
-        boolean showKey = "公钥".equals(sshAuthMethod.getValue());
+        boolean showKey = "私钥".equals(sshAuthMethod.getValue());
         sshPasswordRow.setVisible(!showKey);
         sshPasswordRow.setManaged(!showKey);
         sshPrivateKeyRow.setVisible(showKey);

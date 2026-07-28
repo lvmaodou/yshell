@@ -114,19 +114,16 @@ public class ConnectionManager {
         connId = connId == null ? generateConnectionId(connInfo) : connId;
 
         String finalConnId = connId;
+        prepareTerminalForConnection(connInfo, finalConnId, createTab);
         SshService sshService = new SshService(connInfo, new SshService.ConnectionCallback() {
             @Override
             public void onConnected() {
                 RecentConnectionRepository.getInstance().record(connInfo);
                 Platform.runLater(() -> {
-                    if (createTab && connectionToolbarController != null) {
-                        connectionToolbarController.createConnectionTab(new ConnectionTabInfo(connInfo, finalConnId));
-                    }
                     TerminalPanelController terminalPanel = getTerminalPanelController(finalConnId);
                     SshService connectedService = getConnectionById(finalConnId);
                     if (terminalPanel != null && connectedService != null) {
-                        terminalPanel.clearOutput();
-                        terminalPanel.appendOutput("连接主机成功\r\n");
+                        terminalPanel.appendOutput("\r\n认证成功，正在打开远程 Shell...\r\n");
                         terminalPanel.onShellReady(connectedService);
                     }
                     if (filesViewController != null) {
@@ -157,6 +154,7 @@ public class ConnectionManager {
                     K8sSessionManager.getInstance().clear(finalConnId);
                     TerminalPanelController terminalPanel = getTerminalPanelController(finalConnId);
                     if (terminalPanel != null) {
+                        terminalPanel.cancelKeyboardInteractive();
                         terminalPanel.appendOutput("连接失败: " + error + "\n");
                     }
                     fireConnectionClosed(finalConnId);
@@ -180,6 +178,7 @@ public class ConnectionManager {
                     K8sSessionManager.getInstance().clear(finalConnId);
                     TerminalPanelController terminalPanel = getTerminalPanelController(finalConnId);
                     if (terminalPanel != null) {
+                        terminalPanel.cancelKeyboardInteractive();
                         terminalPanel.appendOutput("连接已断开\n");
                     }
                     if (leftPanelController != null) {
@@ -207,10 +206,54 @@ public class ConnectionManager {
                     }
                 });
             }
+
+            @Override
+            public boolean supportsKeyboardInteractive() {
+                return getTerminalPanelController(finalConnId) != null;
+            }
+
+            @Override
+            public String[] onKeyboardInteractive(String name, String instruction, String lang,
+                                                  String[] prompts, boolean[] echo) {
+                TerminalPanelController terminalPanel = getTerminalPanelController(finalConnId);
+                return terminalPanel == null ? null
+                        : terminalPanel.requestKeyboardInteractive(name, instruction, prompts, echo);
+            }
         }, executor);
 
         connections.put(connId, sshService);
-        sshService.connect();
+        executor.submit(sshService::connect);
+    }
+
+    private void prepareTerminalForConnection(ConnInfo connInfo, String connId, boolean createTab) {
+        Runnable prepare = () -> {
+            if (createTab && connectionToolbarController != null) {
+                connectionToolbarController.createConnectionTab(new ConnectionTabInfo(connInfo, connId));
+            }
+            TerminalPanelController terminalPanel = getTerminalPanelController(connId);
+            if (terminalPanel != null) {
+                terminalPanel.clearOutput();
+                terminalPanel.appendOutput("正在连接 " + connectionDisplayName(connInfo) + "...\r\n");
+                terminalPanel.focusTerminal();
+            }
+        };
+        if (Platform.isFxApplicationThread()) {
+            prepare.run();
+        } else {
+            CountDownLatch terminalReady = new CountDownLatch(1);
+            Platform.runLater(() -> {
+                try {
+                    prepare.run();
+                } finally {
+                    terminalReady.countDown();
+                }
+            });
+            try {
+                terminalReady.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     private boolean isRdpConnection(ConnInfo connInfo) {

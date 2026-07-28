@@ -9,6 +9,7 @@ import com.yshell.terminal.JediTermFxTerminal;
 import com.yshell.ui.DialogHelper;
 import com.yshell.ui.LayoutConfig;
 import com.yshell.ui.PanelManager;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -21,7 +22,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import javafx.animation.PauseTransition;
 import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -30,7 +30,9 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
 /**
@@ -136,6 +138,13 @@ public class TerminalPanelController {
      */
     private String lastConnId;
     private ConnInfo lastConnInfo;
+
+    private CompletableFuture<String[]> keyboardInteractiveResponse;
+    private String[] keyboardInteractivePrompts = new String[0];
+    private boolean[] keyboardInteractiveEcho = new boolean[0];
+    private String[] keyboardInteractiveAnswers = new String[0];
+    private int keyboardInteractivePromptIndex;
+    private StringBuilder keyboardInteractiveInput = new StringBuilder();
 
     @FXML
     public void initialize() {
@@ -277,6 +286,137 @@ public class TerminalPanelController {
         refreshBottomPanelButtonState(isBottomPanelVisibleForCurrentConnection());
     }
 
+    public String[] requestKeyboardInteractive(String name, String instruction, String[] prompts, boolean[] echo) {
+        CompletableFuture<String[]> response = new CompletableFuture<>();
+        Platform.runLater(() -> beginKeyboardInteractive(name, instruction, prompts, echo, response));
+        try {
+            return response.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        } catch (ExecutionException e) {
+            return null;
+        }
+    }
+
+    public void cancelKeyboardInteractive() {
+        if (keyboardInteractiveResponse == null || keyboardInteractiveResponse.isDone()) {
+            return;
+        }
+        appendOutput("\r\n[认证已取消]\r\n");
+        completeKeyboardInteractive(null);
+    }
+
+    private void beginKeyboardInteractive(String name, String instruction, String[] prompts, boolean[] echo,
+                                          CompletableFuture<String[]> response) {
+        cancelKeyboardInteractive();
+        keyboardInteractiveResponse = response;
+        keyboardInteractivePrompts = prompts == null ? new String[0] : prompts.clone();
+        keyboardInteractiveEcho = echo == null ? new boolean[0] : echo.clone();
+        keyboardInteractiveAnswers = new String[keyboardInteractivePrompts.length];
+        keyboardInteractivePromptIndex = 0;
+        keyboardInteractiveInput = new StringBuilder();
+
+        terminal.clearPendingInput();
+        terminal.setLocalInputHandler(this::acceptKeyboardInteractiveInput);
+        appendOutput("\r\n[键盘交互认证]\r\n");
+        if (name != null && !name.isBlank()) {
+            appendOutput(name + "\r\n");
+        }
+        if (instruction != null && !instruction.isBlank()) {
+            appendOutput(instruction + "\r\n");
+        }
+        showNextKeyboardInteractivePrompt();
+        terminal.requestFocus();
+    }
+
+    private void showNextKeyboardInteractivePrompt() {
+        if (keyboardInteractivePromptIndex >= keyboardInteractivePrompts.length) {
+            completeKeyboardInteractive(keyboardInteractiveAnswers);
+            return;
+        }
+        String prompt = keyboardInteractivePrompts[keyboardInteractivePromptIndex];
+        if (prompt != null && !prompt.isEmpty()) {
+            appendOutput(prompt);
+        }
+    }
+
+    private void acceptKeyboardInteractiveInput(byte[] data) {
+        if (data == null || data.length == 0 || keyboardInteractiveResponse == null
+                || keyboardInteractiveResponse.isDone()) {
+            return;
+        }
+        String text = new String(data, StandardCharsets.UTF_8);
+        for (int index = 0; index < text.length(); index++) {
+            char character = text.charAt(index);
+            if (character == '\r' || character == '\n') {
+                submitKeyboardInteractiveAnswer();
+                continue;
+            }
+            if (character == 0x03) {
+                cancelKeyboardInteractive();
+                return;
+            }
+            if (character == 0x7F) {
+                eraseKeyboardInteractiveCharacter();
+                continue;
+            } else if (character == '\b') {
+                eraseKeyboardInteractiveCharacter();
+                continue;
+            }
+            if (character < 0x20) {
+                continue;
+            }
+            keyboardInteractiveInput.append(character);
+            if (currentKeyboardInteractivePromptEchoes()) {
+                appendOutput(String.valueOf(character));
+            } else {
+                appendOutput("*");
+            }
+        }
+    }
+
+    private void submitKeyboardInteractiveAnswer() {
+        if (keyboardInteractiveResponse == null || keyboardInteractiveResponse.isDone()) {
+            return;
+        }
+        keyboardInteractiveAnswers[keyboardInteractivePromptIndex] = keyboardInteractiveInput.toString();
+        keyboardInteractiveInput = new StringBuilder();
+        keyboardInteractivePromptIndex++;
+        appendOutput("\r\n");
+        showNextKeyboardInteractivePrompt();
+    }
+
+    private void eraseKeyboardInteractiveCharacter() {
+        if (keyboardInteractiveInput.isEmpty()) {
+            return;
+        }
+        int end = keyboardInteractiveInput.length();
+        int start = keyboardInteractiveInput.offsetByCodePoints(end, -1);
+        keyboardInteractiveInput.delete(start, end);
+        appendOutput("\b \b");
+    }
+
+    private boolean currentKeyboardInteractivePromptEchoes() {
+        return keyboardInteractivePromptIndex < keyboardInteractiveEcho.length
+                && keyboardInteractiveEcho[keyboardInteractivePromptIndex];
+    }
+
+    private void completeKeyboardInteractive(String[] answers) {
+        CompletableFuture<String[]> response = keyboardInteractiveResponse;
+        keyboardInteractiveResponse = null;
+        keyboardInteractivePrompts = new String[0];
+        keyboardInteractiveEcho = new boolean[0];
+        keyboardInteractiveAnswers = new String[0];
+        keyboardInteractivePromptIndex = 0;
+        keyboardInteractiveInput = new StringBuilder();
+        terminal.setLocalInputHandler(null);
+        terminal.clearPendingInput();
+        if (response != null && !response.isDone()) {
+            response.complete(answers);
+        }
+    }
+
     public boolean isBoundTo(SshService service) {
         return service != null && service == currentShellService && shellBindingStarted;
     }
@@ -291,6 +431,7 @@ public class TerminalPanelController {
      */
     public void onShellReady(SshService service) {
         if (service == null) return;
+        cancelKeyboardInteractive();
         if (isBoundTo(service)) {
             Platform.runLater(terminal::requestFocus);
             return;
@@ -866,6 +1007,7 @@ public class TerminalPanelController {
     }
 
     public void shutdownTerminal() {
+        cancelKeyboardInteractive();
         PanelManager pm = PanelManager.getInstance();
         pm.exitTerminalFullscreen(rootPane);
         pm.removeBottomPanelVisibilityListener(bottomPanelVisibilityListener);

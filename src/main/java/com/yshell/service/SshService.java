@@ -79,8 +79,8 @@ public class SshService {
     private static final long WEAK_NETWORK_SLOW_POLL_INTERVAL_MS = 20000;
     private static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(15);
     private static final Duration WEAK_NETWORK_CONNECT_TIMEOUT = Duration.ofSeconds(30);
-    private static final Duration DEFAULT_AUTH_TIMEOUT = Duration.ofSeconds(20);
-    private static final Duration WEAK_NETWORK_AUTH_TIMEOUT = Duration.ofSeconds(40);
+    private static final Duration DEFAULT_AUTH_TIMEOUT = Duration.ofSeconds(600);
+    private static final Duration WEAK_NETWORK_AUTH_TIMEOUT = Duration.ofSeconds(600);
     private static final Duration DEFAULT_COMMAND_TIMEOUT = Duration.ofSeconds(3);
     private static final Duration WEAK_NETWORK_COMMAND_TIMEOUT = Duration.ofSeconds(8);
     private static final Duration DEFAULT_SHELL_OPEN_TIMEOUT = Duration.ofSeconds(10);
@@ -126,6 +126,15 @@ public class SshService {
         void onOutputReceived(String output);
 
         void onSystemInfoReceived(SystemInfo info);
+
+        default boolean supportsKeyboardInteractive() {
+            return false;
+        }
+
+        default String[] onKeyboardInteractive(String name, String instruction, String lang,
+                                               String[] prompts, boolean[] echo) {
+            return null;
+        }
     }
 
     public record CommandResult(int exitCode, String stdout, String stderr, boolean timedOut) {
@@ -284,6 +293,9 @@ public class SshService {
             @Override
             public String[] interactive(ClientSession session, String name, String instruction, String lang,
                                         String[] prompt, boolean[] echo) {
+                if (callback != null && callback.supportsKeyboardInteractive()) {
+                    return callback.onKeyboardInteractive(name, instruction, lang, prompt, echo);
+                }
                 String password = connInfo.getPassword() != null ? connInfo.getPassword() : "";
                 String[] answers = new String[prompt != null ? prompt.length : 0];
                 Arrays.fill(answers, password);
