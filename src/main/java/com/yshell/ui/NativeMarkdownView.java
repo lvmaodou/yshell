@@ -475,6 +475,7 @@ public final class NativeMarkdownView extends VBox {
     private final class SelectableTextFlow extends TextFlow {
         private final Path selectionPath = new Path();
         private final EventHandler<KeyEvent> sceneShortcutHandler = this::handleSelectionShortcut;
+        private final EventHandler<MouseEvent> sceneMousePressHandler = this::handleSceneMousePressed;
         private int anchor = -1;
         private int caret = -1;
         private Scene shortcutScene;
@@ -499,7 +500,7 @@ public final class NativeMarkdownView extends VBox {
             }
             requestFocus();
             activateSelection(this::clearSelection);
-            installSceneShortcutHandler();
+            installSceneShortcutHandlers();
             anchor = hitTest(eventPoint(event)).getInsertionIndex();
             caret = anchor;
             updateSelection();
@@ -534,26 +535,46 @@ public final class NativeMarkdownView extends VBox {
             anchor = -1;
             caret = -1;
             selectionPath.getElements().clear();
-            uninstallSceneShortcutHandler();
+            uninstallSceneShortcutHandlers();
         }
 
-        private void installSceneShortcutHandler() {
+        private void installSceneShortcutHandlers() {
             Scene scene = getScene();
             if (scene == shortcutScene) {
                 return;
             }
-            uninstallSceneShortcutHandler();
+            uninstallSceneShortcutHandlers();
             if (scene != null) {
                 scene.addEventFilter(KeyEvent.KEY_PRESSED, sceneShortcutHandler);
+                scene.addEventFilter(MouseEvent.MOUSE_PRESSED, sceneMousePressHandler);
                 shortcutScene = scene;
             }
         }
 
-        private void uninstallSceneShortcutHandler() {
+        private void uninstallSceneShortcutHandlers() {
             if (shortcutScene != null) {
                 shortcutScene.removeEventFilter(KeyEvent.KEY_PRESSED, sceneShortcutHandler);
+                shortcutScene.removeEventFilter(MouseEvent.MOUSE_PRESSED, sceneMousePressHandler);
                 shortcutScene = null;
             }
+        }
+
+        private void handleSceneMousePressed(MouseEvent event) {
+            if (event.getButton() == MouseButton.PRIMARY && !isEventInsideFlow(event.getTarget())) {
+                clearSelection();
+            }
+        }
+
+        private boolean isEventInsideFlow(Object target) {
+            if (!(target instanceof Node node)) {
+                return false;
+            }
+            for (Node current = node; current != null; current = current.getParent()) {
+                if (current == this) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private Point2D eventPoint(MouseEvent event) {

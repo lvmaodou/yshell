@@ -83,6 +83,7 @@ public class JediTermFxTerminal extends Region implements TerminalDisplay {
     private static final double CONTENT_PADDING_RIGHT = 6.0;
     private static final double CONTENT_PADDING_BOTTOM = 6.0;
     private static final double SCROLL_BAR_WIDTH = 12.0;
+    private static final double SELECTION_AUTO_SCROLL_STEP = 1.0;
     private static final Pattern PROMPT_PATTERN = Pattern.compile("\\[[^]\\r\\n]+@[^]\\r\\n]+\\s+[^]\\r\\n]+]\\s*[#$]\\s*$");
     private static final Pattern PROMPT_EXTRACT_PATTERN = Pattern.compile("\\[[^]\\r\\n]+@[^]\\r\\n]+\\s+[^]\\r\\n]+]\\s*[#$]\\s*");
 
@@ -121,6 +122,8 @@ public class JediTermFxTerminal extends Region implements TerminalDisplay {
     private int selStartX = -1, selStartY = -1;
     private int selEndX = -1, selEndY = -1;
     private boolean selecting = false;
+    private double selectionDragX = Double.NaN;
+    private double selectionDragY = Double.NaN;
 
     // ===== 查找 =====
     private String searchQuery = "";
@@ -217,7 +220,7 @@ public class JediTermFxTerminal extends Region implements TerminalDisplay {
         // 鼠标选择
         canvas.setOnMousePressed(this::handleMousePressed);
         canvas.setOnMouseDragged(this::handleMouseDragged);
-        canvas.setOnMouseReleased(e -> selecting = false);
+        canvas.setOnMouseReleased(e -> stopSelectionDrag());
         canvas.setOnScroll(e -> {
             double delta = e.getDeltaY() > 0 ? -3 : 3;
             scrollBar.setValue(clamp(scrollBar.getValue() + delta, scrollBar.getMin(), scrollBar.getMax()));
@@ -868,6 +871,8 @@ public class JediTermFxTerminal extends Region implements TerminalDisplay {
         } catch (Exception ex) {
             LOGGER.error("Emulator error: {}", ex.getMessage());
         }
+
+        updateSelectionAutoScroll();
 
         // 3. 渲染
         if (dirty) {
@@ -1547,15 +1552,58 @@ public class JediTermFxTerminal extends Region implements TerminalDisplay {
             selStartY = line;
             selEndX = col;
             selEndY = line;
+            selectionDragX = e.getX();
+            selectionDragY = e.getY();
         }
         dirty = true;
     }
 
     private void handleMouseDragged(javafx.scene.input.MouseEvent e) {
         if (!selecting || !e.isPrimaryButtonDown()) return;
-        selEndX = mouseColumn(e.getX());
-        selEndY = mouseBufferLine(e.getY());
+        selectionDragX = e.getX();
+        selectionDragY = e.getY();
+        updateSelectionEnd();
         dirty = true;
+    }
+
+    private void updateSelectionAutoScroll() {
+        if (!selecting || Double.isNaN(selectionDragY)) {
+            return;
+        }
+        int direction = selectionAutoScrollDirection();
+        if (direction == 0) {
+            return;
+        }
+        double value = scrollBar.getValue();
+        double nextValue = clamp(value + direction * SELECTION_AUTO_SCROLL_STEP,
+                scrollBar.getMin(), scrollBar.getMax());
+        if (nextValue == value) {
+            return;
+        }
+        scrollBar.setValue(nextValue);
+        updateSelectionEnd();
+        dirty = true;
+    }
+
+    private int selectionAutoScrollDirection() {
+        if (selectionDragY < CONTENT_PADDING_TOP) {
+            return -1;
+        }
+        if (selectionDragY >= canvas.getHeight() - CONTENT_PADDING_BOTTOM) {
+            return 1;
+        }
+        return 0;
+    }
+
+    private void updateSelectionEnd() {
+        selEndX = mouseColumn(selectionDragX);
+        selEndY = mouseBufferLine(selectionDragY);
+    }
+
+    private void stopSelectionDrag() {
+        selecting = false;
+        selectionDragX = Double.NaN;
+        selectionDragY = Double.NaN;
     }
 
     private void drawSelectionBackground(GraphicsContext gc, int x, int y, int count) {

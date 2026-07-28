@@ -627,12 +627,14 @@ public class AiViewController {
 
     private void handleInputKeyPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ENTER) {
-            if (event.isControlDown() || event.isMetaDown()) {
+            if (event.isShiftDown() && !event.isControlDown() && !event.isMetaDown() && !event.isAltDown()) {
                 event.consume();
                 inputArea.replaceSelection("\n");
             } else if (!event.isShiftDown() && !event.isAltDown()) {
-                event.consume();
-                sendMessage();
+                if (!event.isControlDown() && !event.isMetaDown()) {
+                    event.consume();
+                    sendMessage();
+                }
             }
             return;
         }
