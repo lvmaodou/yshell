@@ -15,7 +15,7 @@ import java.util.function.Consumer;
 
 public class DockerService {
     private static final Logger LOGGER = LoggerFactory.getLogger(DockerService.class);
-    private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(20);
+    private static final Duration DEFAULT_TIMEOUT = Duration.ofMinutes(60);
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public DockerSnapshot loadSnapshot(SshService sshService) {

@@ -17,7 +17,7 @@ import java.util.function.Consumer;
 
 public class K8sService {
     private static final Logger LOGGER = LoggerFactory.getLogger(K8sService.class);
-    private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
+    private static final Duration DEFAULT_TIMEOUT = Duration.ofMinutes(60);
     private static final Set<String> SCALABLE = Set.of("deployment", "replicaset", "replicationcontroller", "statefulset");
     private static final Set<String> RESTARTABLE = Set.of("daemonset", "deployment", "statefulset");
     private static final Set<String> CLUSTER_SCOPED = Set.of(
