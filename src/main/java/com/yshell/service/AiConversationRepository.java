@@ -28,6 +28,7 @@ public class AiConversationRepository {
     private final Path historyDir;
     private final Path historyPath;
     private List<AiConversation> conversations = new ArrayList<>();
+    private boolean historyLoadFailed;
 
     private AiConversationRepository() {
         Path logDir = Paths.get(new LogDirectoryPropertyDefiner().getPropertyValue());
@@ -88,6 +89,7 @@ public class AiConversationRepository {
 
     public synchronized void clear() {
         conversations.clear();
+        historyLoadFailed = false;
         try {
             Files.deleteIfExists(historyPath);
         } catch (Exception e) {
@@ -105,6 +107,7 @@ public class AiConversationRepository {
             normalize();
         } catch (Exception e) {
             LOGGER.warn("load ai conversations failed: {}", historyPath, e);
+            historyLoadFailed = true;
             conversations = new ArrayList<>();
         }
     }
@@ -136,6 +139,10 @@ public class AiConversationRepository {
     }
 
     private void save() {
+        if (historyLoadFailed) {
+            LOGGER.warn("skip saving ai conversations because history could not be loaded: {}", historyPath);
+            return;
+        }
         try {
             Files.createDirectories(historyDir);
             sortAndTrim();

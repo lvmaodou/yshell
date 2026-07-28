@@ -6,6 +6,8 @@ public class AiImageAttachment {
     public String mimeType;
     public String base64Data;
 
+    public AiImageAttachment() {
+    }
 
     public AiImageAttachment(String id, String name, String mimeType, String base64Data) {
         this.id = id == null ? "" : id;
