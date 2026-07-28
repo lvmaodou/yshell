@@ -58,7 +58,6 @@ public class ConnInfo implements TreeNode {
     private boolean forwardingAutoReconnect;
     private String proxyId = "0";
     private List<Object> portForwardingList = new ArrayList<>();
-    private Map<String, Object> remotePortForwarding = new HashMap<>();
 
     // ===== RDP 选项 =====
     private boolean fullscreen;
@@ -335,14 +334,6 @@ public class ConnInfo implements TreeNode {
 
     public void setPortForwardingList(List<Object> list) {
         this.portForwardingList = list;
-    }
-
-    public Map<String, Object> getRemotePortForwarding() {
-        return remotePortForwarding;
-    }
-
-    public void setRemotePortForwarding(Map<String, Object> map) {
-        this.remotePortForwarding = map;
     }
 
     // ===== RDP 选项 =====

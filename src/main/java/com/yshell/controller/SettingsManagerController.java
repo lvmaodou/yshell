@@ -5,6 +5,7 @@ import com.yshell.config.AppSettings;
 import com.yshell.config.ShortcutRegistry;
 import com.yshell.logging.LogDirectoryPropertyDefiner;
 import com.yshell.service.AiConversationRepository;
+import com.yshell.service.KnownHostsRepository;
 import com.yshell.theme.ThemeManager;
 import com.yshell.ui.DialogHelper;
 import com.yshell.ui.LayoutConfig;
@@ -23,6 +24,7 @@ import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 
 import java.awt.*;
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -56,6 +58,8 @@ public class SettingsManagerController {
     private Button navMaintenance;
     @FXML
     private Button navAI;
+    @FXML
+    private Button navSshSecurity;
     @FXML
     private TabPane settingsTabPane;
     @FXML
@@ -109,6 +113,20 @@ public class SettingsManagerController {
     @FXML
     private TableColumn<ShortcutRegistry.Shortcut, String> shortcutKeyColumn;
     @FXML
+    private TableView<KnownHostsRepository.HostKeyEntry> knownHostsTable;
+    @FXML
+    private TableColumn<KnownHostsRepository.HostKeyEntry, String> knownHostsHostColumn;
+    @FXML
+    private TableColumn<KnownHostsRepository.HostKeyEntry, String> knownHostsKeyTypeColumn;
+    @FXML
+    private TableColumn<KnownHostsRepository.HostKeyEntry, String> knownHostsFingerprintColumn;
+    @FXML
+    private Button btnReloadKnownHosts;
+    @FXML
+    private Button btnDeleteKnownHost;
+    @FXML
+    private Button btnClearKnownHosts;
+    @FXML
     private Button btnOpenConfigDir;
     @FXML
     private Button btnOpenLogDir;
@@ -134,6 +152,7 @@ public class SettingsManagerController {
     private Stage dialogStage;
     private final ObservableList<AppConfig.DockerRegistry> dockerRegistries = FXCollections.observableArrayList();
     private final ObservableList<AppConfig.AiModelConnection> aiConnections = FXCollections.observableArrayList();
+    private final ObservableList<KnownHostsRepository.HostKeyEntry> knownHostEntries = FXCollections.observableArrayList();
 
     public void setDialogStage(Stage stage) {
         this.dialogStage = stage;
@@ -143,7 +162,7 @@ public class SettingsManagerController {
     public void initialize() {
         WindowDragResize.apply(root, 40, btnClose);
         navButtons.addAll(List.of(navGeneral, navUpdate, navTerminal, navEditor, navTransfer, navDockerRegistry,
-                navShortcut, navMaintenance, navAI));
+                navShortcut, navMaintenance, navAI, navSshSecurity));
         setupNavigation();
         setupControls();
         loadSettings();
@@ -161,6 +180,10 @@ public class SettingsManagerController {
         navShortcut.setOnAction(e -> selectTab(6));
         navMaintenance.setOnAction(e -> selectTab(7));
         navAI.setOnAction(e -> selectTab(8));
+        navSshSecurity.setOnAction(e -> {
+            refreshKnownHosts();
+            selectTab(9);
+        });
         settingsTabPane.getSelectionModel().selectedIndexProperty().addListener((obs, oldIndex, newIndex) ->
                 updateNavSelection(newIndex.intValue()));
         settingsTabPane.getSelectionModel().select(0);
@@ -197,6 +220,11 @@ public class SettingsManagerController {
         aiConnectionModelColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().model));
         aiConnectionTable.setItems(aiConnections);
 
+        knownHostsHostColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().host()));
+        knownHostsKeyTypeColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().keyType()));
+        knownHostsFingerprintColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().fingerprint()));
+        knownHostsTable.setItems(knownHostEntries);
+
         btnChooseDownloadDirectory.setOnAction(e -> chooseDownloadDirectory());
         btnOpenConfigDir.setOnAction(e -> openDirectory(configDirectory()));
         btnOpenLogDir.setOnAction(e -> openDirectory(Paths.get(new LogDirectoryPropertyDefiner().getPropertyValue())));
@@ -208,6 +236,9 @@ public class SettingsManagerController {
         btnAddAiConnection.setOnAction(e -> addAiConnection());
         btnEditAiConnection.setOnAction(e -> editAiConnection());
         btnDeleteAiConnection.setOnAction(e -> deleteAiConnection());
+        btnReloadKnownHosts.setOnAction(e -> refreshKnownHosts());
+        btnDeleteKnownHost.setOnAction(e -> deleteKnownHost());
+        btnClearKnownHosts.setOnAction(e -> clearKnownHosts());
     }
 
     private void loadSettings() {
@@ -228,6 +259,7 @@ public class SettingsManagerController {
         aiEnabled.setSelected(settings.isAiEnabled());
         refreshAiConnections();
         refreshDockerRegistries();
+        refreshKnownHosts();
     }
 
     private void setupPersistence() {
@@ -263,6 +295,50 @@ public class SettingsManagerController {
     private void refreshAiConnections() {
         aiConnections.setAll(settings.getAiConnections());
         aiConnectionTable.refresh();
+    }
+
+    private void refreshKnownHosts() {
+        try {
+            knownHostEntries.setAll(KnownHostsRepository.getInstance().load());
+            knownHostsTable.refresh();
+        } catch (IOException e) {
+            DialogHelper.showError("读取 SSH 主机密钥失败", e.getMessage());
+        }
+    }
+
+    private void deleteKnownHost() {
+        KnownHostsRepository.HostKeyEntry selected = knownHostsTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            DialogHelper.showWarning("SSH 主机密钥", "请先选择一条主机密钥记录");
+            return;
+        }
+        if (!DialogHelper.showConfirmYesNo("删除 SSH 主机密钥",
+                "确定删除 \"" + selected.host() + "\" 的主机密钥吗？下次连接将要求重新确认指纹。")) {
+            return;
+        }
+        try {
+            KnownHostsRepository.getInstance().delete(selected);
+            refreshKnownHosts();
+        } catch (IOException e) {
+            DialogHelper.showError("删除 SSH 主机密钥失败", e.getMessage());
+        }
+    }
+
+    private void clearKnownHosts() {
+        if (knownHostEntries.isEmpty()) {
+            DialogHelper.showInfo("SSH 主机密钥", "当前没有已保存的主机密钥");
+            return;
+        }
+        if (!DialogHelper.showConfirmYesNo("清空 SSH 主机密钥",
+                "确定清空所有 SSH 主机密钥吗？下次连接每台服务器都将要求重新确认指纹。")) {
+            return;
+        }
+        try {
+            KnownHostsRepository.getInstance().clear();
+            refreshKnownHosts();
+        } catch (IOException e) {
+            DialogHelper.showError("清空 SSH 主机密钥失败", e.getMessage());
+        }
     }
 
     private void addAiConnection() {

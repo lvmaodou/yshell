@@ -92,6 +92,8 @@ public class ConnectionEditorController {
     @FXML
     private CheckBox sshExecChannel;
     @FXML
+    private CheckBox sshForwardingAutoReconnect;
+    @FXML
     private ComboBox<String> sshCharEncoding;
     @FXML
     private ComboBox<String> sshBackspace;
@@ -257,6 +259,7 @@ public class ConnectionEditorController {
             // 高级设置
             sshSmartAccel.setSelected(conn.isAccelerate());
             sshExecChannel.setSelected(conn.isExecChannelEnable());
+            sshForwardingAutoReconnect.setSelected(conn.isForwardingAutoReconnect());
 
             // 终端设置
             if (conn.getTerminalEncoding() != null) {
@@ -734,6 +737,7 @@ public class ConnectionEditorController {
             // 高级设置
             conn.setAccelerate(sshSmartAccel.isSelected());
             conn.setExecChannelEnable(sshExecChannel.isSelected());
+            conn.setForwardingAutoReconnect(sshForwardingAutoReconnect.isSelected());
 
             // 终端设置
             conn.setTerminalEncoding(sshCharEncoding.getValue());

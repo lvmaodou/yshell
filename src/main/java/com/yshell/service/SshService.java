@@ -13,7 +13,8 @@ import org.apache.sshd.client.channel.ChannelShell;
 import org.apache.sshd.client.channel.ClientChannelEvent;
 import org.apache.sshd.client.future.AuthFuture;
 import org.apache.sshd.client.future.ConnectFuture;
-import org.apache.sshd.client.keyverifier.AcceptAllServerKeyVerifier;
+import org.apache.sshd.client.keyverifier.DefaultKnownHostsServerKeyVerifier;
+import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
 import org.apache.sshd.client.proxy.ProxyData;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.client.session.forward.DynamicPortForwardingTracker;
@@ -24,6 +25,7 @@ import org.apache.sshd.common.channel.PtyChannelConfiguration;
 import org.apache.sshd.common.channel.exception.SshChannelOpenException;
 import org.apache.sshd.common.compression.BuiltinCompressions;
 import org.apache.sshd.common.compression.Compression;
+import org.apache.sshd.common.config.keys.KeyUtils;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
 import org.apache.sshd.common.util.io.input.NoCloseInputStream;
 import org.apache.sshd.common.util.io.output.NoCloseOutputStream;
@@ -43,15 +45,20 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
+import java.net.SocketAddress;
 import java.nio.channels.Channel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.security.KeyPair;
+import java.security.PublicKey;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -83,6 +90,8 @@ public class SshService {
     private static final Duration WEAK_NETWORK_AUTH_TIMEOUT = Duration.ofSeconds(600);
     private static final Duration DEFAULT_COMMAND_TIMEOUT = Duration.ofSeconds(3);
     private static final Duration WEAK_NETWORK_COMMAND_TIMEOUT = Duration.ofSeconds(8);
+    private static final Duration FORWARDING_RECONNECT_DELAY = Duration.ofSeconds(3);
+    private static final int MAX_FORWARDING_RECONNECT_ATTEMPTS = 5;
     private static final Duration DEFAULT_SHELL_OPEN_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration WEAK_NETWORK_SHELL_OPEN_TIMEOUT = Duration.ofSeconds(20);
     private static final Duration DEFAULT_BACKGROUND_SHELL_OPEN_TIMEOUT = Duration.ofSeconds(5);
@@ -102,6 +111,9 @@ public class SshService {
     private final Object pollingLock = new Object();
     private final List<ScheduledFuture<?>> pollingTasks = new ArrayList<>();
     private final List<Channel> portForwardingTrackers = new CopyOnWriteArrayList<>();
+    private final AtomicBoolean manualDisconnect = new AtomicBoolean(false);
+    private final AtomicBoolean reconnectScheduled = new AtomicBoolean(false);
+    private final AtomicInteger forwardingReconnectAttempts = new AtomicInteger(0);
     private ScheduledExecutorService commandPoller;
     private volatile String latestCpuCount;
     private volatile String latestCoresPerCpu;
@@ -324,11 +336,67 @@ public class SshService {
         };
     }
 
-    private void configureProxy(SshClient client) {
-        ProxyInfo proxyInfo = selectedProxy();
-        if (proxyInfo == null) {
+    private void configureServerKeyVerification(SshClient client) throws IOException {
+        Path knownHostsFile = KnownHostsRepository.getInstance().getPath();
+        Path parent = knownHostsFile.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+        if (!Files.exists(knownHostsFile)) {
+            Files.createFile(knownHostsFile);
+        }
+
+        ServerKeyVerifier approvalVerifier = (session, remoteAddress, serverKey) ->
+                requestServerKeyTrust(remoteAddress, serverKey);
+        client.setServerKeyVerifier(new DefaultKnownHostsServerKeyVerifier(approvalVerifier, false, knownHostsFile));
+    }
+
+    private boolean requestServerKeyTrust(SocketAddress remoteAddress, PublicKey serverKey) {
+        String message = "正在首次连接 SSH 主机：" + connInfo.getHost() + ":" + connInfo.getPort()
+                + "\n实际连接地址：" + remoteAddress
+                + "\n密钥类型：" + KeyUtils.getKeyType(serverKey)
+                + "\n指纹：" + KeyUtils.getFingerPrint(serverKey)
+                + "\n\n请通过可信渠道核对指纹。确认后将保存该主机密钥；后续密钥变化会被拒绝。";
+        if (Platform.isFxApplicationThread()) {
+            return DialogHelper.showConfirmYesNo("确认 SSH 主机密钥", message);
+        }
+
+        CompletableFuture<Boolean> result = new CompletableFuture<>();
+        try {
+            Platform.runLater(() -> {
+                try {
+                    result.complete(DialogHelper.showConfirmYesNo("确认 SSH 主机密钥", message));
+                } catch (RuntimeException e) {
+                    result.completeExceptionally(e);
+                }
+            });
+            return result.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        } catch (ExecutionException | IllegalStateException e) {
+            LOGGER.error("无法确认 SSH 主机密钥", e);
+            return false;
+        }
+    }
+
+    private void configureProxy(SshClient client) throws IOException {
+        String proxyId = connInfo.getProxyId();
+        if (isBlank(proxyId) || "0".equals(proxyId)) {
             return;
         }
+
+        ProxyInfo proxyInfo = selectedProxy();
+        if (proxyInfo == null) {
+            throw new IOException("选定的 SSH 代理不可用或已被删除：" + proxyId);
+        }
+        if (proxyInfo.getPort() < 1 || proxyInfo.getPort() > 65535) {
+            throw new IOException("选定的 SSH 代理端口无效：" + proxyInfo.getName());
+        }
+        if (!"http".equalsIgnoreCase(proxyInfo.getType()) && !"socks5".equalsIgnoreCase(proxyInfo.getType())) {
+            throw new IOException("选定的 SSH 代理类型无效：" + proxyInfo.getName());
+        }
+
         client.setProxyDataFactory(target -> {
             java.net.Proxy.Type type = "http".equalsIgnoreCase(proxyInfo.getType())
                     ? java.net.Proxy.Type.HTTP
@@ -505,11 +573,19 @@ public class SshService {
     //  连接 / 认证
     // ============================================================
     public void connect() {
+        connect(false);
+    }
+
+    private void connect(boolean reconnecting) {
+        if (manualDisconnect.get()) {
+            return;
+        }
+
         SshClient client = null;
         ClientSession session = null;
         try {
             client = SshClient.setUpDefaultClient();
-            client.setServerKeyVerifier(AcceptAllServerKeyVerifier.INSTANCE);
+            configureServerKeyVerification(client);
             applyWeakNetworkOptions(client);
             configureProxy(client);
             configureAuthentication(client);
@@ -542,6 +618,9 @@ public class SshService {
             if (!af.isSuccess()) {
                 throw new IOException("认证失败");
             }
+            if (manualDisconnect.get()) {
+                throw new CancellationException("SSH connection cancelled");
+            }
 
             this.sshClient = client;
             this.clientSession = session;
@@ -554,11 +633,21 @@ public class SshService {
                         connInfo.getUserName(), connInfo.getHost());
             }
             startConfiguredPortForwardings();
+            monitorSessionClosure(session);
+            forwardingReconnectAttempts.set(0);
             callback.onConnected();
 
         } catch (Exception e) {
             LOGGER.error("connect 失败", e);
-            callback.onConnectionFailed(e.getMessage());
+            cleanupFailedConnection(session, client);
+            if (manualDisconnect.get()) {
+                return;
+            }
+            if (reconnecting) {
+                scheduleForwardingReconnect();
+            } else {
+                callback.onConnectionFailed(e.getMessage());
+            }
             if (session != null) {
                 try {
                     session.close();
@@ -569,6 +658,95 @@ public class SshService {
             if (client != null) {
                 client.stop();
             }
+        }
+    }
+
+    private void monitorSessionClosure(ClientSession session) {
+        session.addCloseFutureListener(future -> handleSessionClosed(session));
+    }
+
+    private void handleSessionClosed(ClientSession closedSession) {
+        if (manualDisconnect.get() || clientSession != closedSession) {
+            return;
+        }
+
+        LOGGER.warn("SSH session closed unexpectedly for {}@{}", connInfo.getUserName(), connInfo.getHost());
+        clearClosedConnection(closedSession);
+        if (connInfo.isForwardingAutoReconnect()) {
+            scheduleForwardingReconnect();
+        } else {
+            callback.onDisconnected();
+        }
+    }
+
+    private void scheduleForwardingReconnect() {
+        if (!reconnectScheduled.compareAndSet(false, true)) {
+            return;
+        }
+
+        int attempt = forwardingReconnectAttempts.incrementAndGet();
+        if (attempt > MAX_FORWARDING_RECONNECT_ATTEMPTS) {
+            reconnectScheduled.set(false);
+            callback.onConnectionFailed("SSH 隧道自动重连失败，已重试 " + MAX_FORWARDING_RECONNECT_ATTEMPTS + " 次");
+            return;
+        }
+
+        try {
+            executor.submit(() -> {
+                boolean reconnectStarted = false;
+                try {
+                    TimeUnit.MILLISECONDS.sleep(FORWARDING_RECONNECT_DELAY.toMillis());
+                    if (!manualDisconnect.get()) {
+                        reconnectScheduled.set(false);
+                        reconnectStarted = true;
+                        LOGGER.info("Retrying SSH connection for forwarding recovery ({}/{})", attempt,
+                                MAX_FORWARDING_RECONNECT_ATTEMPTS);
+                        connect(true);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    if (!reconnectStarted) {
+                        reconnectScheduled.set(false);
+                    }
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            reconnectScheduled.set(false);
+            callback.onConnectionFailed("SSH 隧道自动重连调度失败：" + e.getMessage());
+        }
+    }
+
+    private void cleanupFailedConnection(ClientSession session, SshClient client) {
+        closePortForwardings();
+        closeShell();
+        synchronized (shellLock) {
+            if (session != null && clientSession == session) {
+                clientSession = null;
+            }
+            if (client != null && sshClient == client) {
+                sshClient = null;
+            }
+            lastNetworkSnapshots.clear();
+        }
+    }
+
+    private void clearClosedConnection(ClientSession closedSession) {
+        stopSystemInfoPolling();
+        closePortForwardings();
+        closeShell();
+        SshClient clientToStop;
+        synchronized (shellLock) {
+            if (clientSession != closedSession) {
+                return;
+            }
+            clientSession = null;
+            clientToStop = sshClient;
+            sshClient = null;
+            lastNetworkSnapshots.clear();
+        }
+        if (clientToStop != null) {
+            clientToStop.stop();
         }
     }
 
@@ -646,6 +824,7 @@ public class SshService {
     }
 
     public void disconnect() {
+        manualDisconnect.set(true);
         stopSystemInfoPolling();
         closePortForwardings();
         closeShell();

@@ -150,6 +150,7 @@
                                 <CheckBox fx:id="sshSmartAccel" text="弱网优化(非必要不建议开启)"/>
                                 <CheckBox fx:id="sshExecChannel" text="启用Exec Channel（系统监控需开启获取信息）"
                                           selected="true"/>
+                                <CheckBox fx:id="sshForwardingAutoReconnect" text="SSH 异常断开后自动重连并恢复隧道"/>
                             </HBox>
                         </VBox>
 
