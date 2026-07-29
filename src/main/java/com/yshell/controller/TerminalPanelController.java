@@ -268,6 +268,19 @@ public class TerminalPanelController {
         Platform.runLater(terminal::requestFocus);
     }
 
+    public void focusTerminalWindow() {
+        Platform.runLater(() -> {
+            if (boundStage != null) {
+                if (boundStage.isIconified()) {
+                    boundStage.setIconified(false);
+                }
+                boundStage.toFront();
+                boundStage.requestFocus();
+            }
+            terminal.requestFocus();
+        });
+    }
+
     public void configureConnection(String connId, ConnInfo connInfo) {
         this.connId = connId;
         this.connInfo = connInfo;

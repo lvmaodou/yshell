@@ -1004,6 +1004,14 @@ public class EditorViewController {
         if (ssh != null && ssh.isConnected() && ssh.isShellOpen()) {
             String command = "cd " + escapePath(dir) + " && pwd\n";
             ssh.writeToShell(command.getBytes());
+            String connectionId = state.sshConnectionId != null
+                    ? state.sshConnectionId
+                    : ConnectionManager.getInstance().getCurrentConnectionId();
+            TerminalPanelController terminalPanel = ConnectionManager.getInstance()
+                    .getTerminalPanelController(connectionId);
+            if (terminalPanel != null) {
+                terminalPanel.focusTerminalWindow();
+            }
         }
     }
 
