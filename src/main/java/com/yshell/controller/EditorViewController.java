@@ -819,6 +819,7 @@ public class EditorViewController {
                     updateTabLabel(state.tab, state);
                     refreshTitleAndStatus();
                     if (statusFileInfo != null) statusFileInfo.setText(targetPath + "  (已保存)");
+                    ConnectionManager.getInstance().refreshFilesForSavedFile(state.sshConnectionId, targetPath);
 
                     CompletableFuture.supplyAsync(() -> {
                         SshService ssh2 = resolveSshService(state);

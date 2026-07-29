@@ -1372,6 +1372,38 @@ public class FilesViewController {
         refreshCurrentTreeItem(savedPath);
     }
 
+    public void refreshIfShowingSavedFileDirectory(String connId, String filePath) {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> refreshIfShowingSavedFileDirectory(connId, filePath));
+            return;
+        }
+        if (connId == null || filePath == null || filePath.isBlank()
+                || !connId.equals(activeConnId)
+                || !isSavedFileInCurrentDirectoryTree(filePath)) {
+            return;
+        }
+        refresh();
+    }
+
+    private boolean isSavedFileInCurrentDirectoryTree(String filePath) {
+        String normalizedCurrentDirectory = normalizeDirectory(currentDirectory);
+        String normalizedFilePath = normalizeDirectory(filePath);
+        return "/".equals(normalizedCurrentDirectory)
+                ? normalizedFilePath.startsWith("/")
+                : normalizedFilePath.startsWith(normalizedCurrentDirectory + "/");
+    }
+
+    private String normalizeDirectory(String directory) {
+        if (directory == null || directory.isBlank()) {
+            return "/";
+        }
+        int end = directory.length();
+        while (end > 1 && directory.charAt(end - 1) == '/') {
+            end--;
+        }
+        return directory.substring(0, end);
+    }
+
     private void refreshCurrentTreeItem(String savedPath) {
         TreeItem<String> currentItem = findTreeItemByPath(savedPath);
         if (currentItem == null) {

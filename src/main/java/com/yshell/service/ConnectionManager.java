@@ -467,6 +467,12 @@ public class ConnectionManager {
         }
     }
 
+    public void refreshFilesForSavedFile(String connId, String filePath) {
+        if (filesViewController != null) {
+            filesViewController.refreshIfShowingSavedFileDirectory(connId, filePath);
+        }
+    }
+
     public LeftPanelController getLeftPanelController() {
         return leftPanelController;
     }
