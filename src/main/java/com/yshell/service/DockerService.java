@@ -39,9 +39,9 @@ public class DockerService {
         SshService.CommandResult infoResult = run(sshService, "docker info --format '{{json .}}'");
         JsonNode infoNode = parseJson(infoResult.stdout());
 
-        List<DockerContainer> containers = parseContainers(run(sshService, "docker ps -a --no-trunc --format '{{json .}}'").stdout());
+        List<DockerContainer> containers = parseContainers(run(sshService, "docker container ls --all --no-trunc --format '{{json .}}'").stdout());
         Set<String> usedImageIds = loadUsedImageIds(sshService);
-        List<DockerImage> images = parseImages(run(sshService, "docker images --no-trunc --format '{{json .}}'").stdout(), usedImageIds);
+        List<DockerImage> images = parseImages(run(sshService, "docker image ls --all --no-trunc --format '{{json .}}'").stdout(), usedImageIds);
         List<DockerNetwork> networks = parseNetworks(run(sshService, "docker network ls --no-trunc --format '{{json .}}'").stdout());
         Set<String> usedVolumes = loadUsedVolumeNames(sshService);
         List<DockerVolume> volumes = parseVolumes(run(sshService, "docker volume ls --format '{{json .}}'").stdout(), sshService, usedVolumes);
@@ -77,10 +77,6 @@ public class DockerService {
     public SshService.CommandResult containerRun(SshService sshService, String image, String options) {
         String cleanOptions = options == null || options.isBlank() ? "" : options.trim() + " ";
         return run(sshService, "docker run -d " + cleanOptions + shellQuote(image));
-    }
-
-    public SshService.CommandResult containerLogs(SshService sshService, String id) {
-        return run(sshService, "docker logs --tail 300 " + shellQuote(id));
     }
 
     public SshService.RemoteCommandHandle followContainerLogs(SshService sshService,
@@ -143,10 +139,6 @@ public class DockerService {
         return run(sshService, "docker pull " + shellQuote(image));
     }
 
-    public SshService.CommandResult imagePush(SshService sshService, String image) {
-        return run(sshService, "docker push " + shellQuote(image));
-    }
-
     public SshService.CommandResult imageLogin(SshService sshService, String registry, String username, String password) {
         return run(sshService, "printf %s " + shellQuote(password)
                 + " | docker login " + shellQuote(registry)
@@ -181,6 +173,10 @@ public class DockerService {
 
     public SshService.CommandResult imageLoad(SshService sshService, String path) {
         return run(sshService, "docker load -i " + shellQuote(path));
+    }
+
+    public SshService.CommandResult imageImport(SshService sshService, String path, String image) {
+        return run(sshService, "docker import " + shellQuote(path) + " " + shellQuote(image));
     }
 
     public SshService.CommandResult imagePrune(SshService sshService, boolean all) {

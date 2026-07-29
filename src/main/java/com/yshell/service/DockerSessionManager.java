@@ -159,6 +159,13 @@ public class DockerSessionManager {
                 "Load Docker image failed");
     }
 
+    public CompletableFuture<SshService.CommandResult> imageImport(String connId, ConnInfo connInfo,
+                                                                    String path, String image) {
+        return runDockerCommand(connId, connInfo,
+                session -> dockerService.imageImport(session, path, image),
+                "Import Docker image failed");
+    }
+
     public CompletableFuture<SshService.CommandResult> imagePrune(String connId, ConnInfo connInfo, boolean all) {
         return runDockerCommand(connId, connInfo,
                 session -> dockerService.imagePrune(session, all),

@@ -1431,14 +1431,157 @@ public class DockerViewController {
         if (context == null) {
             return;
         }
-        String path = showRequiredTextDialog("加载本地镜像", "宿主机镜像文件路径", "/tmp/image.tar",
-                "宿主机镜像文件路径不能为空");
-        if (path == null) {
+        ImageLoadRequest request = showImageLoadDialog();
+        if (request == null) {
             return;
         }
         setStatus("正在加载本地镜像...");
-        sessionManager.imageLoad(context.connId(), context.connInfo(), path).thenAccept(result ->
-                Platform.runLater(() -> handleMutationResult("加载本地镜像", result)));
+        sessionManager.imageLoad(context.connId(), context.connInfo(), request.path()).thenAccept(loadResult ->
+                Platform.runLater(() -> {
+                    if (loadResult.isSuccess()) {
+                        if (loadRestoredImageTags(loadResult)) {
+                            handleMutationResult("加载本地镜像", loadResult);
+                            return;
+                        }
+                        if (request.hasImportTarget()) {
+                            String source = loadedImageReference(loadResult);
+                            if (source.isBlank()) {
+                                setStatus("本地镜像已加载，未能打标签");
+                                refreshForCurrentConnection(false);
+                                DialogHelper.showWarning("加载本地镜像",
+                                        "镜像已成功加载，但无法从 docker load 输出中识别镜像 ID。\n"
+                                                + "请手动执行 docker image ls -a 后为镜像打标签：" + request.importTarget());
+                                return;
+                            }
+                            setStatus("正在为加载的镜像打标签...");
+                            sessionManager.imageTag(context.connId(), context.connInfo(), source, request.importTarget())
+                                    .thenAccept(tagResult -> Platform.runLater(() -> {
+                                        if (tagResult.isSuccess()) {
+                                            handleMutationResult("加载并标记本地镜像", tagResult);
+                                            return;
+                                        }
+                                        setStatus("本地镜像已加载，但打标签失败");
+                                        refreshForCurrentConnection(false);
+                                        DialogHelper.showError("加载本地镜像",
+                                                "镜像已成功加载，但未能标记为 " + request.importTarget() + "：\n"
+                                                        + commandMessage(tagResult));
+                                    }));
+                            return;
+                        }
+                        setStatus("本地镜像已加载，但没有名称和标签");
+                        refreshForCurrentConnection(false);
+                        DialogHelper.showWarning("加载本地镜像",
+                                "镜像已成功加载，但归档没有恢复名称和标签。\n"
+                                        + "请重新加载并填写备用镜像名称和标签，或手动执行 docker tag。");
+                        return;
+                    }
+                    if (!request.hasImportTarget()) {
+                        setStatus("加载本地镜像失败");
+                        DialogHelper.showError("加载本地镜像", commandMessage(loadResult)
+                                + "\n\n该文件可能不包含 Docker 镜像元数据。请填写镜像名称和标签后重试，以便使用 docker import 导入。");
+                        return;
+                    }
+                    setStatus("镜像包缺少元数据，正在导入...");
+                    sessionManager.imageImport(context.connId(), context.connInfo(), request.path(), request.importTarget())
+                            .thenAccept(importResult -> Platform.runLater(() -> {
+                                if (importResult.isSuccess()) {
+                                    handleMutationResult("导入本地镜像", importResult);
+                                    return;
+                                }
+                                setStatus("加载本地镜像失败");
+                                DialogHelper.showError("加载本地镜像",
+                                        "docker load 失败：\n" + commandMessage(loadResult)
+                                                + "\n\ndocker import 失败：\n" + commandMessage(importResult));
+                            }));
+                }));
+    }
+
+    private ImageLoadRequest showImageLoadDialog() {
+        TextField pathField = new TextField("/tmp/image.tar");
+        TextField repositoryField = new TextField();
+        TextField tagField = new TextField("latest");
+        pathField.setPromptText("/tmp/image.tar");
+        repositoryField.setPromptText("example/app");
+        tagField.setPromptText("latest");
+
+        Label description = new Label("""
+                标准 docker save 镜像包会自动恢复原有名称和标签。
+                仅当加载成功但归档未恢复名称和标签时，才会使用下方备用名称和标签补打标签；
+                若第三方 tar 包无法通过 docker load 加载，则会使用它们通过 docker import 导入。""");
+        description.setWrapText(true);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.addRow(0, new Label("宿主机文件路径"), pathField);
+        grid.addRow(1, new Label("镜像名称（备用）"), repositoryField);
+        grid.addRow(2, new Label("标签（备用）"), tagField);
+
+        ColumnConstraints labelColumn = new ColumnConstraints();
+        labelColumn.setMinWidth(120);
+        labelColumn.setPrefWidth(120);
+        ColumnConstraints fieldColumn = new ColumnConstraints();
+        fieldColumn.setHgrow(Priority.ALWAYS);
+        grid.getColumnConstraints().addAll(labelColumn, fieldColumn);
+        pathField.setMaxWidth(Double.MAX_VALUE);
+        repositoryField.setMaxWidth(Double.MAX_VALUE);
+        tagField.setMaxWidth(Double.MAX_VALUE);
+
+        VBox content = new VBox(10, description, grid);
+        content.setPadding(new Insets(16, 18, 8, 18));
+        boolean ok = DialogHelper.showCustomDialog("加载本地镜像", content,
+                        button -> button != null && button.getButtonData() == ButtonBar.ButtonData.OK_DONE ? Boolean.TRUE : null)
+                .isPresent();
+        if (!ok) {
+            return null;
+        }
+
+        String path = trimToEmpty(pathField.getText());
+        String repository = trimToEmpty(repositoryField.getText());
+        String tag = trimToEmpty(tagField.getText());
+        if (path.isBlank()) {
+            DialogHelper.showWarning("加载本地镜像", "宿主机镜像文件路径不能为空");
+            return null;
+        }
+        if (!repository.isBlank() && tag.isBlank()) {
+            DialogHelper.showWarning("加载本地镜像", "填写镜像名称时必须同时填写标签");
+            return null;
+        }
+        return new ImageLoadRequest(path, repository, tag);
+    }
+
+    private String loadedImageReference(SshService.CommandResult result) {
+        String output = dockerLoadOutput(result);
+        if (output.isBlank()) {
+            return "";
+        }
+        String source = "";
+        for (String line : output.split("\\R")) {
+            String value = line.trim();
+            if (value.startsWith("Loaded image: ")) {
+                source = trimToEmpty(value.substring("Loaded image: ".length()));
+            } else if (value.startsWith("Loaded image ID: ")) {
+                source = trimToEmpty(value.substring("Loaded image ID: ".length()));
+            }
+        }
+        return source;
+    }
+
+    private boolean loadRestoredImageTags(SshService.CommandResult result) {
+        for (String line : dockerLoadOutput(result).split("\\R")) {
+            String value = line.trim();
+            if (value.startsWith("Loaded image: ")
+                    && !trimToEmpty(value.substring("Loaded image: ".length())).isBlank()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String dockerLoadOutput(SshService.CommandResult result) {
+        String stdout = result.stdout() == null ? "" : result.stdout();
+        String stderr = result.stderr() == null ? "" : result.stderr();
+        return stdout + "\n" + stderr;
     }
 
     private void removeImages() {
@@ -1591,7 +1734,8 @@ public class DockerViewController {
             return;
         }
         setStatus("正在导出镜像...");
-        sessionManager.imageSave(context.connId(), context.connInfo(), imageIdentifier(row), path).thenAccept(result ->
+        String source = hasRepositoryName(row) ? imageReference(row) : imageIdentifier(row);
+        sessionManager.imageSave(context.connId(), context.connInfo(), source, path).thenAccept(result ->
                 Platform.runLater(() -> handleMutationResult("导出镜像", result)));
     }
 
@@ -2517,6 +2661,16 @@ public class DockerViewController {
     }
 
     private record ImageBatchItem(String label, String source, String target) {
+    }
+
+    private record ImageLoadRequest(String path, String repository, String tag) {
+        private boolean hasImportTarget() {
+            return repository != null && !repository.isBlank() && tag != null && !tag.isBlank();
+        }
+
+        private String importTarget() {
+            return repository + ":" + tag;
+        }
     }
 
     private record PushImageRequest(AppConfig.DockerRegistry registry, String namespace, String image, String tag) {
