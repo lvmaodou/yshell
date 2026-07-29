@@ -74,9 +74,10 @@ public class DockerService {
         return run(sshService, "docker run -d " + shellQuote(image));
     }
 
-    public SshService.CommandResult containerRun(SshService sshService, String image, String options) {
+    public SshService.CommandResult containerRun(SshService sshService, String image, String options, String command) {
         String cleanOptions = options == null || options.isBlank() ? "" : options.trim() + " ";
-        return run(sshService, "docker run -d " + cleanOptions + shellQuote(image));
+        String cleanCommand = command == null || command.isBlank() ? "" : " " + command.trim();
+        return run(sshService, "docker run -d " + cleanOptions + shellQuote(image) + cleanCommand);
     }
 
     public SshService.RemoteCommandHandle followContainerLogs(SshService sshService,

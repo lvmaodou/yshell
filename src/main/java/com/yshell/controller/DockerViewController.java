@@ -853,7 +853,7 @@ public class DockerViewController {
             return;
         }
         setStatus("正在创建容器...");
-        sessionManager.containerRun(context.connId(), context.connInfo(), request.image(), request.options()).thenAccept(result ->
+        sessionManager.containerRun(context.connId(), context.connInfo(), request.image(), request.options(), request.command()).thenAccept(result ->
                 Platform.runLater(() -> handleContainerRunResult("自定义运行", result)));
     }
 
@@ -879,6 +879,8 @@ public class DockerViewController {
         ));
         restartCombo.getSelectionModel().selectFirst();
         TextArea advancedArea = runOptionTextArea("原样追加，例如：\n--network host --privileged");
+        TextField commandField = new TextField();
+        commandField.setPromptText("镜像启动命令，例如：sleep 3600");
         TextArea previewArea = new TextArea();
         previewArea.setEditable(false);
         previewArea.setWrapText(false);
@@ -896,7 +898,8 @@ public class DockerViewController {
         grid.addRow(4, new Label("环境变量"), envArea);
         grid.addRow(5, new Label("重启策略"), restartCombo);
         grid.addRow(6, new Label("高级参数"), advancedArea);
-        grid.addRow(7, new Label("命令预览"), previewArea);
+        grid.addRow(7, new Label("启动命令"), commandField);
+        grid.addRow(8, new Label("命令预览"), previewArea);
 
         ColumnConstraints labelColumn = new ColumnConstraints();
         labelColumn.setMinWidth(86);
@@ -904,7 +907,7 @@ public class DockerViewController {
         ColumnConstraints fieldColumn = new ColumnConstraints();
         fieldColumn.setHgrow(Priority.ALWAYS);
         grid.getColumnConstraints().addAll(labelColumn, fieldColumn);
-        for (Node node : List.of(imageField, nameField, portsArea, volumesArea, envArea, restartCombo, advancedArea, previewArea)) {
+        for (Node node : List.of(imageField, nameField, portsArea, volumesArea, envArea, restartCombo, advancedArea, commandField, previewArea)) {
             if (node instanceof Region region) {
                 region.setMaxWidth(Double.MAX_VALUE);
             }
@@ -919,7 +922,8 @@ public class DockerViewController {
                         envArea.getText(),
                         restartCombo.getValue(),
                         advancedArea.getText()
-                )
+                ),
+                commandField.getText()
         ));
         imageField.textProperty().addListener((obs, old, value) -> updatePreview.run());
         nameField.textProperty().addListener((obs, old, value) -> updatePreview.run());
@@ -928,6 +932,7 @@ public class DockerViewController {
         envArea.textProperty().addListener((obs, old, value) -> updatePreview.run());
         restartCombo.valueProperty().addListener((obs, old, value) -> updatePreview.run());
         advancedArea.textProperty().addListener((obs, old, value) -> updatePreview.run());
+        commandField.textProperty().addListener((obs, old, value) -> updatePreview.run());
         updatePreview.run();
 
         boolean ok = DialogHelper.showCustomDialog("自定义运行", grid,
@@ -949,7 +954,7 @@ public class DockerViewController {
                 restartCombo.getValue(),
                 advancedArea.getText()
         );
-        return new ContainerRunRequest(image, options);
+        return new ContainerRunRequest(image, options, trimToEmpty(commandField.getText()));
     }
 
     private TextArea runOptionTextArea(String prompt) {
@@ -960,12 +965,14 @@ public class DockerViewController {
         return area;
     }
 
-    private String containerRunCommandPreview(String image, String options) {
+    private String containerRunCommandPreview(String image, String options, String command) {
         String cleanImage = trimToEmpty(image);
         String cleanOptions = trimToEmpty(options);
+        String cleanCommand = trimToEmpty(command);
         return "docker run -d "
                 + (cleanOptions.isBlank() ? "" : cleanOptions + " ")
-                + shellArg(cleanImage.isBlank() ? "<image>" : cleanImage);
+                + shellArg(cleanImage.isBlank() ? "<image>" : cleanImage)
+                + (cleanCommand.isBlank() ? "" : " " + cleanCommand);
     }
 
     private String buildContainerRunOptions(String name,
@@ -2654,7 +2661,7 @@ public class DockerViewController {
     private record DockerConnectionContext(String connId, ConnInfo connInfo) {
     }
 
-    private record ContainerRunRequest(String image, String options) {
+    private record ContainerRunRequest(String image, String options, String command) {
     }
 
     private record CopyContainerFileRequest(String containerPath, String hostPath) {

@@ -98,9 +98,10 @@ public class DockerSessionManager {
                 "Run Docker container failed");
     }
 
-    public CompletableFuture<SshService.CommandResult> containerRun(String connId, ConnInfo connInfo, String image, String options) {
+    public CompletableFuture<SshService.CommandResult> containerRun(String connId, ConnInfo connInfo,
+                                                                    String image, String options, String command) {
         return runDockerCommand(connId, connInfo,
-                session -> dockerService.containerRun(session, image, options),
+                session -> dockerService.containerRun(session, image, options, command),
                 "Run Docker container failed");
     }
 
@@ -160,7 +161,7 @@ public class DockerSessionManager {
     }
 
     public CompletableFuture<SshService.CommandResult> imageImport(String connId, ConnInfo connInfo,
-                                                                    String path, String image) {
+                                                                   String path, String image) {
         return runDockerCommand(connId, connInfo,
                 session -> dockerService.imageImport(session, path, image),
                 "Import Docker image failed");
