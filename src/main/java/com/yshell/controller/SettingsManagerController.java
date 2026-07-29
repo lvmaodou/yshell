@@ -549,6 +549,7 @@ public class SettingsManagerController {
         TextField usernameField = new TextField(source == null ? "" : source.username);
         PasswordField passwordField = new PasswordField();
         passwordField.setText(source == null ? "" : source.password);
+        addressField.setPromptText("registry.example.com[:端口]/项目");
 
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -558,10 +559,17 @@ public class SettingsManagerController {
         grid.addRow(1, new Label("地址"), addressField);
         grid.addRow(2, new Label("用户名"), usernameField);
         grid.addRow(3, new Label("密码"), passwordField);
+        Label httpHint = new Label("""
+                提示：若仓库仅支持 HTTP，请在目标Docker的 daemon.json 中
+                配置 insecure-registries填写主机[:端口]不要填写协议或项目
+                路径，然后重启 Docker。""");
+        httpHint.setWrapText(true);
+        grid.add(httpHint, 0, 4, 2, 1);
         GridPane.setFillWidth(nameField, true);
         GridPane.setFillWidth(addressField, true);
         GridPane.setFillWidth(usernameField, true);
         GridPane.setFillWidth(passwordField, true);
+        GridPane.setFillWidth(httpHint, true);
         grid.getColumnConstraints().addAll(createLabelColumn(), createFieldColumn());
 
         boolean ok = DialogHelper.showCustomDialog(source == null ? "新增仓库" : "编辑仓库", grid,

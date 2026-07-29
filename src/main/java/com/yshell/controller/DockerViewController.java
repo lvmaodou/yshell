@@ -1623,7 +1623,7 @@ public class DockerViewController {
                     Platform.runLater(() -> {
                         if (!result.isSuccess()) {
                             setStatus("登录镜像仓库失败");
-                            DialogHelper.showError("推送镜像", commandMessage(result));
+                            DialogHelper.showError("推送镜像", registryLoginFailureMessage(loginRegistry, result));
                             return;
                         }
                         runSingleImageCommand(item,
@@ -2481,6 +2481,18 @@ public class DockerViewController {
         String base = normalizeRegistryTargetBase(address);
         int slash = base.indexOf('/');
         return slash >= 0 ? base.substring(0, slash) : base;
+    }
+
+    private String registryLoginFailureMessage(String registry, SshService.CommandResult result) {
+        String message = commandMessage(result);
+        String lower = message.toLowerCase(Locale.ROOT);
+        if (lower.contains("https://") && (lower.contains("connection refused")
+                || lower.contains("server gave http response"))) {
+            return message + "\n\n若仓库仅支持 HTTP，请在目标 Docker 的 daemon.json 中配置：\n"
+                    + "\"insecure-registries\": [\"" + registry + "\"]\n"
+                    + "然后重启 Docker。";
+        }
+        return message;
     }
 
     private String normalizeRegistryTargetBase(String value) {
