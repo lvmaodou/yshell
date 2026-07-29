@@ -21,12 +21,15 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
+import java.awt.Desktop;
 import java.io.File;
+import java.net.URI;
 import java.net.URL;
 import java.util.Objects;
 import java.util.ResourceBundle;
 
 public class UpdateDialogController implements Initializable {
+    private static final String CHANGELOG_URL = "https://github.com/lvmaodou/yshell/commits/master";
 
     @FXML
     private BorderPane root;
@@ -225,6 +228,15 @@ public class UpdateDialogController implements Initializable {
 
     @FXML
     private void onChangelog() {
+        try {
+            if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                DialogHelper.showWarning("打开失败", "当前系统不支持自动打开浏览器，请手动访问：\n" + CHANGELOG_URL);
+                return;
+            }
+            Desktop.getDesktop().browse(URI.create(CHANGELOG_URL));
+        } catch (Exception e) {
+            DialogHelper.showError("打开失败", "无法打开链接：\n" + CHANGELOG_URL + "\n\n" + e.getMessage());
+        }
     }
 
     @FXML
