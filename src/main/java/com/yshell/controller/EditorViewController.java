@@ -243,8 +243,20 @@ public class EditorViewController {
             }
             if (activeController != null) {
                 activeController.openInTab(filePath, sshConnectionId);
+                bringEditorWindowToFront();
             }
         });
+    }
+
+    private static void bringEditorWindowToFront() {
+        if (activeStage == null || !activeStage.isShowing()) {
+            return;
+        }
+        if (activeStage.isIconified()) {
+            activeStage.setIconified(false);
+        }
+        activeStage.toFront();
+        activeStage.requestFocus();
     }
 
     public static void setGlobalFontSize(int fontSize) {
