@@ -584,7 +584,7 @@ public class DockerViewController {
             case VOLUMES -> List.of(
                     new Operation("创建", "fas-plus", false),
                     new Operation("删除", "fas-trash", true),
-                    new Operation("清理无用卷", "fas-broom", false)
+                    new Operation("清理无用匿名卷", "fas-broom", false)
             );
             case CONFIG -> List.of(
                     new Operation("编辑配置", "fas-file-code", false),
@@ -1253,7 +1253,7 @@ public class DockerViewController {
         switch (operation) {
             case "创建" -> createVolume();
             case "删除" -> removeVolumes();
-            case "清理无用卷" -> pruneVolumes();
+            case "清理无用匿名卷" -> pruneVolumes();
             default -> DialogHelper.showInfo(operation, "功能待实现");
         }
     }
@@ -1342,16 +1342,16 @@ public class DockerViewController {
     }
 
     private void pruneVolumes() {
-        DockerConnectionContext context = requireDockerConnection("清理无用卷");
+        DockerConnectionContext context = requireDockerConnection("清理无用匿名卷");
         if (context == null) {
             return;
         }
-        if (!DialogHelper.showConfirm("清理无用卷", "确定要清理所有未被容器使用的卷吗？该操作可能删除持久化数据。")) {
+        if (!DialogHelper.showConfirm("清理无用匿名卷", "确定要清理所有未被容器使用的匿名卷吗？该操作可能删除持久化数据。")) {
             return;
         }
-        setStatus("正在清理无用卷...");
+        setStatus("正在清理无用匿名卷...");
         sessionManager.volumePrune(context.connId(), context.connInfo())
-                .thenAccept(result -> Platform.runLater(() -> handleMutationResult("清理无用卷", result)));
+                .thenAccept(result -> Platform.runLater(() -> handleMutationResult("清理无用匿名卷", result)));
     }
 
     private void showVolumeCommandResult(String title, DockerRow row, CompletableFuture<SshService.CommandResult> future) {
