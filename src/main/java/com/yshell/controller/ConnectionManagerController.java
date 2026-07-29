@@ -395,6 +395,21 @@ public class ConnectionManagerController {
         return ids;
     }
 
+    private List<ConnInfo> collectChildConnections(String parentId) {
+        List<ConnInfo> connections = new ArrayList<>();
+        connectionData.stream()
+                .filter(node -> parentId.equals(node.getParentId()))
+                .sorted(Comparator.comparingInt(TreeNode::getOrder))
+                .forEach(node -> {
+                    if (node instanceof ConnInfo connInfo) {
+                        connections.add(connInfo);
+                    } else if (node.isFolder()) {
+                        connections.addAll(collectChildConnections(node.getId()));
+                    }
+                });
+        return connections;
+    }
+
     // ===== 文件夹操作 =====
 
     private void createNewFolder() {
@@ -571,10 +586,24 @@ public class ConnectionManagerController {
 
     // ===== 连接 & 搜索 =====
     private void connectToConnection(TreeNode node) {
-        if (!(node instanceof ConnInfo connInfo)) {
+        if (node instanceof ConnInfo connInfo) {
+            connectConnections(List.of(connInfo));
             return;
         }
-        ConnectionManager.getInstance().connect(connInfo);
+        if (node.isFolder()) {
+            connectConnections(collectChildConnections(node.getId()));
+        }
+    }
+
+    private void connectConnections(List<ConnInfo> connections) {
+        if (connections.isEmpty()) {
+            return;
+        }
+        ConnectionManager connectionManager = ConnectionManager.getInstance();
+        for (int index = 0; index < connections.size(); index++) {
+            boolean isCurrent = index == connections.size() - 1;
+            connectionManager.connect(connections.get(index), null, isCurrent);
+        }
         if (closeAfterConnect.isSelected()) {
             closeDialog();
         }
