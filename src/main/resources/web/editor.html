@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="utf-8">
 <head>
     <meta charset="UTF-8"/>
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
@@ -203,14 +203,14 @@
         // ==================== 兼容补丁（JavaFX 旧版 WebKit） ====================
         if (typeof window.ResizeObserver === 'undefined') {
             window.ResizeObserver = function (callback) {
-                var observers = [];
-                var timer = null;
+                let observers = [];
+                let timer = null;
 
                 function check() {
-                    var changed = [];
-                    for (var i = 0; i < observers.length; i++) {
-                        var o = observers[i];
-                        var w = o.el.offsetWidth, h = o.el.offsetHeight;
+                    const changed = [];
+                    for (let i = 0; i < observers.length; i++) {
+                        const o = observers[i];
+                        const w = o.el.offsetWidth, h = o.el.offsetHeight;
                         if (w !== o.w || h !== o.h) {
                             changed.push({
                                 target: o.el,
@@ -234,7 +234,7 @@
                     if (!timer) timer = setTimeout(check, 250);
                 };
                 this.unobserve = function (el) {
-                    for (var i = observers.length - 1; i >= 0; i--)
+                    for (let i = observers.length - 1; i >= 0; i--)
                         if (observers[i].el === el) observers.splice(i, 1);
                     if (!observers.length && timer) {
                         clearTimeout(timer);
@@ -259,9 +259,9 @@
 
         // ============ 日志：写到浮层面板 + 回传到 Java 侧的 editorBridge.onLog ============
         (function () {
-            var panel, body, toggle;
-            var MAX_LINES = 300;
-            var lineCount = 0;
+            let panel, body, toggle;
+            const MAX_LINES = 300;
+            let lineCount = 0;
 
             function ensure() {
                 if (!body) body = document.getElementById('log-body');
@@ -288,9 +288,9 @@
                 ensure();
                 // 1) 浮层面板
                 if (body) {
-                    var div = document.createElement('div');
+                    const div = document.createElement('div');
                     div.className = 'l-' + level;
-                    var t = new Date().toTimeString().slice(0, 8);
+                    const t = new Date().toTimeString().slice(0, 8);
                     div.textContent = '[' + t + '] [' + level + '] ' + text;
                     body.appendChild(div);
                     lineCount++;
@@ -313,17 +313,17 @@
             }
 
             // 简易 make-logger：覆盖 console.*，让所有 JS 日志都能被看到
-            var origLog = window.console ? console.log : null;
-            var origInfo = window.console ? console.info : null;
-            var origWarn = window.console ? console.warn : null;
-            var origErr = window.console ? console.error : null;
-            var origDebug = window.console ? (console.debug || console.log) : null;
+            const origLog = window.console ? console.log : null;
+            const origInfo = window.console ? console.info : null;
+            const origWarn = window.console ? console.warn : null;
+            const origErr = window.console ? console.error : null;
+            const origDebug = window.console ? (console.debug || console.log) : null;
 
             function joinArgs(args) {
                 try {
-                    var parts = [];
-                    for (var i = 0; i < args.length; i++) {
-                        var a = args[i];
+                    const parts = [];
+                    for (let i = 0; i < args.length; i++) {
+                        const a = args[i];
                         if (a == null) {
                             parts.push(String(a));
                             continue;
@@ -376,9 +376,9 @@
                             togglePanel();
                         }
                     });
-                    var tg = document.getElementById('log-toggle');
-                    var closeBtn = document.getElementById('log-close');
-                    var clearBtn = document.getElementById('log-clear');
+                    const tg = document.getElementById('log-toggle');
+                    const closeBtn = document.getElementById('log-close');
+                    const clearBtn = document.getElementById('log-clear');
                     if (tg) tg.addEventListener('click', togglePanel);
                     if (closeBtn) closeBtn.addEventListener('click', function () {
                         togglePanel();
@@ -403,8 +403,8 @@
         //       typeof window.editorBridge.onCursorChange 仍可能是 'function'，但调用后 Java 端
         //       实际上什么都收不到。这里通过"先探测 + 失败就请求重新注入"的方式来恢复。
         (function () {
-            var reinjectPending = false;
-            var retryTimer = null;
+            let reinjectPending = false;
+            let retryTimer = null;
 
             function isBridgeUsable(b) {
                 return !!b
@@ -422,7 +422,7 @@
              */
             window.tryBridgeCall = function (methodName, args) {
                 try {
-                    var b = window.editorBridge;
+                    const b = window.editorBridge;
                     if (!isBridgeUsable(b)) return false;
                     if (typeof b[methodName] !== 'function') return false;
                     b[methodName].apply(b, args || []);
@@ -445,7 +445,7 @@
                 if (reinjectPending) return;
                 reinjectPending = true;
                 try {
-                    var ping = window.editorBridgePing;
+                    const ping = window.editorBridgePing;
                     if (ping && typeof ping.requestReinject === 'function') {
                         try {
                             ping.requestReinject();
@@ -465,20 +465,20 @@
                 if (!retryTimer) {
                     retryTimer = setTimeout(function () {
                         retryTimer = null;
-                        var b = window.editorBridge;
+                        const b = window.editorBridge;
                         if (!isBridgeUsable(b)) {
                             // 还是不可用，再请求一次 reinject（Java 端也有节流，所以这里不怕重复）
                             try {
-                                var ping2 = window.editorBridgePing;
+                                const ping2 = window.editorBridgePing;
                                 if (ping2 && typeof ping2.requestReinject === 'function') ping2.requestReinject();
                             } catch (_) {
                             }
                             return;
                         }
                         // 把期间缓存的 cursor 事件重新发给 Java（只取最近一条，其余丢弃以避免风暴）。
-                        var q = window.__cursorRetryQueue || [];
+                        const q = window.__cursorRetryQueue || [];
                         if (q.length) {
-                            var last = q[q.length - 1];
+                            const last = q[q.length - 1];
                             window.__cursorRetryQueue = [];
                             try {
                                 b.onCursorChange(last.line, last.col);
@@ -491,13 +491,13 @@
         })();
 
         function showError(msg, detail) {
-            var loading = document.getElementById('loading');
+            const loading = document.getElementById('loading');
             if (loading) loading.style.display = 'none';
-            var box = document.getElementById('error-box');
+            const box = document.getElementById('error-box');
             if (box) box.style.display = 'block';
-            var m = document.getElementById('error-msg');
+            const m = document.getElementById('error-msg');
             if (m) m.textContent = msg || '未知错误';
-            var d = document.getElementById('error-detail');
+            const d = document.getElementById('error-detail');
             if (d) d.textContent = detail || '';
         }
 
@@ -525,9 +525,9 @@
         };
 
         // ==================== 加载 Monaco 主模块并创建编辑器 ====================
-        require(['vs/editor/editor.main'], function () {
+        require(['vs/editor/editor.main'], function (index) {
             try {
-                var loadingEl = document.getElementById('loading');
+                const loadingEl = document.getElementById('loading');
                 if (loadingEl) loadingEl.style.display = 'none';
 
                 // ====== 自定义暗色主题（查找高亮：匹配=亮黄，当前匹配=亮红） ======
@@ -547,7 +547,7 @@
                     }
                 });
 
-                var editor = monaco.editor.create(document.getElementById('container'), {
+                const editor = monaco.editor.create(document.getElementById('container'), {
                     value: '',
                     language: 'plaintext',
                     theme: 'yshell-dark',
@@ -570,7 +570,7 @@
 
                 // ======= 剪贴板防重复：当 Java 端已经通过 insertText 写入内容时，
                 // 拦截随之而来的浏览器 paste 事件，避免"xx 粘贴为 xxxx"。=======
-                var domContainer = document.getElementById('container');
+                const domContainer = document.getElementById('container');
                 if (domContainer) {
                     domContainer.addEventListener('paste', function (ev) {
                         if (window.__suppressNextPaste) {
@@ -595,11 +595,11 @@
                 // JS 端函数会以普通多参数形式接收，不需要特殊处理数组。
                 window.editorAPI = {
                     setContent: function (content, language) {
-                        var s = (content != null) ? String(content) : '';
+                        const s = (content != null) ? String(content) : '';
                         editor.setValue(s);
                         // 把刚写入的内容作为"基线"。后续 undo/redo 回到这个内容时
                         // 会主动通知 Java 端 dirty=false。
-                        window.__editorBaselineValue = editor.getValue();
+                        window.__editorBaselineValue = editor.getValue(index);
                         if (language) {
                             try {
                                 monaco.editor.setModelLanguage(editor.getModel(), String(language));
@@ -612,9 +612,9 @@
                      * 保存成功后调用：把当前内容重新作为基线，后续 undo 回到这一内容
                      * 会被视为"未修改"，消除 dirty 标记。
                      */
-                    markAsSaved: function () {
+                    markAsSaved: function (index) {
                         try {
-                            window.__editorBaselineValue = editor.getValue();
+                            window.__editorBaselineValue = editor.getValue(index);
                         } catch (e) {
                         }
                     },
@@ -625,7 +625,7 @@
                      */
                     getSelection: function () {
                         try {
-                            var txt = editor.getModel().getValueInRange(editor.getSelection());
+                            const txt = editor.getModel().getValueInRange(editor.getSelection());
                             return (txt == null) ? '' : String(txt);
                         } catch (e) {
                             return '';
@@ -635,7 +635,7 @@
                      * 返回当前编辑器中的"全部内容"。主要用于 Ctrl+A 之后的全选复制备选路径。
                      */
                     getContent: function () {
-                        return editor.getValue();
+                        return editor.getValue(index);
                     },
                     /**
                      * 把传入的文本插入（替换）到当前选区位置；若无选区就插入到光标处。
@@ -650,13 +650,15 @@
                         if (text == null) return;
                         try {
                             window.__suppressNextPaste = true;
-                            setTimeout(function () { window.__suppressNextPaste = false; }, 500);
+                            setTimeout(function () {
+                                window.__suppressNextPaste = false;
+                            }, 500);
 
                             editor.focus();
-                            var selection = editor.getSelection();
+                            const selection = editor.getSelection();
                             if (!selection) return;
-                            var lines = String(text).split('\n');
-                            var ops = [{
+                            const lines = String(text).split('\n');
+                            const ops = [{
                                 range: new monaco.Range(
                                     selection.startLineNumber, selection.startColumn,
                                     selection.endLineNumber, selection.endColumn
@@ -665,18 +667,18 @@
                                 forceMoveMarkers: true
                             }];
                             editor.executeEdits('java', ops);
-                            var lastLineLen = lines[lines.length - 1].length;
-                            var newLine = selection.startLineNumber + (lines.length - 1);
-                            var newCol = lines.length === 1
+                            const lastLineLen = lines[lines.length - 1].length;
+                            const newLine = selection.startLineNumber + (lines.length - 1);
+                            const newCol = lines.length === 1
                                 ? selection.startColumn + lastLineLen
                                 : lastLineLen + 1;
-                            var newPos = { lineNumber: newLine, column: newCol };
+                            const newPos = {lineNumber: newLine, column: newCol};
                             editor.setPosition(newPos);
                             editor.revealPosition(newPos);
                         } catch (e) {
                             try {
-                                var model = editor.getModel();
-                                var sel = editor.getSelection();
+                                const model = editor.getModel();
+                                const sel = editor.getSelection();
                                 if (!model || !sel) return;
                                 model.pushEditOperations(
                                     [sel],
@@ -687,7 +689,9 @@
                                         ),
                                         text: String(text)
                                     }],
-                                    function () { return null; }
+                                    function () {
+                                        return null;
+                                    }
                                 );
                             } catch (ex) {
                             }
@@ -698,7 +702,9 @@
                      * 若某一次 Java 端快捷键处理后发现焦点丢失，可调用它。
                      */
                     focusEditor: function () {
-                        try { editor.focus(); } catch (e) {
+                        try {
+                            editor.focus();
+                        } catch (e) {
                         }
                     },
                     setLanguage: function (language) {
@@ -729,7 +735,7 @@
                             } catch (e) {
                             }
                         } else {
-                            var obj = {};
+                            const obj = {};
                             obj[key] = (typeof value === 'undefined') ? true : value;
                             try {
                                 editor.updateOptions(obj);
@@ -738,7 +744,7 @@
                         }
                     },
                     getCursorPosition: function () {
-                        var pos = editor.getPosition();
+                        const pos = editor.getPosition();
                         if (!pos) return {lineNumber: 1, column: 1};
                         return {lineNumber: pos.lineNumber, column: pos.column};
                     },
@@ -750,16 +756,16 @@
                     },
 
                     isFindWidgetInputFocused: function () {
-                        var activeElement = document.activeElement;
-                        var tagName = activeElement && activeElement.tagName;
+                        const activeElement = document.activeElement;
+                        const tagName = activeElement && activeElement.tagName;
                         return !!((tagName === 'INPUT' || tagName === 'TEXTAREA')
                             && activeElement.closest
                             && activeElement.closest('.find-widget'));
                     },
 
                     getFindWidgetSelection: function () {
-                        var activeElement = document.activeElement;
-                        var tagName = activeElement && activeElement.tagName;
+                        const activeElement = document.activeElement;
+                        const tagName = activeElement && activeElement.tagName;
                         if ((tagName !== 'INPUT' && tagName !== 'TEXTAREA')
                             || !activeElement.closest
                             || !activeElement.closest('.find-widget')) {
@@ -772,24 +778,24 @@
                     },
 
                     replaceFindWidgetSelection: function (text) {
-                        var activeElement = document.activeElement;
-                        var tagName = activeElement && activeElement.tagName;
+                        const activeElement = document.activeElement;
+                        const tagName = activeElement && activeElement.tagName;
                         if ((tagName !== 'INPUT' && tagName !== 'TEXTAREA')
                             || !activeElement.closest
                             || !activeElement.closest('.find-widget')) {
                             return false;
                         }
 
-                        var value = activeElement.value || '';
-                        var start = activeElement.selectionStart || 0;
-                        var end = activeElement.selectionEnd || start;
-                        var replacement = (text == null) ? '' : String(text);
-                        var cursor = start + replacement.length;
+                        const value = activeElement.value || '';
+                        const start = activeElement.selectionStart || 0;
+                        const end = activeElement.selectionEnd || start;
+                        const replacement = (text == null) ? '' : String(text);
+                        const cursor = start + replacement.length;
 
                         activeElement.value = value.substring(0, start)
                             + replacement + value.substring(end);
                         activeElement.setSelectionRange(cursor, cursor);
-                        var inputEvent = document.createEvent('Event');
+                        const inputEvent = document.createEvent('Event');
                         inputEvent.initEvent('input', true, false);
                         activeElement.dispatchEvent(inputEvent);
                         return true;
@@ -797,7 +803,7 @@
 
                     // ===== 查找 / 替换 =====
                     find: function () {
-                        var action = editor.getAction('actions.find');
+                        const action = editor.getAction('actions.find');
                         if (action) {
                             action.run();
                         } else {
@@ -805,7 +811,7 @@
                         }
                     },
                     replace: function () {
-                        var action = editor.getAction('editor.action.startFindReplaceAction');
+                        const action = editor.getAction('editor.action.startFindReplaceAction');
                         if (action) {
                             action.run();
                         } else {
@@ -818,7 +824,7 @@
                         try {
                             // 让 editor 先拿焦点，保证 undo 堆栈处于可操作状态
                             editor.focus();
-                            var action = editor.getAction('editor.action.undo');
+                            const action = editor.getAction('editor.action.undo');
                             if (action) {
                                 action.run();
                                 return;
@@ -835,7 +841,7 @@
                     redo: function () {
                         try {
                             editor.focus();
-                            var action = editor.getAction('editor.action.redo');
+                            const action = editor.getAction('editor.action.redo');
                             if (action) {
                                 action.run();
                                 return;
@@ -850,10 +856,10 @@
                     },
 
                     // ===== 格式化：先走 Monaco 原生格式化；JSON 再用 JSON.stringify 兜底 =====
-                    format: function () {
+                    format: function (index) {
                         try {
                             // 1) Monaco 内置 document 格式化
-                            var action = editor.getAction('editor.action.formatDocument');
+                            const action = editor.getAction('editor.action.formatDocument');
                             if (action) {
                                 action.run();
                                 return;
@@ -861,12 +867,12 @@
                             editor.trigger('java', 'editor.action.formatDocument', null);
 
                             // 2) JSON 兜底：如果当前模型语言是 json 或者内容看起来像 JSON
-                            var model = editor.getModel();
-                            var lang = model ? model.getLanguageId() : '';
+                            const model = editor.getModel();
+                            const lang = model ? model.getLanguageId() : '';
                             if (lang === 'json') {
-                                var raw = editor.getValue();
+                                const raw = editor.getValue(index);
                                 try {
-                                    var obj = JSON.parse(raw);
+                                    const obj = JSON.parse(raw);
                                     editor.setValue(JSON.stringify(obj, null, 2));
                                 } catch (e) {
                                     alert('JSON 格式不合法，无法美化：' + e.message);
@@ -896,7 +902,7 @@
                     // ===== 主题切换 vs-dark / vs-light =====
                     setTheme: function (theme) {
                         try {
-                            var t = String(theme || 'vs-dark');
+                            let t = String(theme || 'vs-dark');
                             if (t === 'vs-dark') t = 'yshell-dark';
                             monaco.editor.setTheme(t);
                         } catch (e) {
@@ -909,12 +915,16 @@
                 // 当 undo/redo 或格式化把内容恰好回退到基线内容时，
                 // 主动通知 Java 端 dirty=false，避免 Tab 标题残留的 ●。
                 window.__editorBaselineValue = '';
-                editor.onDidChangeModelContent(function () {
-                    var current;
-                    try { current = editor.getValue(); } catch (ex) { current = null; }
+                editor.onDidChangeModelContent(function (index) {
+                    let current;
+                    try {
+                        current = editor.getValue(index);
+                    } catch (ex) {
+                        current = null;
+                    }
                     // 判断当前内容是否恰好等于基线内容（注意：基线是从 setContent 同步写入的真实字符串）。
                     // 这里用全等比较即可，因为 setContent 写的也是 String(content)。
-                    var atBaseline = (current != null) && (current === window.__editorBaselineValue);
+                    const atBaseline = (current != null) && (current === window.__editorBaselineValue);
                     if (atBaseline) {
                         // 内容回退到了基线：主动通知 Java 端把 dirty 清掉。
                         if (tryBridgeCall('onDirtyStateChange', [false])) {
@@ -946,12 +956,12 @@
                 showError('创建 editor 失败', e && e.message ? e.message : String(e));
             }
         }, function (err) {
-            var msg = err && err.message ? err.message : (typeof err === 'string' ? err : 'AMD require 失败');
+            const msg = err && err.message ? err.message : (typeof err === 'string' ? err : 'AMD require 失败');
             showError('Monaco 模块加载失败', msg);
         });
 
         function notifyJavaReady() {
-            var attempts = 0;
+            let attempts = 0;
 
             function tryNotify() {
                 if (tryBridgeCall('onReady', [])) {
@@ -959,7 +969,7 @@
                     // 每 5 秒探测一次 bridge 是否可用，发现不可用就请求重新注入。
                     if (!window.__editorBridgeHeartbeat) {
                         window.__editorBridgeHeartbeat = setInterval(function () {
-                            var b = window.editorBridge;
+                            const b = window.editorBridge;
                             if (!b || typeof b.onLog !== 'function') {
                                 console.warn('[editor] heartbeat: bridge lost, request reinject.');
                                 requestReinjectIfNeeded();
