@@ -197,6 +197,7 @@
 
 <!-- Monaco Editor AMD Loader（从本地 vs/ 加载） -->
 <script src="vs/loader.js"></script>
+<script src="vs/assets/yaml-tools.js"></script>
 
 <script>
     (function () {
@@ -530,6 +531,14 @@
                 const loadingEl = document.getElementById('loading');
                 if (loadingEl) loadingEl.style.display = 'none';
 
+                if (window.YshellYamlTools
+                    && typeof window.YshellYamlTools.validate === 'function'
+                    && typeof window.YshellYamlTools.format === 'function') {
+                    console.info('[editor] YAML validation and formatting enabled.');
+                } else {
+                    console.warn('[editor] YAML validation and formatting bundle is unavailable.');
+                }
+
                 // ====== 自定义暗色主题（查找高亮：匹配=亮黄，当前匹配=亮红） ======
                 monaco.editor.defineTheme('yshell-dark', {
                     base: 'vs-dark',
@@ -567,6 +576,36 @@
 
                 window.editor = editor;
                 window.monacoLoaded = true;
+
+                let yamlValidationTimer = null;
+
+                function applyYamlMarkers(model, markers) {
+                    monaco.editor.setModelMarkers(model, 'yshell-yaml', markers.map(function (marker) {
+                        return Object.assign({}, marker, {severity: monaco.MarkerSeverity.Error});
+                    }));
+                }
+
+                function validateYaml() {
+                    const model = editor.getModel();
+                    if (!model) return;
+                    if (model.getLanguageId() !== 'yaml') {
+                        monaco.editor.setModelMarkers(model, 'yshell-yaml', []);
+                        return;
+                    }
+
+                    const yamlTools = window.YshellYamlTools;
+                    if (!yamlTools || typeof yamlTools.validate !== 'function') return;
+                    try {
+                        applyYamlMarkers(model, yamlTools.validate(model.getValue()));
+                    } catch (error) {
+                        console.error('[editor] YAML validation failed:', error);
+                    }
+                }
+
+                function scheduleYamlValidation() {
+                    if (yamlValidationTimer) clearTimeout(yamlValidationTimer);
+                    yamlValidationTimer = setTimeout(validateYaml, 200);
+                }
 
                 // ======= 剪贴板防重复：当 Java 端已经通过 insertText 写入内容时，
                 // 拦截随之而来的浏览器 paste 事件，避免"xx 粘贴为 xxxx"。=======
@@ -606,6 +645,7 @@
                             } catch (e) {
                             }
                         }
+                        scheduleYamlValidation();
                         editor.setScrollPosition({scrollTop: 0});
                     },
                     /**
@@ -713,6 +753,7 @@
                             monaco.editor.setModelLanguage(editor.getModel(), String(language));
                         } catch (e) {
                         }
+                        scheduleYamlValidation();
                     },
                     trigger: function (actionId) {
                         if (!actionId) return;
@@ -858,6 +899,24 @@
                     // ===== 格式化：先走 Monaco 原生格式化；JSON 再用 JSON.stringify 兜底 =====
                     format: function (index) {
                         try {
+                            const model = editor.getModel();
+                            const lang = model ? model.getLanguageId() : '';
+                            if (lang === 'yaml') {
+                                const yamlTools = window.YshellYamlTools;
+                                if (!yamlTools || typeof yamlTools.format !== 'function') {
+                                    alert('YAML 格式化组件未加载。');
+                                    return;
+                                }
+                                const result = yamlTools.format(editor.getValue());
+                                if (result.errors && result.errors.length > 0) {
+                                    applyYamlMarkers(model, result.errors);
+                                    editor.revealLineInCenter(result.errors[0].startLineNumber);
+                                    alert('YAML 格式不合法，无法格式化：' + result.errors[0].message);
+                                    return;
+                                }
+                                editor.setValue(result.value);
+                                return;
+                            }
                             // 1) Monaco 内置 document 格式化
                             const action = editor.getAction('editor.action.formatDocument');
                             if (action) {
@@ -867,8 +926,6 @@
                             editor.trigger('java', 'editor.action.formatDocument', null);
 
                             // 2) JSON 兜底：如果当前模型语言是 json 或者内容看起来像 JSON
-                            const model = editor.getModel();
-                            const lang = model ? model.getLanguageId() : '';
                             if (lang === 'json') {
                                 const raw = editor.getValue(index);
                                 try {
@@ -916,6 +973,7 @@
                 // 主动通知 Java 端 dirty=false，避免 Tab 标题残留的 ●。
                 window.__editorBaselineValue = '';
                 editor.onDidChangeModelContent(function (index) {
+                    scheduleYamlValidation();
                     let current;
                     try {
                         current = editor.getValue(index);
