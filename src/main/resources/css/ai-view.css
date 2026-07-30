@@ -433,3 +433,38 @@
     -fx-text-fill: -fx-text-primary;
     -fx-font-size: 11px;
 }
+
+.ai-floating-window {
+    -fx-background-color: -fx-bg-primary;
+    -fx-border-color: -fx-border-default;
+    -fx-border-width: 1px;
+}
+
+.ai-floating-title-bar {
+    -fx-background-color: -fx-bg-primary;
+    -fx-alignment: center-left;
+    -fx-min-height: 32px;
+    -fx-max-height: 32px;
+    -fx-padding: 0 2px 0 5px;
+}
+
+.ai-floating-title {
+    -fx-text-fill: -fx-text-primary;
+    -fx-font-size: 13px;
+}
+
+.ai-floating-close {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-padding: 4px 16px;
+    -fx-min-width: 40px;
+    -fx-min-height: 30px;
+}
+
+.ai-floating-close:hover {
+    -fx-background-color: -fx-button-danger-bg;
+}
+
+.ai-floating-close FontIcon {
+    -fx-icon-color: -fx-text-primary;
+}

@@ -1,9 +1,11 @@
 package com.yshell.controller;
 
 import com.yshell.service.ConnectionManager;
+import com.yshell.ui.AiAssistantWindowManager;
 import com.yshell.ui.PanelManager;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
@@ -20,6 +22,8 @@ public class VisualPanelController {
     private final Map<String, String> selectedTabsByConnection = new ConcurrentHashMap<>();
     private String activeConnectionId;
     private String activeTab = DEFAULT_TAB;
+    private final AiAssistantWindowManager aiAssistantWindowManager =
+            new AiAssistantWindowManager(this::onAiAssistantDocked);
     private final Consumer<Boolean> terminalVisibilityListener =
             visible -> Platform.runLater(this::refreshTerminalVisibilityButton);
 
@@ -37,6 +41,9 @@ public class VisualPanelController {
 
     @FXML
     private Button btnTerminalVisibility;
+
+    @FXML
+    private Button btnAiFloat;
 
     @FXML
     private FontIcon terminalVisibilityIcon;
@@ -60,10 +67,7 @@ public class VisualPanelController {
     private K8sViewController k8sViewController;
 
     @FXML
-    private VBox aiView;
-
-    @FXML
-    private AiViewController aiViewController;
+    private StackPane aiHost;
 
     @FXML
     public void initialize() {
@@ -72,8 +76,10 @@ public class VisualPanelController {
         activeConnectionId = ConnectionManager.getInstance().getCurrentConnectionId();
         ConnectionManager.getInstance().addOnConnectionStateChangedListener(
                 () -> Platform.runLater(this::onConnectionStateChanged));
-        ConnectionManager.getInstance().addOnConnectionClosedListener(
-                selectedTabsByConnection::remove);
+        ConnectionManager.getInstance().addOnConnectionClosedListener(connId -> Platform.runLater(() -> {
+            selectedTabsByConnection.remove(connId);
+            aiAssistantWindowManager.dispose(connId);
+        }));
         PanelManager.getInstance().addInteractivePanelVisibilityListener(terminalVisibilityListener);
 
         if (tabFiles != null) {
@@ -91,7 +97,7 @@ public class VisualPanelController {
 
         setViewVisible(dockerView, false);
         setViewVisible(k8sView, false);
-        setViewVisible(aiView, false);
+        setViewVisible(aiHost, false);
         if (dockerViewController != null) {
             dockerViewController.showForConnection(activeConnectionId);
             dockerViewController.setTabVisible(false);
@@ -99,9 +105,6 @@ public class VisualPanelController {
         if (k8sViewController != null) {
             k8sViewController.showForConnection(activeConnectionId);
             k8sViewController.setTabVisible(false);
-        }
-        if (aiViewController != null) {
-            aiViewController.showForConnection(activeConnectionId);
         }
         applyTab(tabForConnection(activeConnectionId));
         refreshTerminalVisibilityButton();
@@ -111,7 +114,6 @@ public class VisualPanelController {
         bindWidthHeight(filesView);
         bindWidthHeight(dockerView);
         bindWidthHeight(k8sView);
-        bindWidthHeight(aiView);
     }
 
     private void bindWidthHeight(VBox vBox) {
@@ -138,9 +140,6 @@ public class VisualPanelController {
             if (k8sViewController != null) {
                 k8sViewController.showForConnection(connId);
             }
-            if (aiViewController != null) {
-                aiViewController.showForConnection(connId);
-            }
             refreshTerminalVisibilityButton();
             return;
         }
@@ -148,9 +147,6 @@ public class VisualPanelController {
             selectedTabsByConnection.put(activeConnectionId, activeTab);
         }
         activeConnectionId = connId;
-        if (aiViewController != null) {
-            aiViewController.showForConnection(connId);
-        }
         applyTab(tabForConnection(connId));
         refreshTerminalVisibilityButton();
     }
@@ -167,9 +163,6 @@ public class VisualPanelController {
         if (k8sViewController != null) {
             k8sViewController.showForConnection(activeConnectionId);
         }
-        if (aiViewController != null) {
-            aiViewController.showForConnection(activeConnectionId);
-        }
         refreshTerminalVisibilityButton();
     }
 
@@ -185,9 +178,6 @@ public class VisualPanelController {
         if (k8sViewController != null) {
             k8sViewController.showForConnection(activeConnectionId);
         }
-        if (aiViewController != null) {
-            aiViewController.showForConnection(activeConnectionId);
-        }
         if (tabFiles != null) tabFiles.getStyleClass().remove("active");
         if (tabDocker != null) tabDocker.getStyleClass().remove("active");
         if (tabK8s != null) tabK8s.getStyleClass().remove("active");
@@ -196,7 +186,7 @@ public class VisualPanelController {
         setViewVisible(filesView, false);
         setViewVisible(dockerView, false);
         setViewVisible(k8sView, false);
-        setViewVisible(aiView, false);
+        setViewVisible(aiHost, false);
         if (dockerViewController != null) {
             dockerViewController.setTabVisible("docker".equals(tabName));
         }
@@ -219,12 +209,13 @@ public class VisualPanelController {
                 break;
             case "ai":
                 if (tabAi != null) tabAi.getStyleClass().add("active");
-                setViewVisible(aiView, true);
+                aiAssistantWindowManager.mountForConnection(activeConnectionId, aiHost);
+                setViewVisible(aiHost, true);
                 break;
         }
     }
 
-    private void setViewVisible(VBox view, boolean visible) {
+    private void setViewVisible(Node view, boolean visible) {
         if (view == null) {
             return;
         }
@@ -242,12 +233,31 @@ public class VisualPanelController {
         refreshTerminalVisibilityButton();
     }
 
+    @FXML
+    private void showFloatingAiAssistant() {
+        if (activeConnectionId == null || activeConnectionId.isBlank()) {
+            return;
+        }
+        aiAssistantWindowManager.showFloating(activeConnectionId);
+    }
+
+    private void onAiAssistantDocked(String connId) {
+        if (Objects.equals(activeConnectionId, connId)) {
+            switchTab("ai");
+        }
+    }
+
     private void refreshTerminalVisibilityButton() {
         TerminalPanelController terminalController = terminalControllerForActiveConnection();
         boolean terminalVisible = terminalController != null && terminalController.isInteractivePanelVisible();
         if (btnTerminalVisibility != null) {
             btnTerminalVisibility.setDisable(terminalController == null);
             btnTerminalVisibility.setAccessibleText(terminalVisible ? "隐藏终端" : "显示终端");
+        }
+        if (btnAiFloat != null) {
+            boolean available = activeConnectionId != null && !activeConnectionId.isBlank();
+            btnAiFloat.setDisable(!available);
+            btnAiFloat.setAccessibleText("浮动 AI 助手");
         }
         if (terminalVisibilityIcon != null) {
             terminalVisibilityIcon.setIconLiteral(terminalVisible ? "fas-eye-slash" : "fas-eye");

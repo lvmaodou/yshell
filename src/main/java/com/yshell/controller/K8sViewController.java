@@ -696,7 +696,7 @@ public class K8sViewController {
         String client = snapshot.clientVersion();
         String server = snapshot.serverVersion();
         if (!client.isBlank() && !server.isBlank()) {
-            return server + " / " + client;
+            return server + "(s)/" + client + "(c)";
         }
         return firstNonBlank(server, firstNonBlank(client, "-"));
     }

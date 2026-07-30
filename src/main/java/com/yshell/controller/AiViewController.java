@@ -63,6 +63,7 @@ public class AiViewController {
     private final List<AiImageAttachment> pendingImages = new ArrayList<>();
 
     private AiConversation currentConversation;
+    private String boundConnectionId;
     private String activeHostKey = "";
     private NativeMarkdownView activeAssistantView;
     private NativeMarkdownView activeThinkingView;
@@ -107,8 +108,19 @@ public class AiViewController {
         configureInputAreaIme();
         configureInputPromptFont();
         inputArea.addEventFilter(KeyEvent.KEY_PRESSED, this::handleInputKeyPressed);
-        showForConnection(ConnectionManager.getInstance().getCurrentConnectionId());
         refreshAttachments();
+    }
+
+    public void bindConnection(String connId) {
+        if (boundConnectionId != null && !Objects.equals(boundConnectionId, connId)) {
+            throw new IllegalStateException("AI view is already bound to another connection");
+        }
+        boundConnectionId = connId;
+        showForConnection(connId);
+    }
+
+    public void dispose() {
+        cancelCurrentResponse();
     }
 
     public void showForConnection(String connId) {
@@ -248,7 +260,7 @@ public class AiViewController {
         AiChatMessage assistantMessage = AiChatService.getInstance().newAssistantMessage("", "", modelLabel);
         activeAssistantMessage = assistantMessage;
         renderAssistantPlaceholder(assistantMessage);
-        String connId = ConnectionManager.getInstance().getCurrentConnectionId();
+        String connId = boundConnectionId;
         long requestId = ++activeRequestId;
         AiChatService.ChatRequestHandle request = AiChatService.getInstance().chat(
                 currentConversation,
@@ -504,7 +516,7 @@ public class AiViewController {
         if (command.isBlank()) {
             return;
         }
-        String connId = ConnectionManager.getInstance().getCurrentConnectionId();
+        String connId = boundConnectionId;
         TerminalPanelController terminalPanel = ConnectionManager.getInstance().getTerminalPanelController(connId);
         if (terminalPanel == null || !terminalPanel.executeShellCommand(command)) {
             DialogHelper.showWarning("执行命令", "当前没有可用的交互终端");

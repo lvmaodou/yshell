@@ -51,6 +51,18 @@
                 <FontIcon fx:id="terminalVisibilityIcon" iconLiteral="fas-eye-slash"/>
             </graphic>
         </Button>
+        <Button fx:id="btnAiFloat" onAction="#showFloatingAiAssistant">
+            <styleClass>
+                <String fx:value="button-icon-mini"/>
+                <String fx:value="visual-terminal-toggle"/>
+            </styleClass>
+            <tooltip>
+                <Tooltip text="浮动 AI 助手" showDelay="200ms"/>
+            </tooltip>
+            <graphic>
+                <FontIcon iconLiteral="fas-external-link-alt"/>
+            </graphic>
+        </Button>
     </HBox>
 
     <StackPane fx:id="contentArea" VBox.vgrow="ALWAYS">
@@ -60,6 +72,6 @@
         <fx:include fx:id="filesView" source="FilesView.fxml"/>
         <fx:include fx:id="dockerView" source="DockerView.fxml" managed="false" visible="false"/>
         <fx:include fx:id="k8sView" source="K8sView.fxml" managed="false" visible="false"/>
-        <fx:include fx:id="aiView" source="AiView.fxml" managed="false" visible="false"/>
+        <StackPane fx:id="aiHost" managed="false" visible="false"/>
     </StackPane>
 </VBox>
