@@ -8,6 +8,9 @@ import com.yshell.model.k8s.K8sResourceStatus;
 import com.yshell.theme.ThemeManager;
 import com.yshell.ui.DialogHelper;
 import com.yshell.ui.WindowDragResize;
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -31,9 +34,11 @@ import java.lang.reflect.RecordComponent;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Consumer;
 
 public class K8sDetailController {
     private static final ObjectMapper DISPLAY_MAPPER = new ObjectMapper();
+    private static final Duration AUTO_REFRESH_INTERVAL = Duration.seconds(5);
     private static final ObjectMapper YAML_MAPPER = YAMLMapper.builder()
             .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
             .build();
@@ -84,6 +89,11 @@ public class K8sDetailController {
 
     private Stage stage;
     private DetailActionHandler actionHandler;
+    private K8sDetailDtos.ResourceDetailDto currentData;
+    private DetailRefreshHandler detailRefreshHandler;
+    private VBox dynamicListsHost;
+    private Timeline autoRefreshTimeline;
+    private boolean autoRefreshInFlight;
 
     @FXML
     public void initialize() {
@@ -93,17 +103,71 @@ public class K8sDetailController {
 
     public void setStage(Stage stage) {
         this.stage = stage;
+        stage.showingProperty().addListener((observable, wasShowing, showing) -> {
+            if (showing) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
+        });
     }
 
     public void setData(K8sDetailDtos.ResourceDetailDto data,
                         List<DetailActionSpec> actions,
                         DetailActionHandler actionHandler) {
+        currentData = data;
+        List<DetailActionSpec> currentActions = actions == null ? List.of() : List.copyOf(actions);
         this.actionHandler = actionHandler;
         kindLabel.setText(prettyKind(data));
         titleLabel.setText(displayTitle(data));
         subtitleLabel.setText(displaySubtitle(data));
-        renderActions(actions);
+        renderActions(currentActions);
         renderOverview(data);
+    }
+
+    public void setAutoRefreshHandler(DetailRefreshHandler detailRefreshHandler) {
+        this.detailRefreshHandler = detailRefreshHandler;
+        startAutoRefresh();
+    }
+
+    private void startAutoRefresh() {
+        if (stage == null || !stage.isShowing() || detailRefreshHandler == null || currentData == null) {
+            return;
+        }
+        if (autoRefreshTimeline == null) {
+            autoRefreshTimeline = new Timeline(new KeyFrame(AUTO_REFRESH_INTERVAL, event -> refreshDetail()));
+            autoRefreshTimeline.setCycleCount(Animation.INDEFINITE);
+        }
+        if (autoRefreshTimeline.getStatus() != Animation.Status.RUNNING) {
+            autoRefreshTimeline.play();
+        }
+    }
+
+    private void stopAutoRefresh() {
+        if (autoRefreshTimeline != null) {
+            autoRefreshTimeline.stop();
+        }
+        autoRefreshInFlight = false;
+    }
+
+    private void refreshDetail() {
+        if (autoRefreshInFlight || stage == null || !stage.isShowing() || detailRefreshHandler == null) {
+            return;
+        }
+        autoRefreshInFlight = true;
+        try {
+            detailRefreshHandler.refresh(this::applyAutoRefreshData, () -> autoRefreshInFlight = false);
+        } catch (Exception e) {
+            autoRefreshInFlight = false;
+        }
+    }
+
+    private void applyAutoRefreshData(K8sDetailDtos.ResourceDetailDto data) {
+        if (stage == null || !stage.isShowing() || data == null) {
+            return;
+        }
+        currentData = data;
+        renderDynamicLists(data);
     }
 
     private void renderActions(List<DetailActionSpec> actions) {
@@ -126,6 +190,8 @@ public class K8sDetailController {
 
     private void renderOverview(K8sDetailDtos.ResourceDetailDto data) {
         overviewHost.getChildren().clear();
+        dynamicListsHost = new VBox(10);
+        dynamicListsHost.getStyleClass().add("detail-dynamic-lists");
         if (data == null) {
             overviewHost.getChildren().add(createTextCard("Detail", "No data"));
             return;
@@ -687,7 +753,7 @@ public class K8sDetailController {
             values.put("创建时间", ageDisplay(meta == null ? null : meta.creationTimestamp()));
             rows.add(resourceRow("pod", values, POD_TABLE_ACTIONS, podStatus(statusText)));
         }
-        overviewHost.getChildren().add(createResourceTableCard("Pods", POD_TABLE_COLUMNS, rows));
+        addDynamicListCard(createResourceTableCard("Pods", POD_TABLE_COLUMNS, rows));
     }
 
     private void addServiceList(K8sDetailDtos.ServiceListDto serviceList) {
@@ -710,7 +776,7 @@ public class K8sDetailController {
             values.put("创建时间", ageDisplay(meta == null ? null : meta.creationTimestamp()));
             rows.add(resourceRow("service", values, SERVICE_TABLE_ACTIONS, serviceStatus));
         }
-        overviewHost.getChildren().add(createResourceTableCard("Services", SERVICE_TABLE_COLUMNS, rows));
+        addDynamicListCard(createResourceTableCard("Services", SERVICE_TABLE_COLUMNS, rows));
     }
 
     private void addSecretList(String title, K8sDetailDtos.SecretListDto secretList) {
@@ -758,7 +824,7 @@ public class K8sDetailController {
                     PERSISTENT_VOLUME_TABLE_ACTIONS,
                     persistentVolumeStatus(statusText)));
         }
-        overviewHost.getChildren().add(createResourceTableCard(
+        addDynamicListCard(createResourceTableCard(
                 "Persistent Volumes",
                 PERSISTENT_VOLUME_TABLE_COLUMNS,
                 rows));
@@ -789,7 +855,7 @@ public class K8sDetailController {
                     PERSISTENT_VOLUME_CLAIM_TABLE_ACTIONS,
                     mutedStatus()));
         }
-        overviewHost.getChildren().add(createResourceTableCard(
+        addDynamicListCard(createResourceTableCard(
                 "Persistent Volume Claims",
                 PERSISTENT_VOLUME_CLAIM_TABLE_COLUMNS,
                 rows));
@@ -812,7 +878,7 @@ public class K8sDetailController {
             values.put("创建时间", ageDisplay(meta == null ? null : meta.creationTimestamp()));
             rows.add(resourceRow("job", values, JOB_TABLE_ACTIONS, mutedStatus()));
         }
-        overviewHost.getChildren().add(createResourceTableCard(title, JOB_TABLE_COLUMNS, rows));
+        addDynamicListCard(createResourceTableCard(title, JOB_TABLE_COLUMNS, rows));
     }
 
     private void addReplicaSet(K8sDetailDtos.ReplicaSetSummaryDto replicaSet) {
@@ -846,7 +912,7 @@ public class K8sDetailController {
             values.put("创建时间", ageDisplay(meta == null ? null : meta.creationTimestamp()));
             rows.add(resourceRow("replicaset", values, REPLICA_SET_TABLE_ACTIONS, status));
         }
-        overviewHost.getChildren().add(createResourceTableCard(title, REPLICA_SET_TABLE_COLUMNS, rows));
+        addDynamicListCard(createResourceTableCard(title, REPLICA_SET_TABLE_COLUMNS, rows));
     }
 
     private void addIngressList(K8sDetailDtos.IngressListDto ingressList) {
@@ -2060,8 +2126,60 @@ public class K8sDetailController {
     }
 
     private void addEmptyFallback() {
+        syncDynamicListsHost();
         if (overviewHost.getChildren().isEmpty()) {
             overviewHost.getChildren().add(createTextCard("Detail", "No data"));
+        }
+    }
+
+    private void renderDynamicLists(K8sDetailDtos.ResourceDetailDto data) {
+        if (dynamicListsHost == null) {
+            return;
+        }
+        dynamicListsHost.getChildren().clear();
+        if (data instanceof K8sDetailDtos.PodDetailDto pod) {
+            addPersistentVolumeClaimList(pod.persistentVolumeClaimList());
+        } else if (data instanceof K8sDetailDtos.JobDetailDto job) {
+            addPodList(job.podList());
+        } else if (data instanceof K8sDetailDtos.CronJobDetailDto cronJob) {
+            addJobRefList("Active Jobs", cronJob.activeJobs());
+            addJobRefList("Inactive Jobs", cronJob.inactiveJobs());
+        } else if (data instanceof K8sDetailDtos.DaemonSetDetailDto daemonSet) {
+            addPodList(daemonSet.podList());
+            addServiceList(daemonSet.serviceList());
+        } else if (data instanceof K8sDetailDtos.DeploymentDetailDto deployment) {
+            addReplicaSet(deployment.newReplicaSet());
+            addReplicaSetList(deployment.oldReplicaSetList());
+        } else if (data instanceof K8sDetailDtos.ReplicaSetDetailDto replicaSet) {
+            addPodList(replicaSet.podList());
+            addServiceList(replicaSet.serviceList());
+        } else if (data instanceof K8sDetailDtos.ReplicationControllerDetailDto replicationController) {
+            addPodList(replicationController.podList());
+            addServiceList(replicationController.serviceList());
+        } else if (data instanceof K8sDetailDtos.StatefulSetDetailDto statefulSet) {
+            addPodList(statefulSet.podList());
+        } else if (data instanceof K8sDetailDtos.ServiceDetailDto service) {
+            addPodList(service.podList());
+        } else if (data instanceof K8sDetailDtos.NodeDetailDto node) {
+            addPodList(node.podList());
+        }
+        syncDynamicListsHost();
+    }
+
+    private void addDynamicListCard(Node card) {
+        if (card != null) {
+            dynamicListsHost.getChildren().add(card);
+        }
+    }
+
+    private void syncDynamicListsHost() {
+        if (dynamicListsHost == null) {
+            return;
+        }
+        if (dynamicListsHost.getChildren().isEmpty()) {
+            overviewHost.getChildren().remove(dynamicListsHost);
+        } else if (!overviewHost.getChildren().contains(dynamicListsHost)) {
+            overviewHost.getChildren().add(dynamicListsHost);
         }
     }
 
@@ -2870,7 +2988,8 @@ public class K8sDetailController {
     public static void show(Window owner,
                             K8sDetailDtos.ResourceDetailDto data,
                             List<DetailActionSpec> actions,
-                            DetailActionHandler actionHandler) {
+                            DetailActionHandler actionHandler,
+                            DetailRefreshHandler detailRefreshHandler) {
         try {
             FXMLLoader loader = new FXMLLoader(K8sDetailController.class.getResource("/fxml/K8sDetailView.fxml"));
             Parent root = loader.load();
@@ -2890,8 +3009,12 @@ public class K8sDetailController {
             stage.setScene(scene);
             controller.setStage(stage);
             controller.setData(data, actions, actionHandler);
+            controller.setAutoRefreshHandler(detailRefreshHandler);
 
-            stage.setOnHidden(e -> ThemeManager.getInstance().unregisterScene(scene));
+            stage.setOnHidden(e -> {
+                controller.stopAutoRefresh();
+                ThemeManager.getInstance().unregisterScene(scene);
+            });
             if (owner != null) {
                 stage.setX(owner.getX() + (owner.getWidth() - stage.getWidth()) / 2);
                 stage.setY(owner.getY() + (owner.getHeight() - stage.getHeight()) / 2);
@@ -2905,6 +3028,11 @@ public class K8sDetailController {
     @FunctionalInterface
     public interface DetailActionHandler {
         void handle(DetailActionSpec actionSpec);
+    }
+
+    @FunctionalInterface
+    public interface DetailRefreshHandler {
+        void refresh(Consumer<K8sDetailDtos.ResourceDetailDto> onData, Runnable onComplete);
     }
 
     private record ResourceTableRow(String resourceKind,

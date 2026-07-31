@@ -11,6 +11,9 @@ import com.yshell.service.ConnectionManager;
 import com.yshell.service.K8sSessionManager;
 import com.yshell.service.SshService;
 import com.yshell.ui.DialogHelper;
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -46,6 +49,7 @@ public class K8sViewController {
     private static final Logger LOGGER = LoggerFactory.getLogger(K8sViewController.class);
     private static final int PAGE_SIZE = 100;
     private static final int MAX_LOG_LINES = 2000;
+    private static final Duration AUTO_REFRESH_INTERVAL = Duration.seconds(5);
     private static final String ALL_NAMESPACES = "全部 namespace";
 
     private final K8sSessionManager sessionManager = K8sSessionManager.getInstance();
@@ -56,6 +60,8 @@ public class K8sViewController {
     private final Map<Category, VBox> childContainers = new LinkedHashMap<>();
     private final ObservableList<K8sRow> allRows = FXCollections.observableArrayList();
     private final ObservableList<K8sRow> visibleRows = FXCollections.observableArrayList();
+    private final Timeline autoRefreshTimeline = new Timeline(
+            new KeyFrame(AUTO_REFRESH_INTERVAL, event -> refreshActiveStatefulRows()));
     private ResourceKind activeKind = ResourceKind.CRON_JOBS;
     private Category expandedCategory;
     private K8sSessionManager.K8sSnapshot currentSnapshot;
@@ -64,6 +70,7 @@ public class K8sViewController {
     private boolean tabVisible;
     private boolean namespaceInitialized;
     private boolean updatingNamespaceChoices;
+    private boolean autoRefreshInFlight;
     private long snapshotSerial;
     private long rowSerial;
     private long detailSerial;
@@ -118,6 +125,7 @@ public class K8sViewController {
         updateNamespaceChoices(List.of());
         setVersionText("-");
         setStatusText("未连接");
+        autoRefreshTimeline.setCycleCount(Animation.INDEFINITE);
         showEmptyState();
     }
 
@@ -128,10 +136,14 @@ public class K8sViewController {
         tabVisible = visible;
         if (visible) {
             refreshVisibleContent();
+            startAutoRefresh();
         } else if (activeConnId != null) {
+            stopAutoRefresh();
             sessionManager.closeSession(activeConnId);
             setVersionText("-");
             setStatusText("K8s 会话已关闭");
+        } else {
+            stopAutoRefresh();
         }
     }
 
@@ -527,6 +539,24 @@ public class K8sViewController {
         refreshForCurrentConnection();
     }
 
+    private void startAutoRefresh() {
+        if (tabVisible && autoRefreshTimeline.getStatus() != Animation.Status.RUNNING) {
+            autoRefreshTimeline.play();
+        }
+    }
+
+    private void stopAutoRefresh() {
+        autoRefreshTimeline.stop();
+        autoRefreshInFlight = false;
+    }
+
+    private void refreshActiveStatefulRows() {
+        if (!tabVisible || !activeKind.hasStatusColumn() || autoRefreshInFlight) {
+            return;
+        }
+        refreshRowsForCurrentKind(false, true);
+    }
+
     private void refreshForCurrentConnection() {
         ConnectionContext context = boundConnection();
         ConnInfo connInfo = context == null ? null : context.connInfo();
@@ -580,10 +610,20 @@ public class K8sViewController {
     }
 
     private void refreshRowsForCurrentKind(boolean resetPage) {
+        refreshRowsForCurrentKind(resetPage, false);
+    }
+
+    private void refreshRowsForCurrentKind(boolean resetPage, boolean automatic) {
+        if (automatic) {
+            autoRefreshInFlight = true;
+        }
         ConnectionContext context = boundConnection();
         ConnInfo connInfo = context == null ? null : context.connInfo();
         String connId = context == null ? boundConnId : context.connId();
         if (connId == null || connInfo == null || !ConnectionManager.getInstance().isConnected(connId)) {
+            if (automatic) {
+                autoRefreshInFlight = false;
+            }
             showEmptyState();
             return;
         }
@@ -602,36 +642,49 @@ public class K8sViewController {
                 ? ""
                 : namespace;
         sessionManager.listResources(connId, connInfo, activeKind.kubectlType(), activeKind.namespaced(), listNamespace)
-                .thenAccept(result -> Platform.runLater(() -> {
-                    if (rowToken != rowSerial || !Objects.equals(activeConnId, connId)) {
-                        return;
-                    }
-                    if (result == null || !result.success()) {
-                        allRows.clear();
-                        visibleRows.clear();
-                        totalInfoLabel.setText("总数 0");
-                        currentPageLabel.setText("第 0/1 页");
-                        if (result != null && result.errorMessage() != null && !result.errorMessage().isBlank()) {
-                            String message = result.errorMessage();
-                            setStatusText(message);
-                            LOGGER.error("load kubernetes resources failed: kind={}, namespace={}, error={}",
-                                    activeKind.kubectlType(), listNamespace.isBlank() ? "<all/current>" : listNamespace, message);
+                .handle((result, error) -> {
+                    Platform.runLater(() -> {
+                        if (automatic) {
+                            autoRefreshInFlight = false;
                         }
-                        return;
-                    }
-                    List<K8sRow> rows = new ArrayList<>(result.items().size());
-                    for (JsonNode item : result.items()) {
-                        K8sResourceStatus status = K8sResourceStatus.resolve(activeKind.kubectlType(), item);
-                        rows.add(new K8sRow(activeKind, valuesFor(activeKind, item, status), item, status));
-                    }
-                    rows.sort(this::compareByCreationTimeDesc);
-                    allRows.setAll(rows);
-                    if (resetPage) {
-                        currentPageIndex = 0;
-                    }
-                    applyFilters();
-                    setStatusText(activeKind.label() + " 已加载：" + rows.size());
-                }));
+                        if (rowToken != rowSerial || !Objects.equals(activeConnId, connId)) {
+                            return;
+                        }
+                        if (error != null) {
+                            String message = firstNonBlank(error.getMessage(), "加载 Kubernetes 资源失败");
+                            setStatusText(message);
+                            LOGGER.error("load kubernetes resources failed: kind={}, namespace={}",
+                                    activeKind.kubectlType(), listNamespace.isBlank() ? "<all/current>" : listNamespace, error);
+                            return;
+                        }
+                        if (result == null || !result.success()) {
+                            allRows.clear();
+                            visibleRows.clear();
+                            totalInfoLabel.setText("总数 0");
+                            currentPageLabel.setText("第 0/1 页");
+                            if (result != null && result.errorMessage() != null && !result.errorMessage().isBlank()) {
+                                String message = result.errorMessage();
+                                setStatusText(message);
+                                LOGGER.error("load kubernetes resources failed: kind={}, namespace={}, error={}",
+                                        activeKind.kubectlType(), listNamespace.isBlank() ? "<all/current>" : listNamespace, message);
+                            }
+                            return;
+                        }
+                        List<K8sRow> rows = new ArrayList<>(result.items().size());
+                        for (JsonNode item : result.items()) {
+                            K8sResourceStatus status = K8sResourceStatus.resolve(activeKind.kubectlType(), item);
+                            rows.add(new K8sRow(activeKind, valuesFor(activeKind, item, status), item, status));
+                        }
+                        rows.sort(this::compareByCreationTimeDesc);
+                        allRows.setAll(rows);
+                        if (resetPage) {
+                            currentPageIndex = 0;
+                        }
+                        applyFilters();
+                        setStatusText(activeKind.label() + " 已加载：" + rows.size());
+                    });
+                    return null;
+                });
     }
 
     private void applySnapshot(K8sSessionManager.K8sSnapshot snapshot) {
@@ -1037,7 +1090,32 @@ public class K8sViewController {
                     resourceTable.getScene() == null ? null : resourceTable.getScene().getWindow(),
                     result.detail(),
                     actionSpecs,
-                    spec -> handleDetailAction(row, spec)
+                    spec -> handleDetailAction(row, spec),
+                    row.kind().hasStatefulDetailLists()
+                            ? (onData, onComplete) -> {
+                                if (!ConnectionManager.getInstance().isConnected(context.connId())) {
+                                    onComplete.run();
+                                    return;
+                                }
+                                sessionManager.dashboardDetail(
+                                        context.connId(),
+                                        context.connInfo(),
+                                        row.kind().kubectlType(),
+                                        rowNamespace(row),
+                                        rowName(row),
+                                        row.kind().namespaced()
+                                ).handle((refreshed, error) -> {
+                                    Platform.runLater(() -> {
+                                        if (error == null && refreshed != null && refreshed.success()
+                                                && refreshed.detail() != null) {
+                                            onData.accept(refreshed.detail());
+                                        }
+                                        onComplete.run();
+                                    });
+                                    return null;
+                                });
+                            }
+                            : null
             );
         }));
     }
@@ -2646,6 +2724,18 @@ public class K8sViewController {
 
         private List<Action> actions() {
             return actions;
+        }
+
+        private boolean hasStatusColumn() {
+            return !columns.isEmpty() && Objects.equals(columns.get(0), "状态");
+        }
+
+        private boolean hasStatefulDetailLists() {
+            return switch (this) {
+                case PODS, JOBS, CRON_JOBS, DAEMON_SETS, DEPLOYMENTS, REPLICA_SETS,
+                        REPLICATION_CONTROLLERS, STATEFUL_SETS, SERVICES, NODES -> true;
+                default -> false;
+            };
         }
 
         private static ResourceKind fromLabel(String label) {
