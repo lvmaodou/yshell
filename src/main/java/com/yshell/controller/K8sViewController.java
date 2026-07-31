@@ -1331,7 +1331,7 @@ public class K8sViewController {
         setStatusText("正在扩缩容...");
         sessionManager.scale(context.connId(), context.connInfo(), row.kind().kubectlType(),
                         rowNamespace(row), rowName(row), row.kind().namespaced(), value.get())
-                .thenAccept(result -> Platform.runLater(() -> handleMutationResult("扩缩容", result)));
+                .thenAccept(result -> Platform.runLater(() -> handleScaleResult(result)));
     }
 
     private void restartResource(K8sRow row) {
@@ -1345,7 +1345,7 @@ public class K8sViewController {
         setStatusText("正在重启...");
         sessionManager.rolloutRestart(context.connId(), context.connInfo(), row.kind().kubectlType(),
                         rowNamespace(row), rowName(row), row.kind().namespaced())
-                .thenAccept(result -> Platform.runLater(() -> handleMutationResult("重启", result)));
+                .thenAccept(result -> Platform.runLater(() -> handleRestartResult(result)));
     }
 
     private void triggerCronJob(K8sRow row) {
@@ -1370,6 +1370,24 @@ public class K8sViewController {
             setStatusText(commandMessage(result));
             DialogHelper.showError(title, commandMessage(result));
         }
+    }
+
+    private void handleRestartResult(SshService.CommandResult result) {
+        if (result != null && result.isSuccess()) {
+            setStatusText("重启完成");
+        } else {
+            setStatusText(commandMessage(result));
+        }
+        refreshRowsForCurrentKind(false);
+    }
+
+    private void handleScaleResult(SshService.CommandResult result) {
+        if (result != null && result.isSuccess()) {
+            setStatusText("扩缩容完成");
+        } else {
+            setStatusText(commandMessage(result));
+        }
+        refreshRowsForCurrentKind(false);
     }
 
     private void showCommandResult(String header, SshService.CommandResult result) {
