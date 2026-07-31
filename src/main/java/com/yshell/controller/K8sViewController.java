@@ -15,7 +15,10 @@ import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -305,7 +308,7 @@ public class K8sViewController {
         for (String columnName : activeKind.columns()) {
             TableColumn<K8sRow, String> column = new TableColumn<>(columnName);
             column.setPrefWidth(widthFor(columnName));
-            column.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().value(columnName)));
+            column.setCellValueFactory(data -> data.getValue().valueProperty(columnName));
             column.setCellFactory(tableColumn -> "状态".equals(columnName) ? createStatusCell() : createCopyableCell());
             resourceTable.getColumns().add(column);
         }
@@ -676,11 +679,11 @@ public class K8sViewController {
                             rows.add(new K8sRow(activeKind, valuesFor(activeKind, item, status), item, status));
                         }
                         rows.sort(this::compareByCreationTimeDesc);
-                        allRows.setAll(rows);
+                        allRows.setAll(reconcileRows(rows));
                         if (resetPage) {
                             currentPageIndex = 0;
                         }
-                        applyFilters();
+                        applyFilters(automatic);
                         setStatusText(activeKind.label() + " 已加载：" + rows.size());
                     });
                     return null;
@@ -864,6 +867,10 @@ public class K8sViewController {
     }
 
     private void applyFilters() {
+        applyFilters(false);
+    }
+
+    private void applyFilters(boolean preserveTableState) {
         List<K8sRow> filtered = filteredRows();
         int pageCount = pageCount(filtered);
         if (currentPageIndex >= pageCount) {
@@ -872,7 +879,7 @@ public class K8sViewController {
         if (currentPageIndex < 0) {
             currentPageIndex = 0;
         }
-        updatePage(filtered);
+        updatePage(filtered, preserveTableState);
     }
 
     private List<K8sRow> filteredRows() {
@@ -897,11 +904,20 @@ public class K8sViewController {
     }
 
     private void updatePage(List<K8sRow> filtered) {
+        updatePage(filtered, false);
+    }
+
+    private void updatePage(List<K8sRow> filtered, boolean preserveTableState) {
         int pageCount = pageCount(filtered);
         int from = Math.min(currentPageIndex * PAGE_SIZE, filtered.size());
         int to = Math.min(from + PAGE_SIZE, filtered.size());
-        visibleRows.setAll(filtered.subList(from, to));
-        resourceTable.getSelectionModel().clearSelection();
+        List<K8sRow> pageRows = filtered.subList(from, to);
+        if (preserveTableState) {
+            updateVisibleRows(pageRows);
+        } else {
+            visibleRows.setAll(pageRows);
+            resourceTable.getSelectionModel().clearSelection();
+        }
         totalInfoLabel.setText("总数 " + filtered.size());
         currentPageLabel.setText("第 " + (filtered.isEmpty() ? 0 : currentPageIndex + 1) + "/" + pageCount + " 页");
         firstPageButton.setDisable(currentPageIndex <= 0 || filtered.isEmpty());
@@ -909,6 +925,68 @@ public class K8sViewController {
         nextPageButton.setDisable(currentPageIndex >= pageCount - 1 || filtered.isEmpty());
         lastPageButton.setDisable(currentPageIndex >= pageCount - 1 || filtered.isEmpty());
         refreshPodMetricsForVisibleRows();
+    }
+
+    private void updateVisibleRows(List<K8sRow> rows) {
+        if (visibleRows.size() != rows.size()) {
+            visibleRows.setAll(rows);
+            return;
+        }
+        for (int index = 0; index < rows.size(); index++) {
+            K8sRow current = visibleRows.get(index);
+            K8sRow refreshed = rows.get(index);
+            if (!hasSamePresentation(current, refreshed)) {
+                visibleRows.set(index, refreshed);
+            }
+        }
+    }
+
+    private List<K8sRow> reconcileRows(List<K8sRow> refreshedRows) {
+        Map<String, K8sRow> existingRows = new HashMap<>();
+        for (K8sRow row : allRows) {
+            existingRows.put(resourceKey(row), row);
+        }
+
+        List<K8sRow> reconciledRows = new ArrayList<>(refreshedRows.size());
+        for (K8sRow refreshedRow : refreshedRows) {
+            K8sRow existingRow = existingRows.get(resourceKey(refreshedRow));
+            if (existingRow == null) {
+                reconciledRows.add(refreshedRow);
+            } else {
+                existingRow.updateFrom(refreshedRow);
+                reconciledRows.add(existingRow);
+            }
+        }
+        return reconciledRows;
+    }
+
+    private String resourceKey(K8sRow row) {
+        String uid = nodeText(row.raw(), "metadata", "uid");
+        if (!uid.isBlank()) {
+            return uid;
+        }
+        return row.kind().kubectlType()
+                + "\u0000" + nodeText(row.raw(), "metadata", "namespace")
+                + "\u0000" + nodeText(row.raw(), "metadata", "name");
+    }
+
+    private boolean hasSamePresentation(K8sRow current, K8sRow refreshed) {
+        if (current.kind() != refreshed.kind() || !Objects.equals(current.status(), refreshed.status())) {
+            return false;
+        }
+        for (String column : current.kind().columns()) {
+            if (isPodMetricColumn(column)) {
+                continue;
+            }
+            if (!Objects.equals(current.value(column), refreshed.value(column))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean isPodMetricColumn(String column) {
+        return Objects.equals(column, "CPU 使用量") || Objects.equals(column, "内存使用量");
     }
 
     private void refreshPodMetricsForVisibleRows() {
@@ -934,18 +1012,15 @@ public class K8sViewController {
                             || !Objects.equals(activeConnId, connId)) {
                         return;
                     }
-                    boolean updated = false;
                     for (K8sRow row : visibleRows) {
                         if (row.kind() != ResourceKind.PODS) {
                             continue;
                         }
                         K8sSessionManager.PodUsage usage = metrics.get(podMetricKey(row.raw()));
-                        row.values().put("CPU 使用量", usage == null ? "-" : firstNonBlank(usage.cpu(), "-"));
-                        row.values().put("内存使用量", usage == null ? "-" : firstNonBlank(usage.memory(), "-"));
-                        updated = true;
-                    }
-                    if (updated) {
-                        resourceTable.refresh();
+                        String cpu = usage == null ? "-" : firstNonBlank(usage.cpu(), "-");
+                        String memory = usage == null ? "-" : firstNonBlank(usage.memory(), "-");
+                        row.setValue("CPU 使用量", cpu);
+                        row.setValue("内存使用量", memory);
                     }
                 }));
     }
@@ -1093,28 +1168,28 @@ public class K8sViewController {
                     spec -> handleDetailAction(row, spec),
                     row.kind().hasStatefulDetailLists()
                             ? (onData, onComplete) -> {
-                                if (!ConnectionManager.getInstance().isConnected(context.connId())) {
-                                    onComplete.run();
-                                    return;
+                        if (!ConnectionManager.getInstance().isConnected(context.connId())) {
+                            onComplete.run();
+                            return;
+                        }
+                        sessionManager.dashboardDetail(
+                                context.connId(),
+                                context.connInfo(),
+                                row.kind().kubectlType(),
+                                rowNamespace(row),
+                                rowName(row),
+                                row.kind().namespaced()
+                        ).handle((refreshed, error) -> {
+                            Platform.runLater(() -> {
+                                if (error == null && refreshed != null && refreshed.success()
+                                        && refreshed.detail() != null) {
+                                    onData.accept(refreshed.detail());
                                 }
-                                sessionManager.dashboardDetail(
-                                        context.connId(),
-                                        context.connInfo(),
-                                        row.kind().kubectlType(),
-                                        rowNamespace(row),
-                                        rowName(row),
-                                        row.kind().namespaced()
-                                ).handle((refreshed, error) -> {
-                                    Platform.runLater(() -> {
-                                        if (error == null && refreshed != null && refreshed.success()
-                                                && refreshed.detail() != null) {
-                                            onData.accept(refreshed.detail());
-                                        }
-                                        onComplete.run();
-                                    });
-                                    return null;
-                                });
-                            }
+                                onComplete.run();
+                            });
+                            return null;
+                        });
+                    }
                             : null
             );
         }));
@@ -1331,7 +1406,7 @@ public class K8sViewController {
         setStatusText("正在扩缩容...");
         sessionManager.scale(context.connId(), context.connInfo(), row.kind().kubectlType(),
                         rowNamespace(row), rowName(row), row.kind().namespaced(), value.get())
-                .thenAccept(result -> Platform.runLater(() -> handleMutationResult("扩缩容", result)));
+                .thenAccept(result -> Platform.runLater(() -> handleScaleResult(result)));
     }
 
     private void restartResource(K8sRow row) {
@@ -1345,7 +1420,7 @@ public class K8sViewController {
         setStatusText("正在重启...");
         sessionManager.rolloutRestart(context.connId(), context.connInfo(), row.kind().kubectlType(),
                         rowNamespace(row), rowName(row), row.kind().namespaced())
-                .thenAccept(result -> Platform.runLater(() -> handleMutationResult("重启", result)));
+                .thenAccept(result -> Platform.runLater(() -> handleRestartResult(result)));
     }
 
     private void triggerCronJob(K8sRow row) {
@@ -1370,6 +1445,24 @@ public class K8sViewController {
             setStatusText(commandMessage(result));
             DialogHelper.showError(title, commandMessage(result));
         }
+    }
+
+    private void handleRestartResult(SshService.CommandResult result) {
+        if (result != null && result.isSuccess()) {
+            setStatusText("重启完成");
+        } else {
+            setStatusText(commandMessage(result));
+        }
+        refreshRowsForCurrentKind(false);
+    }
+
+    private void handleScaleResult(SshService.CommandResult result) {
+        if (result != null && result.isSuccess()) {
+            setStatusText("扩缩容完成");
+        } else {
+            setStatusText(commandMessage(result));
+        }
+        refreshRowsForCurrentKind(false);
     }
 
     private void showCommandResult(String header, SshService.CommandResult result) {
@@ -2733,7 +2826,7 @@ public class K8sViewController {
         private boolean hasStatefulDetailLists() {
             return switch (this) {
                 case PODS, JOBS, CRON_JOBS, DAEMON_SETS, DEPLOYMENTS, REPLICA_SETS,
-                        REPLICATION_CONTROLLERS, STATEFUL_SETS, SERVICES, NODES -> true;
+                     REPLICATION_CONTROLLERS, STATEFUL_SETS, SERVICES, NODES -> true;
                 default -> false;
             };
         }
@@ -2816,14 +2909,78 @@ public class K8sViewController {
     private record LogAppendResult(String text, int removedLines) {
     }
 
-    private record K8sRow(ResourceKind kind, Map<String, String> values, JsonNode raw, K8sResourceStatus status) {
+    private static final class K8sRow {
+        private final ResourceKind kind;
+        private final Map<String, StringProperty> values = new LinkedHashMap<>();
+        private final StringProperty statusRefresh = new SimpleStringProperty();
+        private final ObjectProperty<K8sResourceStatus> status = new SimpleObjectProperty<>();
+        private JsonNode raw;
+
+        private K8sRow(ResourceKind kind, Map<String, String> values, JsonNode raw, K8sResourceStatus status) {
+            this.kind = kind;
+            values.forEach(this::setValue);
+            this.raw = raw;
+            this.status.set(status);
+            updateStatusRefresh();
+        }
+
+        private ResourceKind kind() {
+            return kind;
+        }
+
+        private JsonNode raw() {
+            return raw;
+        }
+
+        private K8sResourceStatus status() {
+            return status.get();
+        }
 
         private String value(String column) {
-            return values.getOrDefault(column, "");
+            StringProperty property = values.get(column);
+            return property == null ? "" : property.get();
+        }
+
+        private StringProperty valueProperty(String column) {
+            if (Objects.equals(column, "状态")) {
+                return statusRefresh;
+            }
+            return values.computeIfAbsent(column, ignored -> new SimpleStringProperty());
+        }
+
+        private void setValue(String column, String value) {
+            StringProperty property = values.computeIfAbsent(column, ignored -> new SimpleStringProperty());
+            String normalizedValue = value == null ? "" : value;
+            if (Objects.equals(property.get(), normalizedValue)) {
+                return;
+            }
+            property.set(normalizedValue);
+        }
+
+        private void updateFrom(K8sRow refreshed) {
+            for (Map.Entry<String, StringProperty> entry : refreshed.values.entrySet()) {
+                if (kind == ResourceKind.PODS && isPodMetricColumn(entry.getKey())) {
+                    continue;
+                }
+                setValue(entry.getKey(), entry.getValue().get());
+            }
+            raw = refreshed.raw;
+            if (!Objects.equals(status.get(), refreshed.status())) {
+                status.set(refreshed.status());
+                updateStatusRefresh();
+            }
+        }
+
+        private void updateStatusRefresh() {
+            K8sResourceStatus currentStatus = status.get();
+            statusRefresh.set(currentStatus == null
+                    ? ""
+                    : currentStatus.level().name() + "\u0000" + currentStatus.text());
         }
 
         private boolean contains(String query) {
-            for (String value : values.values()) {
+            for (StringProperty property : values.values()) {
+                String value = property.get();
                 if (value != null && value.toLowerCase(Locale.ROOT).contains(query)) {
                     return true;
                 }
