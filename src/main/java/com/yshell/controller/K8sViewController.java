@@ -639,7 +639,9 @@ public class K8sViewController {
         }
 
         long rowToken = ++rowSerial;
-        setStatusText("正在加载 " + activeKind.label() + "...");
+        if (!automatic) {
+            setStatusText("正在加载 " + activeKind.label() + "...");
+        }
         String namespace = namespaceCombo.getValue();
         String listNamespace = namespace == null || namespace.isBlank() || Objects.equals(namespace, ALL_NAMESPACES)
                 ? ""
@@ -679,12 +681,17 @@ public class K8sViewController {
                             rows.add(new K8sRow(activeKind, valuesFor(activeKind, item, status), item, status));
                         }
                         rows.sort(this::compareByCreationTimeDesc);
-                        allRows.setAll(reconcileRows(rows));
-                        if (resetPage) {
-                            currentPageIndex = 0;
+                        RowReconciliation reconciliation = reconcileRows(rows);
+                        allRows.setAll(reconciliation.rows());
+                        if (!automatic || reconciliation.changed()) {
+                            if (resetPage) {
+                                currentPageIndex = 0;
+                            }
+                            applyFilters(automatic);
+                            setStatusText(activeKind.label() + " 已加载：" + rows.size());
+                        } else {
+                            refreshPodMetricsForVisibleRows();
                         }
-                        applyFilters(automatic);
-                        setStatusText(activeKind.label() + " 已加载：" + rows.size());
                     });
                     return null;
                 });
@@ -764,6 +771,9 @@ public class K8sViewController {
     private void setStatusText(String value) {
         if (lblK8sStatus != null) {
             String fullText = firstNonBlank(value, "-");
+            if (Objects.equals(statusDetailText, fullText)) {
+                return;
+            }
             statusDetailText = fullText;
             lblK8sStatus.setText(statusSummary(fullText));
             lblK8sStatus.setTooltip(new Tooltip(hasStatusDetail(fullText) ? "点击查看完整信息" : fullText));
@@ -941,23 +951,33 @@ public class K8sViewController {
         }
     }
 
-    private List<K8sRow> reconcileRows(List<K8sRow> refreshedRows) {
+    private RowReconciliation reconcileRows(List<K8sRow> refreshedRows) {
         Map<String, K8sRow> existingRows = new HashMap<>();
         for (K8sRow row : allRows) {
             existingRows.put(resourceKey(row), row);
         }
 
         List<K8sRow> reconciledRows = new ArrayList<>(refreshedRows.size());
+        boolean changed = allRows.size() != refreshedRows.size();
         for (K8sRow refreshedRow : refreshedRows) {
             K8sRow existingRow = existingRows.get(resourceKey(refreshedRow));
             if (existingRow == null) {
                 reconciledRows.add(refreshedRow);
+                changed = true;
             } else {
-                existingRow.updateFrom(refreshedRow);
+                changed |= existingRow.updateFrom(refreshedRow);
                 reconciledRows.add(existingRow);
             }
         }
-        return reconciledRows;
+        if (!changed) {
+            for (int index = 0; index < reconciledRows.size(); index++) {
+                if (allRows.get(index) != reconciledRows.get(index)) {
+                    changed = true;
+                    break;
+                }
+            }
+        }
+        return new RowReconciliation(reconciledRows, changed);
     }
 
     private String resourceKey(K8sRow row) {
@@ -2856,6 +2876,9 @@ public class K8sViewController {
     private record ConnectionContext(String connId, ConnInfo connInfo) {
     }
 
+    private record RowReconciliation(List<K8sRow> rows, boolean changed) {
+    }
+
     private enum ResourceEditFormat {
         YAML,
         JSON
@@ -2948,27 +2971,31 @@ public class K8sViewController {
             return values.computeIfAbsent(column, ignored -> new SimpleStringProperty());
         }
 
-        private void setValue(String column, String value) {
+        private boolean setValue(String column, String value) {
             StringProperty property = values.computeIfAbsent(column, ignored -> new SimpleStringProperty());
             String normalizedValue = value == null ? "" : value;
             if (Objects.equals(property.get(), normalizedValue)) {
-                return;
+                return false;
             }
             property.set(normalizedValue);
+            return true;
         }
 
-        private void updateFrom(K8sRow refreshed) {
+        private boolean updateFrom(K8sRow refreshed) {
+            boolean changed = false;
             for (Map.Entry<String, StringProperty> entry : refreshed.values.entrySet()) {
                 if (kind == ResourceKind.PODS && isPodMetricColumn(entry.getKey())) {
                     continue;
                 }
-                setValue(entry.getKey(), entry.getValue().get());
+                changed |= setValue(entry.getKey(), entry.getValue().get());
             }
             raw = refreshed.raw;
             if (!Objects.equals(status.get(), refreshed.status())) {
                 status.set(refreshed.status());
                 updateStatusRefresh();
+                changed = true;
             }
+            return changed;
         }
 
         private void updateStatusRefresh() {

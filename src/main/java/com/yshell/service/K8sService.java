@@ -504,8 +504,8 @@ public class K8sService {
                 optionalText(cronJob, "/status/lastScheduleTime"),
                 optionalText(cronJob, "/spec/concurrencyPolicy"),
                 intOrNull(cronJob.at("/spec/startingDeadlineSeconds")),
-                resourceRefs(activeJobs),
-                resourceRefs(inactiveJobs),
+                jobRefs(activeJobs),
+                jobRefs(inactiveJobs),
                 eventList(safeEventsForObject(session, namespace, text(cronJob, "/metadata/name"))));
     }
 
@@ -1081,6 +1081,7 @@ public class K8sService {
             }
         }
         List<JsonNode> jobs = new ArrayList<>();
+        Set<String> matchedRefs = new HashSet<>();
         for (JsonNode job : cronJobJobs(session, namespace, cronJob)) {
             String uid = text(job, "/metadata/uid");
             String name = text(job, "/metadata/name");
@@ -1088,9 +1089,41 @@ public class K8sService {
                     || activeRefs.contains("name:" + name)
                     || intValue(job, "/status/active", 0) > 0) {
                 jobs.add(job);
+                if (!uid.isBlank()) {
+                    matchedRefs.add("uid:" + uid);
+                }
+                if (!name.isBlank()) {
+                    matchedRefs.add("name:" + name);
+                }
+            }
+        }
+        for (JsonNode ref : iterable(cronJob.path("status").path("active"))) {
+            String uid = text(ref, "/uid");
+            String name = text(ref, "/name");
+            boolean matched = (!uid.isBlank() && matchedRefs.contains("uid:" + uid))
+                    || (!name.isBlank() && matchedRefs.contains("name:" + name));
+            if (!matched && !name.isBlank()) {
+                jobs.add(activeJobReference(namespace, ref));
             }
         }
         return jobs;
+    }
+
+    private JsonNode activeJobReference(String namespace, JsonNode ref) {
+        ObjectNode job = objectMapper.createObjectNode();
+        ObjectNode metadata = job.putObject("metadata");
+        String name = text(ref, "/name");
+        String uid = text(ref, "/uid");
+        if (!name.isBlank()) {
+            metadata.put("name", name);
+        }
+        if (namespace != null && !namespace.isBlank()) {
+            metadata.put("namespace", namespace);
+        }
+        if (!uid.isBlank()) {
+            metadata.put("uid", uid);
+        }
+        return job;
     }
 
     private List<JsonNode> inactiveCronJobJobs(SshService session,
@@ -1601,10 +1634,13 @@ public class K8sService {
                 typeMeta(ownerKind));
     }
 
-    private List<K8sDetailDtos.ResourceRefDto> resourceRefs(List<JsonNode> resources) {
-        List<K8sDetailDtos.ResourceRefDto> refs = new ArrayList<>();
+    private List<K8sDetailDtos.JobRefDto> jobRefs(List<JsonNode> resources) {
+        List<K8sDetailDtos.JobRefDto> refs = new ArrayList<>();
         for (JsonNode resource : resources) {
-            refs.add(new K8sDetailDtos.ResourceRefDto(objectMeta(resource.path("metadata")), typeMeta("job")));
+            refs.add(new K8sDetailDtos.JobRefDto(
+                    objectMeta(resource.path("metadata")),
+                    typeMeta("job"),
+                    jobStatus(resource)));
         }
         return refs;
     }

@@ -861,24 +861,33 @@ public class K8sDetailController {
                 rows));
     }
 
-    private void addJobRefList(String title, List<K8sDetailDtos.ResourceRefDto> jobs) {
+    private void addJobRefList(String title, List<K8sDetailDtos.JobRefDto> jobs) {
         if (jobs == null || jobs.isEmpty()) {
             return;
         }
         List<ResourceTableRow> rows = new ArrayList<>();
-        for (K8sDetailDtos.ResourceRefDto job : jobs) {
+        for (K8sDetailDtos.JobRefDto job : jobs) {
             K8sDetailDtos.ObjectMetaDto meta = job.objectMeta();
             Map<String, String> values = new LinkedHashMap<>();
-            values.put("状态", "-");
+            values.put("状态", job.jobStatus() == null ? "-" : emptyAsDash(job.jobStatus().status()));
             values.put("名称", metaName(meta));
             values.put("命名空间", metaNamespace(meta));
             values.put("镜像", "-");
             values.put("标签", labelsDisplay(meta == null ? null : meta.labels()));
             values.put("Pods", "-");
             values.put("创建时间", ageDisplay(meta == null ? null : meta.creationTimestamp()));
-            rows.add(resourceRow("job", values, JOB_TABLE_ACTIONS, mutedStatus()));
+            rows.add(resourceRow("job", values, JOB_TABLE_ACTIONS, jobListStatus(job.jobStatus())));
         }
         addDynamicListCard(createResourceTableCard(title, JOB_TABLE_COLUMNS, rows));
+    }
+
+    private K8sResourceStatus jobListStatus(K8sDetailDtos.JobStatusDto jobStatus) {
+        String status = jobStatus == null ? "" : emptyAsDash(jobStatus.status());
+        return switch (status) {
+            case "Running", "Complete" -> new K8sResourceStatus(K8sResourceStatus.Level.SUCCESS, status, false);
+            case "Failed" -> new K8sResourceStatus(K8sResourceStatus.Level.ERROR, status, false);
+            default -> new K8sResourceStatus(K8sResourceStatus.Level.MUTED, status, false);
+        };
     }
 
     private void addReplicaSet(K8sDetailDtos.ReplicaSetSummaryDto replicaSet) {
@@ -987,8 +996,15 @@ public class K8sDetailController {
     }
 
     private void addEventList(K8sDetailDtos.EventListDto eventList) {
+        Node card = createEventListCard(eventList);
+        if (card != null) {
+            overviewHost.getChildren().add(card);
+        }
+    }
+
+    private Node createEventListCard(K8sDetailDtos.EventListDto eventList) {
         if (eventList == null || eventList.events() == null || eventList.events().isEmpty()) {
-            return;
+            return null;
         }
         List<ResourceTableRow> rows = new ArrayList<>();
         for (K8sDetailDtos.EventDto event : eventList.events()) {
@@ -1005,7 +1021,7 @@ public class K8sDetailController {
             values.put("Last Seen", ageDisplay(event.lastSeen()));
             rows.add(resourceRow("event", values, EVENT_TABLE_ACTIONS, null));
         }
-        overviewHost.getChildren().add(createResourceTableCard("Events", EVENT_TABLE_COLUMNS, rows));
+        return createResourceTableCard("Events", EVENT_TABLE_COLUMNS, rows);
     }
 
     private ResourceTableRow resourceRow(String resourceKind,

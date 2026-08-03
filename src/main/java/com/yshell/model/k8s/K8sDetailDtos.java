@@ -66,6 +66,9 @@ public final class K8sDetailDtos {
     public record ResourceRefDto(ObjectMetaDto objectMeta, TypeMetaDto typeMeta) {
     }
 
+    public record JobRefDto(ObjectMetaDto objectMeta, TypeMetaDto typeMeta, JobStatusDto jobStatus) {
+    }
+
     public record ContainerDto(
             String name,
             String image,
@@ -304,8 +307,8 @@ public final class K8sDetailDtos {
             String lastSchedule,
             String concurrencyPolicy,
             Integer startingDeadlineSeconds,
-            List<ResourceRefDto> activeJobs,
-            List<ResourceRefDto> inactiveJobs,
+            List<JobRefDto> activeJobs,
+            List<JobRefDto> inactiveJobs,
             EventListDto eventList
     ) implements ResourceDetailDto {
     }
