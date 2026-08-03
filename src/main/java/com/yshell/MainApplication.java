@@ -19,14 +19,17 @@ import javafx.scene.layout.BorderPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.List;
 
 public class MainApplication extends Application {
     private static final Logger LOGGER = LoggerFactory.getLogger(MainApplication.class);
     private static Stage primaryStage;
+    private boolean shutdownRequested;
 
     public static Stage getPrimaryStage() {
         return primaryStage;
@@ -45,6 +48,11 @@ public class MainApplication extends Application {
         primaryStage.initStyle(javafx.stage.StageStyle.UNDECORATED);
         ApplicationIcons.applyTo(primaryStage);
         primaryStage.setScene(scene);
+        primaryStage.showingProperty().addListener((observable, wasShowing, isShowing) -> {
+            if (wasShowing && !isShowing) {
+                closeAllWindows();
+            }
+        });
 
         // 恢复窗口大小和位置
         LayoutConfig layoutConfig = LayoutConfig.getInstance();
@@ -126,6 +134,19 @@ public class MainApplication extends Application {
         } catch (Exception e) {
             LOGGER.error(e.getMessage());
         }
+    }
+
+    private void closeAllWindows() {
+        if (shutdownRequested) {
+            return;
+        }
+        shutdownRequested = true;
+        for (Window window : List.copyOf(Window.getWindows())) {
+            if (window != primaryStage && window.isShowing()) {
+                window.hide();
+            }
+        }
+        Platform.exit();
     }
 
     @Override
