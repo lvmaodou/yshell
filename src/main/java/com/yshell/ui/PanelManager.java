@@ -298,6 +298,11 @@ public class PanelManager {
     }
 
     public void setForceConnectionInfoVisible(boolean forceVisible) {
+        if (forceConnectionInfoVisible == forceVisible
+                && systemInfoNode != null
+                && connectionInfoNode != null) {
+            return;
+        }
         forceConnectionInfoVisible = forceVisible;
         applyLeftContentVisibility();
     }
@@ -306,7 +311,7 @@ public class PanelManager {
         boolean showSystemInfo = systemInfoVisible && !forceConnectionInfoVisible;
         setNodeVisible(systemInfoNode, showSystemInfo);
         setNodeVisible(connectionInfoNode, !showSystemInfo);
-        ConnectionManager.getInstance().onSystemInfoPanelVisibilityChanged(showSystemInfo);
+        ConnectionManager.getInstance().onSystemInfoPanelVisibilityChanged();
     }
 
     private void setNodeVisible(Node node, boolean visible) {
@@ -572,10 +577,6 @@ public class PanelManager {
 
     public boolean isSystemInfoVisible() {
         return systemInfoVisible;
-    }
-
-    public boolean isSystemInfoPanelVisible() {
-        return systemInfoVisible && !forceConnectionInfoVisible;
     }
 
     private double clamp(double value) {

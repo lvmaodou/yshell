@@ -264,10 +264,14 @@ public class LeftPanelController implements Initializable {
 
     private void refreshAutomaticConnectionTreeVisibility() {
         ConnectionManager manager = ConnectionManager.getInstance();
+        String currentConnId = manager.getCurrentConnectionId();
         SshService currentService = manager.getCurrentSshService();
-        boolean forceConnectionTree = manager.isRdpConnectionTreeMode()
-                || manager.hasAnyConnectedConnection()
-                || (currentService != null && currentService.isConnected() && !currentService.isExecAvailable());
+        boolean systemInfoAvailable = currentConnId != null
+                && currentService != null
+                && currentService.isConnected()
+                && currentService.isExecAvailable()
+                && systemInfoByConnId.containsKey(currentConnId);
+        boolean forceConnectionTree = manager.isRdpConnectionTreeMode() || !systemInfoAvailable;
         PanelManager.getInstance().setForceConnectionInfoVisible(forceConnectionTree);
     }
 
@@ -305,6 +309,7 @@ public class LeftPanelController implements Initializable {
         if (snapshot != null) {
             renderSystemInfo(snapshot);
         }
+        refreshAutomaticConnectionTreeVisibility();
     }
 
     private void setupConnectionInfoPane() {
@@ -894,6 +899,7 @@ public class LeftPanelController implements Initializable {
         if (connId.equals(activeConnId)) {
             setConnected(true);
             renderSystemInfo(merged);
+            refreshAutomaticConnectionTreeVisibility();
         }
     }
 

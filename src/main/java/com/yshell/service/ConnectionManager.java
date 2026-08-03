@@ -132,10 +132,10 @@ public class ConnectionManager {
                     if (isCurrent) {
                         rdpConnectionTreeMode = false;
                         stopCurrentPolling();
+                        currentConnectionId = finalConnId;
                         if (leftPanelController != null) {
                             leftPanelController.showConnection(finalConnId, connInfo);
                         }
-                        currentConnectionId = finalConnId;
                         if (connectedService != null && connectedService.isExecAvailable()) {
                             startPolling(finalConnId);
                         }
@@ -170,6 +170,7 @@ public class ConnectionManager {
                         fireConnectionStateChanged();
                         return;
                     }
+                    removed.stopSystemInfoPolling();
                     if (finalConnId.equals(currentConnectionId)) {
                         stopCurrentPolling();
                         currentConnectionId = null;
@@ -201,7 +202,8 @@ public class ConnectionManager {
             @Override
             public void onSystemInfoReceived(SystemInfo info) {
                 Platform.runLater(() -> {
-                    if (leftPanelController != null) {
+                    SshService activeService = connections.get(finalConnId);
+                    if (leftPanelController != null && activeService != null && activeService.isConnected()) {
                         leftPanelController.updateConnectionInfo(finalConnId, info);
                     }
                 });
@@ -280,7 +282,7 @@ public class ConnectionManager {
 
     private void startPolling(String connId) {
         stopCurrentPolling();
-        if (!PanelManager.getInstance().isSystemInfoPanelVisible()) {
+        if (!PanelManager.getInstance().isSystemInfoVisible()) {
             return;
         }
         SshService currentService = connections.get(connId);
@@ -299,8 +301,8 @@ public class ConnectionManager {
         }
     }
 
-    public void onSystemInfoPanelVisibilityChanged(boolean visible) {
-        if (!visible) {
+    public void onSystemInfoPanelVisibilityChanged() {
+        if (!PanelManager.getInstance().isSystemInfoVisible()) {
             stopCurrentPolling();
             return;
         }
@@ -313,12 +315,16 @@ public class ConnectionManager {
     public void disconnect(String connId) {
         SshService service = connections.remove(connId);
         if (service != null) {
+            service.stopSystemInfoPolling();
             if (connId.equals(currentConnectionId)) {
                 stopCurrentPolling();
                 currentConnectionId = null;
             }
             DockerSessionManager.getInstance().clear(connId);
             K8sSessionManager.getInstance().clear(connId);
+            if (leftPanelController != null) {
+                leftPanelController.removeConnectionInfo(connId);
+            }
             service.disconnect();
             fireConnectionClosed(connId);
         }
@@ -330,22 +336,23 @@ public class ConnectionManager {
         }
     }
 
-    public void switchConnectionById(String connId) {
-        SshService service = connections.get(connId);
+    public void switchConnectionById(String connId, ConnInfo connInfo) {
+        SshService service = connId == null ? null : connections.get(connId);
         if (service != null && service.isConnected()) {
             switchConnectionInternal(connId, service.getConnInfo());
+            return;
         }
+        switchToDisconnectedConnection(connInfo);
     }
 
     private void switchConnectionInternal(String connId, ConnInfo connInfo) {
         rdpConnectionTreeMode = false;
         stopCurrentPolling();
+        this.currentConnectionId = connId;
 
         if (leftPanelController != null) {
             leftPanelController.showConnection(connId, connInfo);
         }
-
-        this.currentConnectionId = connId;
 
         SshService sshService = getConnectionById(connId);
 
@@ -365,6 +372,16 @@ public class ConnectionManager {
         fireConnectionStateChanged();
     }
 
+    private void switchToDisconnectedConnection(ConnInfo connInfo) {
+        rdpConnectionTreeMode = false;
+        stopCurrentPolling();
+        currentConnectionId = null;
+        if (leftPanelController != null) {
+            leftPanelController.clearData(connInfo);
+        }
+        fireConnectionStateChanged();
+    }
+
     public boolean isConnected() {
         return getCurrentSshService() != null && getCurrentSshService().isConnected();
     }
@@ -377,10 +394,10 @@ public class ConnectionManager {
     public boolean hasAnyConnectedConnection() {
         for (SshService service : connections.values()) {
             if (service != null && service.isConnected()) {
-                return false;
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
     public SshService getCurrentSshService() {

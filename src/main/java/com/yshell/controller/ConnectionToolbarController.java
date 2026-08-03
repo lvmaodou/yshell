@@ -94,9 +94,9 @@ public class ConnectionToolbarController {
         tab.getStyleClass().add("active");
 
         ConnectionTabInfo tabInfo = tabInfoMap.get(tab);
-        if (tabInfo != null && tabInfo.getConnId() != null) {
-            ConnectionManager.getInstance().switchConnectionById(tabInfo.getConnId());
-        }
+        ConnectionManager.getInstance().switchConnectionById(
+                tabInfo == null ? null : tabInfo.getConnId(),
+                tabInfo == null ? null : tabInfo.getConnInfo());
 
         if (onTabChangedListener != null) {
             onTabChangedListener.onTabChanged(tabInfo);
