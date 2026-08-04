@@ -93,9 +93,6 @@ public class RightPanelController implements Initializable {
      * 显示终端+可视化内容区（IP连接tab时调用）
      */
     private void showContent(ConnectionTabInfo tabInfo) {
-        ConnectionManager manager = ConnectionManager.getInstance();
-        PanelManager.getInstance().setForceConnectionInfoVisible(
-                manager.isRdpConnectionTreeMode() || manager.hasAnyConnectedConnection());
         Node activeTerminalPanel = ensureTerminalPanel(tabInfo);
         if (activeTerminalPanel == null) {
             return;
@@ -179,7 +176,6 @@ public class RightPanelController implements Initializable {
      * 显示快速连接面板（新建连接tab时调用）
      */
     private void showQuickConnect() {
-        PanelManager.getInstance().setForceConnectionInfoVisible(true);
         contentSplitPane.setVisible(false);
         contentSplitPane.setManaged(false);
         ConnectionManager.getInstance().setTerminalPanelController(null);

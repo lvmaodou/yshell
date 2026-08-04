@@ -8,7 +8,6 @@ import com.yshell.service.SshService;
 import com.yshell.theme.ThemeManager;
 import com.yshell.ui.DialogHelper;
 import com.yshell.ui.PanelManager;
-import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -212,10 +211,7 @@ public class LeftPanelController implements Initializable {
             serverItem.managedProperty().bind(systemInfoScroll.managedProperty());
         }
 
-        ConnectionManager cm = ConnectionManager.getInstance();
-        cm.setLeftPanelController(this);
-        cm.addOnConnectionStateChangedListener(
-                () -> Platform.runLater(this::refreshAutomaticConnectionTreeVisibility));
+        ConnectionManager.getInstance().setLeftPanelController(this);
 
         nicSelect.getItems().clear();
 
@@ -259,25 +255,15 @@ public class LeftPanelController implements Initializable {
         initNetworkChart();
         clearData(null);
 
-        refreshAutomaticConnectionTreeVisibility();
-    }
-
-    private void refreshAutomaticConnectionTreeVisibility() {
-        ConnectionManager manager = ConnectionManager.getInstance();
-        String currentConnId = manager.getCurrentConnectionId();
-        SshService currentService = manager.getCurrentSshService();
-        boolean systemInfoAvailable = currentConnId != null
-                && currentService != null
-                && currentService.isConnected()
-                && currentService.isExecAvailable()
-                && systemInfoByConnId.containsKey(currentConnId);
-        boolean forceConnectionTree = manager.isRdpConnectionTreeMode() || !systemInfoAvailable;
-        PanelManager.getInstance().setForceConnectionInfoVisible(forceConnectionTree);
     }
 
     public void clearData(ConnInfo connInfo) {
         activeConnId = null;
         activeConnInfo = connInfo;
+        resetSystemInfoDisplay(connInfo);
+    }
+
+    private void resetSystemInfoDisplay(ConnInfo connInfo) {
         setServerLabel("--");
         setBasicInfo("--", "--", "--", "--");
         setCpuInfo("--", "--", 0);
@@ -300,16 +286,11 @@ public class LeftPanelController implements Initializable {
     public void showConnection(String connId, ConnInfo connInfo) {
         activeConnId = connId;
         activeConnInfo = connInfo;
-        if (connInfo != null) {
-            setServerLabel(connInfo.getHost());
-            setCurrentUserValue(connInfo.getUserName());
-            selectConnectionNode(connInfo.getId());
-        }
+        resetSystemInfoDisplay(connInfo);
         SystemInfo snapshot = connId == null ? null : systemInfoByConnId.get(connId);
         if (snapshot != null) {
             renderSystemInfo(snapshot);
         }
-        refreshAutomaticConnectionTreeVisibility();
     }
 
     private void setupConnectionInfoPane() {
@@ -899,7 +880,6 @@ public class LeftPanelController implements Initializable {
         if (connId.equals(activeConnId)) {
             setConnected(true);
             renderSystemInfo(merged);
-            refreshAutomaticConnectionTreeVisibility();
         }
     }
 

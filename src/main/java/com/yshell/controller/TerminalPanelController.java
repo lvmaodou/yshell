@@ -130,6 +130,8 @@ public class TerminalPanelController {
 
     private Stage boundStage;
     private final Runnable stageStateChangeListener = () -> Platform.runLater(() -> refreshToolbarStyle(null));
+    private final ConnectionManager.OnConnectionStateChangedListener connectionStateChangedListener =
+            () -> Platform.runLater(this::refreshConnectButtonState);
 
     /**
      * 记录最后一次连接的 connId 与 connInfo。
@@ -200,8 +202,7 @@ public class TerminalPanelController {
         btnConnProps.setOnAction(e -> openConnectionProperties());
 
         // 订阅连接状态变化事件：无论是哪里触发的变化，都会刷新 btnConnect 的颜色
-        cm.addOnConnectionStateChangedListener(
-                () -> Platform.runLater(this::refreshConnectButtonState));
+        cm.addOnConnectionStateChangedListener(connectionStateChangedListener);
 
         // 终端关闭时回收资源
         terminal.setOnClose(() -> {
@@ -1025,6 +1026,7 @@ public class TerminalPanelController {
         pm.exitTerminalFullscreen(rootPane);
         pm.removeBottomPanelVisibilityListener(bottomPanelVisibilityListener);
         pm.removeTerminalFullscreenListener(terminalFullscreenListener);
+        ConnectionManager.getInstance().removeOnConnectionStateChangedListener(connectionStateChangedListener);
         if (boundStage != null) {
             boundStage.fullScreenProperty().removeListener((obs, old, newVal) -> stageStateChangeListener.run());
             boundStage.maximizedProperty().removeListener((obs, old, newVal) -> stageStateChangeListener.run());

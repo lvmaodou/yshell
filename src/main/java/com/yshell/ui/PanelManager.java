@@ -51,7 +51,6 @@ public class PanelManager {
     private boolean bottomPanelVisible = true;
     private boolean interactivePanelVisible = true;
     private boolean systemInfoVisible = true;
-    private boolean forceConnectionInfoVisible;
     private boolean terminalFullscreenActive;
     private boolean restoringTerminalFullscreen;
     private Node fullscreenNode;
@@ -220,6 +219,7 @@ public class PanelManager {
         leftPanelVisible = visible;
         DropdownMenu.GlobalState.getInstance().setLeftPanelVisible(visible);
         if (mainSplitPane == null || leftPanelNode == null) {
+            ConnectionManager.getInstance().reconcileSystemInfoPolling();
             LayoutConfig.getInstance().requestSave();
             return;
         }
@@ -232,6 +232,7 @@ public class PanelManager {
         } else {
             mainSplitPane.getItems().remove(leftPanelNode);
         }
+        ConnectionManager.getInstance().reconcileSystemInfoPolling();
         LayoutConfig.getInstance().requestSave();
     }
 
@@ -292,26 +293,15 @@ public class PanelManager {
 
     public void toggleSystemInfo(boolean visible) {
         systemInfoVisible = visible;
-        DropdownMenu.GlobalState.getInstance().setConnTreeVisible(visible);
+        DropdownMenu.GlobalState.getInstance().setConnTreeVisible(!visible);
         applyLeftContentVisibility();
+        ConnectionManager.getInstance().reconcileSystemInfoPolling();
         LayoutConfig.getInstance().requestSave();
     }
 
-    public void setForceConnectionInfoVisible(boolean forceVisible) {
-        if (forceConnectionInfoVisible == forceVisible
-                && systemInfoNode != null
-                && connectionInfoNode != null) {
-            return;
-        }
-        forceConnectionInfoVisible = forceVisible;
-        applyLeftContentVisibility();
-    }
-
     private void applyLeftContentVisibility() {
-        boolean showSystemInfo = systemInfoVisible && !forceConnectionInfoVisible;
-        setNodeVisible(systemInfoNode, showSystemInfo);
-        setNodeVisible(connectionInfoNode, !showSystemInfo);
-        ConnectionManager.getInstance().onSystemInfoPanelVisibilityChanged();
+        setNodeVisible(systemInfoNode, systemInfoVisible);
+        setNodeVisible(connectionInfoNode, !systemInfoVisible);
     }
 
     private void setNodeVisible(Node node, boolean visible) {

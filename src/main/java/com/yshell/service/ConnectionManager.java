@@ -15,8 +15,10 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class ConnectionManager {
 
@@ -26,7 +28,9 @@ public class ConnectionManager {
 
     private final Map<String, SshService> connections = new ConcurrentHashMap<>();
     private final Map<String, TerminalPanelController> terminalPanelControllers = new ConcurrentHashMap<>();
+    private final Object pollingStateLock = new Object();
     private String currentConnectionId;
+    private String pollingConnectionId;
     private volatile boolean rdpConnectionTreeMode;
 
     private LeftPanelController leftPanelController;
@@ -59,6 +63,10 @@ public class ConnectionManager {
 
     public void addOnConnectionStateChangedListener(OnConnectionStateChangedListener listener) {
         if (listener != null) connectionStateChangedListeners.add(listener);
+    }
+
+    public void removeOnConnectionStateChangedListener(OnConnectionStateChangedListener listener) {
+        connectionStateChangedListeners.remove(listener);
     }
 
     private void fireConnectionClosed(String connId) {
@@ -114,15 +122,21 @@ public class ConnectionManager {
         connId = connId == null ? generateConnectionId(connInfo) : connId;
 
         String finalConnId = connId;
-        prepareTerminalForConnection(connInfo, finalConnId, createTab);
+        AtomicReference<SshService> serviceReference = new AtomicReference<>();
         SshService sshService = new SshService(connInfo, new SshService.ConnectionCallback() {
             @Override
             public void onConnected() {
-                RecentConnectionRepository.getInstance().record(connInfo);
                 Platform.runLater(() -> {
+                    SshService connectedService = serviceReference.get();
+                    if (!isManagedConnection(finalConnId, connectedService)) {
+                        if (connectedService != null) {
+                            connectedService.disconnect();
+                        }
+                        return;
+                    }
+                    RecentConnectionRepository.getInstance().record(connInfo);
                     TerminalPanelController terminalPanel = getTerminalPanelController(finalConnId);
-                    SshService connectedService = getConnectionById(finalConnId);
-                    if (terminalPanel != null && connectedService != null) {
+                    if (terminalPanel != null) {
                         terminalPanel.appendOutput("\r\n认证成功，正在打开远程 Shell...\r\n");
                         terminalPanel.onShellReady(connectedService);
                     }
@@ -136,9 +150,7 @@ public class ConnectionManager {
                         if (leftPanelController != null) {
                             leftPanelController.showConnection(finalConnId, connInfo);
                         }
-                        if (connectedService != null && connectedService.isExecAvailable()) {
-                            startPolling(finalConnId);
-                        }
+                        reconcileSystemInfoPolling();
                     }
                     fireConnectionStateChanged();
                 });
@@ -149,7 +161,10 @@ public class ConnectionManager {
             public void onConnectionFailed(String error) {
                 String message = normalizeConnectionError(error);
                 Platform.runLater(() -> {
-                    connections.remove(finalConnId);
+                    SshService failedService = serviceReference.get();
+                    if (!connections.remove(finalConnId, failedService)) {
+                        return;
+                    }
                     DockerSessionManager.getInstance().clear(finalConnId);
                     K8sSessionManager.getInstance().clear(finalConnId);
                     TerminalPanelController terminalPanel = getTerminalPanelController(finalConnId);
@@ -165,12 +180,11 @@ public class ConnectionManager {
             @Override
             public void onDisconnected() {
                 Platform.runLater(() -> {
-                    SshService removed = connections.remove(finalConnId);
-                    if (removed == null) {
-                        fireConnectionStateChanged();
+                    SshService disconnectedService = serviceReference.get();
+                    if (!connections.remove(finalConnId, disconnectedService)) {
                         return;
                     }
-                    removed.stopSystemInfoPolling();
+                    disconnectedService.stopSystemInfoPolling();
                     if (finalConnId.equals(currentConnectionId)) {
                         stopCurrentPolling();
                         currentConnectionId = null;
@@ -192,6 +206,9 @@ public class ConnectionManager {
             @Override
             public void onOutputReceived(String output) {
                 Platform.runLater(() -> {
+                    if (!isManagedConnection(finalConnId, serviceReference.get())) {
+                        return;
+                    }
                     TerminalPanelController terminalPanel = getTerminalPanelController(finalConnId);
                     if (terminalPanel != null) {
                         terminalPanel.appendOutput(output);
@@ -202,8 +219,10 @@ public class ConnectionManager {
             @Override
             public void onSystemInfoReceived(SystemInfo info) {
                 Platform.runLater(() -> {
-                    SshService activeService = connections.get(finalConnId);
-                    if (leftPanelController != null && activeService != null && activeService.isConnected()) {
+                    SshService activeService = serviceReference.get();
+                    if (leftPanelController != null
+                            && isManagedConnection(finalConnId, activeService)
+                            && activeService.isConnected()) {
                         leftPanelController.updateConnectionInfo(finalConnId, info);
                     }
                 });
@@ -211,20 +230,41 @@ public class ConnectionManager {
 
             @Override
             public boolean supportsKeyboardInteractive() {
-                return getTerminalPanelController(finalConnId) != null;
+                return isManagedConnection(finalConnId, serviceReference.get())
+                        && getTerminalPanelController(finalConnId) != null;
             }
 
             @Override
             public String[] onKeyboardInteractive(String name, String instruction, String lang,
                                                   String[] prompts, boolean[] echo) {
+                if (!isManagedConnection(finalConnId, serviceReference.get())) {
+                    return null;
+                }
                 TerminalPanelController terminalPanel = getTerminalPanelController(finalConnId);
                 return terminalPanel == null ? null
                         : terminalPanel.requestKeyboardInteractive(name, instruction, prompts, echo);
             }
         }, executor);
 
-        connections.put(connId, sshService);
+        serviceReference.set(sshService);
+        SshService existingService = connections.putIfAbsent(finalConnId, sshService);
+        if (existingService != null) {
+            if (isCurrent && existingService.isConnected()) {
+                switchConnectionInternal(finalConnId, existingService.getConnInfo());
+            }
+            return;
+        }
+        try {
+            prepareTerminalForConnection(connInfo, finalConnId, createTab);
+        } catch (RuntimeException e) {
+            connections.remove(finalConnId, sshService);
+            throw e;
+        }
         executor.submit(sshService::connect);
+    }
+
+    private boolean isManagedConnection(String connId, SshService service) {
+        return connId != null && service != null && connections.get(connId) == service;
     }
 
     private void prepareTerminalForConnection(ConnInfo connInfo, String connId, boolean createTab) {
@@ -276,39 +316,59 @@ public class ConnectionManager {
         });
     }
 
-    public boolean isRdpConnectionTreeMode() {
-        return rdpConnectionTreeMode;
-    }
-
-    private void startPolling(String connId) {
-        stopCurrentPolling();
-        if (!PanelManager.getInstance().isSystemInfoVisible()) {
-            return;
-        }
-        SshService currentService = connections.get(connId);
-        if (currentService == null || !currentService.isConnected() || !currentService.isExecAvailable()) {
-            return;
-        }
-        currentService.startSystemInfoPolling();
-    }
-
     private void stopCurrentPolling() {
-        if (currentConnectionId != null) {
-            SshService service = connections.get(currentConnectionId);
+        synchronized (pollingStateLock) {
+            stopPollingLocked();
+        }
+    }
+
+    private void stopPollingLocked() {
+        String runningConnId = pollingConnectionId;
+        pollingConnectionId = null;
+        if (runningConnId != null) {
+            SshService service = connections.get(runningConnId);
             if (service != null) {
                 service.stopSystemInfoPolling();
             }
         }
     }
 
-    public void onSystemInfoPanelVisibilityChanged() {
-        if (!PanelManager.getInstance().isSystemInfoVisible()) {
-            stopCurrentPolling();
-            return;
+    public void reconcileSystemInfoPolling() {
+        synchronized (pollingStateLock) {
+            String desiredConnId = desiredPollingConnectionId();
+            if (Objects.equals(pollingConnectionId, desiredConnId)) {
+                return;
+            }
+
+            stopPollingLocked();
+            if (desiredConnId == null) {
+                return;
+            }
+
+            SshService service = connections.get(desiredConnId);
+            if (service != null) {
+                service.startSystemInfoPolling();
+                pollingConnectionId = desiredConnId;
+            }
         }
-        if (!rdpConnectionTreeMode && currentConnectionId != null) {
-            startPolling(currentConnectionId);
+    }
+
+    private String desiredPollingConnectionId() {
+        if (!PanelManager.getInstance().isLeftPanelVisible()
+                || !PanelManager.getInstance().isSystemInfoVisible()
+                || rdpConnectionTreeMode
+                || currentConnectionId == null) {
+            return null;
         }
+
+        SshService service = connections.get(currentConnectionId);
+        if (service == null
+                || !service.getConnInfo().isExecChannelEnable()
+                || !service.isConnected()
+                || !service.isExecAvailable()) {
+            return null;
+        }
+        return currentConnectionId;
     }
 
 
@@ -366,9 +426,7 @@ public class ConnectionManager {
                 leftPanelController.setConnected(true);
             }
         });
-        if (sshService != null && sshService.isExecAvailable()) {
-            startPolling(connId);
-        }
+        reconcileSystemInfoPolling();
         fireConnectionStateChanged();
     }
 
@@ -377,6 +435,7 @@ public class ConnectionManager {
         stopCurrentPolling();
         currentConnectionId = null;
         if (leftPanelController != null) {
+            leftPanelController.setConnected(false);
             leftPanelController.clearData(connInfo);
         }
         fireConnectionStateChanged();
@@ -389,15 +448,6 @@ public class ConnectionManager {
     public boolean isConnected(String connId) {
         SshService service = connId == null ? null : connections.get(connId);
         return service != null && service.isConnected();
-    }
-
-    public boolean hasAnyConnectedConnection() {
-        for (SshService service : connections.values()) {
-            if (service != null && service.isConnected()) {
-                return true;
-            }
-        }
-        return false;
     }
 
     public SshService getCurrentSshService() {
