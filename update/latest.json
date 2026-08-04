@@ -7,7 +7,7 @@
     "platforms" : {
       "windows" : {
         "url" : "3.0.0/YShell-runtime-3.0.0-windows.zip",
-        "hash" : "1b6a2752c873c9b1f2eaa5ed20bbe19d2290cc7582529ea1d0608f1992486b05",
+        "hash" : "4c5869acb8018d3e7afb45a795de6c755b1b3508335b0a02438f0ac8820f7c40",
         "size" : 51510928
       }
     },
@@ -257,8 +257,8 @@
     }, {
       "path" : "app/YShell.jar",
       "url" : "3.0.0/app/YShell.jar",
-      "hash" : "96f89eedf37423e3c9b26bb4bd1ef59f5bd11458d267786892ffea48a51c17be",
-      "size" : 5082538
+      "hash" : "043394789a0b8b43b8030ba6b964a08df48bafe9e46f09a2dde61e191f1ec59e",
+      "size" : 5162386
     }, {
       "path" : "updater/update.ps1",
       "url" : "3.0.0/updater/update.ps1",
@@ -276,6 +276,6 @@
     "platforms" : { },
     "update_required" : false
   },
-  "release_date" : "2026-07-24",
+  "release_date" : "2026-08-04",
   "min_updatable_version" : "3.0.0"
 }
