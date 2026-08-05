@@ -11,6 +11,7 @@ import com.yshell.service.ConnectionManager;
 import com.yshell.service.K8sSessionManager;
 import com.yshell.service.SshService;
 import com.yshell.ui.DialogHelper;
+import com.yshell.ui.WindowDragResize;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -1291,6 +1292,9 @@ public class K8sViewController {
 
         setStatusText("正在读取日志...");
         dialog.show();
+        dialog.setWidth(1280);
+        dialog.setHeight(600);
+        WindowDragResize.apply(dialog.getDialogPane(), 0, 8, 640, 400);
         installLogScrollTracking(logView, followTail, scrollTrackingInstalled, 0);
 
         CompletableFuture<SshService.RemoteCommandHandle> future = sessionManager.followLogs(

@@ -155,7 +155,6 @@
     -fx-background: -fx-bg-dialog;
     -fx-padding: 0;
     -fx-min-viewport-height: 80px;
-    -fx-max-height: 520px;
 }
 
 .custom-dialog-content .text-area:focused {

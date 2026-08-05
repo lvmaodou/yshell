@@ -329,7 +329,7 @@ public final class DialogHelper {
 
         boolean unscrolledContent = styleClasses != null
                 && Arrays.asList(styleClasses).contains("dialog-content-unscrolled");
-        Node dialogContent;
+        Region dialogContent;
         if (unscrolledContent) {
             contentBody.getStyleClass().add("custom-dialog-content");
             dialogContent = contentBody;
@@ -342,11 +342,12 @@ public final class DialogHelper {
             contentScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
             dialogContent = contentScroll;
         }
-        VBox.setVgrow(dialogContent, Priority.ALWAYS);
-
         HBox footer = new HBox(10);
         footer.getStyleClass().add("custom-dialog-footer");
         footer.setAlignment(Pos.CENTER_RIGHT);
+        footer.setMinHeight(Region.USE_PREF_SIZE);
+        footer.setMaxHeight(Region.USE_PREF_SIZE);
+        VBox.setVgrow(footer, Priority.NEVER);
         List<CustomDialogButton<T>> dialogButtons = buttons == null || buttons.isEmpty()
                 ? List.of(new CustomDialogButton<>("确定", ButtonBar.ButtonData.OK_DONE, dialogRef -> null))
                 : buttons;
@@ -355,7 +356,14 @@ public final class DialogHelper {
             footer.getChildren().add(button);
         }
 
-        VBox root = new VBox(titleLabel, dialogContent, footer);
+        BorderPane root = new BorderPane();
+        root.setTop(titleLabel);
+        root.setCenter(dialogContent);
+        root.setBottom(footer);
+        if (unscrolledContent) {
+            root.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+            dialogContent.setMaxHeight(Double.MAX_VALUE);
+        }
         root.getStyleClass().add("custom-dialog-root");
 
         DialogPane dialogPane = dialog.getDialogPane();

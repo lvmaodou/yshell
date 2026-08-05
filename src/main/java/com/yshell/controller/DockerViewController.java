@@ -10,6 +10,7 @@ import com.yshell.service.DockerSessionManager;
 import com.yshell.service.SshService;
 import com.yshell.terminal.Imm32;
 import com.yshell.ui.DialogHelper;
+import com.yshell.ui.WindowDragResize;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -1941,6 +1942,9 @@ public class DockerViewController {
 
         setStatus("正在读取" + title + "...");
         dialog.show();
+        dialog.setWidth(1280);
+        dialog.setHeight(600);
+        WindowDragResize.apply(dialog.getDialogPane(), 0, 8, 640, 400);
         installLogScrollTracking(logView, followTail, scrollTrackingInstalled, 0);
 
         CompletableFuture<SshService.RemoteCommandHandle> future = sessionManager.followContainerLogs(
