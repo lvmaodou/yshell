@@ -55,10 +55,20 @@ public class ConnectionToolbarController {
         void onTabChanged(ConnectionTabInfo tabInfo);
     }
 
+    @FunctionalInterface
+    public interface OnTabClosedListener {
+        void onTabClosed(String connId);
+    }
+
     private OnTabChangedListener onTabChangedListener;
+    private OnTabClosedListener onTabClosedListener;
 
     public void setOnTabChanged(OnTabChangedListener listener) {
         this.onTabChangedListener = listener;
+    }
+
+    public void setOnTabClosed(OnTabClosedListener listener) {
+        this.onTabClosedListener = listener;
     }
 
     @FXML
@@ -117,6 +127,7 @@ public class ConnectionToolbarController {
                     }
                     removeTerminalPanelNode(tabInfo);
                     closeEditorTabsForConnection(tabInfo.getConnId());
+                    notifyTabClosed(tabInfo.getConnId());
                 }
                 createNewTab();
             }
@@ -134,6 +145,7 @@ public class ConnectionToolbarController {
             }
             removeTerminalPanelNode(tabInfo);
             closeEditorTabsForConnection(tabInfo.getConnId());
+            notifyTabClosed(tabInfo.getConnId());
         }
 
         allTabs.remove(tab);
@@ -151,6 +163,12 @@ public class ConnectionToolbarController {
         }
         if (tabInfo.getTerminalPanelNode().getParent() instanceof Pane parent) {
             parent.getChildren().remove(tabInfo.getTerminalPanelNode());
+        }
+    }
+
+    private void notifyTabClosed(String connId) {
+        if (onTabClosedListener != null) {
+            onTabClosedListener.onTabClosed(connId);
         }
     }
 

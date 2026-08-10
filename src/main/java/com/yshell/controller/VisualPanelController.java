@@ -76,10 +76,6 @@ public class VisualPanelController {
         activeConnectionId = ConnectionManager.getInstance().getCurrentConnectionId();
         ConnectionManager.getInstance().addOnConnectionStateChangedListener(
                 () -> Platform.runLater(this::onConnectionStateChanged));
-        ConnectionManager.getInstance().addOnConnectionClosedListener(connId -> Platform.runLater(() -> {
-            selectedTabsByConnection.remove(connId);
-            aiAssistantWindowManager.dispose(connId);
-        }));
         PanelManager.getInstance().addInteractivePanelVisibilityListener(terminalVisibilityListener);
 
         if (tabFiles != null) {
@@ -149,6 +145,14 @@ public class VisualPanelController {
         activeConnectionId = connId;
         applyTab(tabForConnection(connId));
         refreshTerminalVisibilityButton();
+    }
+
+    public void disposeForConnection(String connId) {
+        if (connId == null || connId.isBlank()) {
+            return;
+        }
+        selectedTabsByConnection.remove(connId);
+        aiAssistantWindowManager.dispose(connId);
     }
 
     private void onConnectionStateChanged() {

@@ -66,6 +66,7 @@ public class RightPanelController implements Initializable {
         // 设置Tab切换回调
         if (connectionToolbarController != null) {
             connectionToolbarController.setOnTabChanged(this::handleTabChanged);
+            connectionToolbarController.setOnTabClosed(this::handleTabClosed);
         }
 
         // 初始显示快速连接面板（默认选中"新建连接"tab）
@@ -201,6 +202,12 @@ public class RightPanelController implements Initializable {
             return visualPanelNode;
         } catch (IOException e) {
             throw new IllegalStateException("Failed to load visual panel", e);
+        }
+    }
+
+    private void handleTabClosed(String connId) {
+        if (visualPanelController != null) {
+            visualPanelController.disposeForConnection(connId);
         }
     }
 
