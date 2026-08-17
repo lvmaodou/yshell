@@ -11,6 +11,7 @@ import com.yshell.ui.LayoutConfig;
 import com.yshell.ui.PanelManager;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.Scene;
@@ -129,7 +130,22 @@ public class TerminalPanelController {
             fullscreen -> Platform.runLater(() -> refreshFullScreenButtonState(fullscreen));
 
     private Stage boundStage;
+    private Scene boundScene;
     private final Runnable stageStateChangeListener = () -> Platform.runLater(() -> refreshToolbarStyle(null));
+    private final ChangeListener<Boolean> stageStateListener =
+            (observable, oldValue, newValue) -> stageStateChangeListener.run();
+    private final ChangeListener<Window> sceneWindowListener = (observable, oldWindow, newWindow) -> {
+        unbindStageStateListeners();
+        if (newWindow instanceof Stage stage) {
+            bindStageStateListeners(stage);
+        }
+    };
+    private final ChangeListener<Scene> rootPaneSceneListener = (observable, oldScene, newScene) -> {
+        unbindStageListener();
+        if (newScene != null) {
+            bindStageListener(newScene);
+        }
+    };
     private final ConnectionManager.OnConnectionStateChangedListener connectionStateChangedListener =
             () -> Platform.runLater(this::refreshConnectButtonState);
 
@@ -229,36 +245,46 @@ public class TerminalPanelController {
         if (existingScene != null) {
             bindStageListener(existingScene);
         }
-        rootPane.sceneProperty().addListener((obs, oldScene, newScene) -> {
-            if (oldScene != null && boundStage != null) {
-                boundStage.fullScreenProperty().removeListener((obs2, old, newVal) -> stageStateChangeListener.run());
-                boundStage.maximizedProperty().removeListener((obs2, old, newVal) -> stageStateChangeListener.run());
-                boundStage = null;
-            }
-            if (newScene != null) {
-                bindStageListener(newScene);
-            }
-        });
+        rootPane.sceneProperty().addListener(rootPaneSceneListener);
     }
 
     private void bindStageListener(Scene scene) {
+        if (scene == boundScene) {
+            return;
+        }
+        unbindStageListener();
+        boundScene = scene;
+        boundScene.windowProperty().addListener(sceneWindowListener);
         Window existingWindow = scene.getWindow();
         if (existingWindow instanceof Stage stage) {
-            boundStage = stage;
-            boundStage.fullScreenProperty().addListener((obs, old, newVal) -> stageStateChangeListener.run());
-            boundStage.maximizedProperty().addListener((obs, old, newVal) -> stageStateChangeListener.run());
+            bindStageStateListeners(stage);
         }
-        scene.windowProperty().addListener((obs, oldWindow, newWindow) -> {
-            if (boundStage != null) {
-                boundStage.fullScreenProperty().removeListener((obs2, old, newVal) -> stageStateChangeListener.run());
-                boundStage.maximizedProperty().removeListener((obs2, old, newVal) -> stageStateChangeListener.run());
-            }
-            if (newWindow instanceof Stage stage) {
-                boundStage = stage;
-                boundStage.fullScreenProperty().addListener((obs2, old, newVal) -> stageStateChangeListener.run());
-                boundStage.maximizedProperty().addListener((obs2, old, newVal) -> stageStateChangeListener.run());
-            }
-        });
+    }
+
+    private void bindStageStateListeners(Stage stage) {
+        if (boundStage == stage) {
+            return;
+        }
+        unbindStageStateListeners();
+        boundStage = stage;
+        boundStage.fullScreenProperty().addListener(stageStateListener);
+        boundStage.maximizedProperty().addListener(stageStateListener);
+    }
+
+    private void unbindStageListener() {
+        unbindStageStateListeners();
+        if (boundScene != null) {
+            boundScene.windowProperty().removeListener(sceneWindowListener);
+            boundScene = null;
+        }
+    }
+
+    private void unbindStageStateListeners() {
+        if (boundStage != null) {
+            boundStage.fullScreenProperty().removeListener(stageStateListener);
+            boundStage.maximizedProperty().removeListener(stageStateListener);
+            boundStage = null;
+        }
     }
 
     // ============================================================
@@ -1027,11 +1053,8 @@ public class TerminalPanelController {
         pm.removeBottomPanelVisibilityListener(bottomPanelVisibilityListener);
         pm.removeTerminalFullscreenListener(terminalFullscreenListener);
         ConnectionManager.getInstance().removeOnConnectionStateChangedListener(connectionStateChangedListener);
-        if (boundStage != null) {
-            boundStage.fullScreenProperty().removeListener((obs, old, newVal) -> stageStateChangeListener.run());
-            boundStage.maximizedProperty().removeListener((obs, old, newVal) -> stageStateChangeListener.run());
-            boundStage = null;
-        }
+        rootPane.sceneProperty().removeListener(rootPaneSceneListener);
+        unbindStageListener();
         shellBindingStarted = false;
         currentShellService = null;
         String key = bottomPanelStateKey();

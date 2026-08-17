@@ -143,6 +143,7 @@ public class JediTermFxTerminal extends Region implements TerminalDisplay {
     private OutputStream remoteOutput;
     private Thread readerThread;
     private final AtomicBoolean running = new AtomicBoolean(false);
+    private final AtomicBoolean shutdown = new AtomicBoolean(false);
     private final ByteArrayOutputStream pendingInput = new ByteArrayOutputStream();
     private final Timeline renderTimer;
     private volatile boolean dirty = true;
@@ -584,10 +585,11 @@ public class JediTermFxTerminal extends Region implements TerminalDisplay {
     }
 
     public void shutdown() {
-        if (!running.compareAndSet(true, false)) return;
+        if (!shutdown.compareAndSet(false, true)) return;
+        boolean wasRunning = running.getAndSet(false);
         if (renderTimer != null) renderTimer.stop();
         if (readerThread != null) readerThread.interrupt();
-        if (onCloseCallback != null) {
+        if (wasRunning && onCloseCallback != null) {
             Platform.runLater(onCloseCallback);
         }
     }
@@ -871,6 +873,7 @@ public class JediTermFxTerminal extends Region implements TerminalDisplay {
         } catch (Exception ex) {
             LOGGER.error("Emulator error: {}", ex.getMessage());
         }
+        dataStream.trimBuffers();
 
         updateSelectionAutoScroll();
 

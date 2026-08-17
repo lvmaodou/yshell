@@ -23,12 +23,14 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class MutableDataStream implements TerminalDataStream {
 
+    private static final int INITIAL_BUFFER_CAPACITY = 16 * 1024;
+
     private final ReentrantLock lock = new ReentrantLock();
 
     /**
      * 未解码的字节缓冲（ring buffer）
      */
-    private byte[] byteBuf = new byte[16 * 1024];
+    private byte[] byteBuf = new byte[INITIAL_BUFFER_CAPACITY];
     private int byteHead = 0;
     private int byteTail = 0;
     private int byteSize = 0;
@@ -36,7 +38,7 @@ public class MutableDataStream implements TerminalDataStream {
     /**
      * 解码后的 char 缓冲（ring buffer），JediTerm 直接消费
      */
-    private char[] charBuf = new char[16 * 1024];
+    private char[] charBuf = new char[INITIAL_BUFFER_CAPACITY];
     private int charHead = 0;
     private int charTail = 0;
     private int charSize = 0;
@@ -108,6 +110,18 @@ public class MutableDataStream implements TerminalDataStream {
             int consumed = in.position();
             for (int i = 0; i < consumed; i++) {
                 advanceByte();
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void trimBuffers() {
+        lock.lock();
+        try {
+            if (byteSize == 0 && charSize == 0
+                    && (byteBuf.length > INITIAL_BUFFER_CAPACITY || charBuf.length > INITIAL_BUFFER_CAPACITY)) {
+                resetBuffers();
             }
         } finally {
             lock.unlock();
@@ -227,6 +241,17 @@ public class MutableDataStream implements TerminalDataStream {
         charBuf[charTail] = c;
         charTail = (charTail + 1) % charBuf.length;
         charSize++;
+    }
+
+    private void resetBuffers() {
+        byteBuf = new byte[INITIAL_BUFFER_CAPACITY];
+        byteHead = 0;
+        byteTail = 0;
+        byteSize = 0;
+        charBuf = new char[INITIAL_BUFFER_CAPACITY];
+        charHead = 0;
+        charTail = 0;
+        charSize = 0;
     }
 
     private void ensureByteCapacity(int additional) {
