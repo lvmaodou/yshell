@@ -365,7 +365,7 @@ public class ConnectionManager {
         if (service == null
                 || !service.getConnInfo().isExecChannelEnable()
                 || !service.isConnected()
-                || !service.isExecAvailable()) {
+                || service.isExecAvailable()) {
             return null;
         }
         return currentConnectionId;

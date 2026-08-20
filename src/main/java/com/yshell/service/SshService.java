@@ -40,9 +40,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
+import java.lang.reflect.*;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
 import java.net.SocketAddress;
@@ -853,7 +851,7 @@ public class SshService {
     }
 
     public boolean isExecAvailable() {
-        return execAvailable;
+        return !execAvailable;
     }
 
     public SftpClient createSftpClient() throws IOException {
@@ -1499,7 +1497,12 @@ public class SshService {
             if (!isConnected()) {
                 return new CommandResult(-1, "", "Not connected", false);
             }
-            try (ChannelExec exec = clientSession.createExecChannel(command)) {
+            ClientSession session = clientSession;
+            if (session == null || !session.isOpen()) {
+                return new CommandResult(-1, "", "Not connected", false);
+            }
+            ChannelExec exec = session.createExecChannel(command);
+            try {
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
                 ByteArrayOutputStream err = new ByteArrayOutputStream();
 
@@ -1536,6 +1539,14 @@ public class SshService {
                 }
 
                 return new CommandResult(exitStatus == null ? -1 : exitStatus, stdout, stderr, false);
+            } finally {
+                try {
+                    exec.close(true);
+                } catch (Exception closeError) {
+                    LOGGER.debug("Failed to close exec channel after command: {}", command, closeError);
+                } finally {
+                    removeKexListenerForClosedChannel(session, exec);
+                }
             }
 
         } catch (Exception e) {
@@ -1555,6 +1566,140 @@ public class SshService {
                 execChannelSemaphore.release();
             }
         }
+    }
+
+    private void removeKexListenerForClosedChannel(ClientSession session, ChannelExec channel) {
+        if (session == null || channel == null) {
+            return;
+        }
+        try {
+            Object kexFilter = findSshdObjectBySimpleName(
+                    session,
+                    "KexFilter",
+                    16,
+                    Collections.newSetFromMap(new IdentityHashMap<>())
+            );
+            if (kexFilter == null) {
+                return;
+            }
+
+            Field listenersField = findField(kexFilter.getClass());
+            if (listenersField == null) {
+                return;
+            }
+            listenersField.setAccessible(true);
+            Object listenersValue = listenersField.get(kexFilter);
+            if (!(listenersValue instanceof Collection<?> listeners)) {
+                return;
+            }
+
+            int removed = 0;
+            for (Object listener : new ArrayList<>(listeners)) {
+                if (capturesChannel(listener, channel) && listeners.remove(listener)) {
+                    removed++;
+                }
+            }
+            if (removed > 0) {
+                LOGGER.debug("Removed {} SSHD KEX listener(s) for closed exec channel", removed);
+            }
+        } catch (Exception e) {
+            LOGGER.debug("Failed to remove SSHD KEX listener for closed exec channel", e);
+        }
+    }
+
+    private boolean capturesChannel(Object listener, ChannelExec channel) throws IllegalAccessException {
+        if (listener == null || !listener.getClass().getName().contains("AbstractChannel")) {
+            return false;
+        }
+        for (Field field : listener.getClass().getDeclaredFields()) {
+            try {
+                field.setAccessible(true);
+                if (field.get(listener) == channel) {
+                    return true;
+                }
+            } catch (RuntimeException ignored) {
+            }
+        }
+        return false;
+    }
+
+    private Object findSshdObjectBySimpleName(
+            Object root,
+            String simpleName,
+            int remainingDepth,
+            Set<Object> visited
+    ) throws IllegalAccessException {
+        if (root == null || remainingDepth < 0 || !visited.add(root)) {
+            return null;
+        }
+        if (root.getClass().getSimpleName().equals(simpleName)) {
+            return root;
+        }
+
+        if (root instanceof Map<?, ?> map) {
+            for (Object value : map.values()) {
+                Object found = findSshdObjectBySimpleName(value, simpleName, remainingDepth - 1, visited);
+                if (found != null) {
+                    return found;
+                }
+            }
+            return null;
+        }
+        if (root instanceof Iterable<?> iterable) {
+            for (Object value : iterable) {
+                Object found = findSshdObjectBySimpleName(value, simpleName, remainingDepth - 1, visited);
+                if (found != null) {
+                    return found;
+                }
+            }
+            return null;
+        }
+        if (root.getClass().isArray()) {
+            int length = Array.getLength(root);
+            for (int index = 0; index < length; index++) {
+                Object found = findSshdObjectBySimpleName(
+                        Array.get(root, index),
+                        simpleName,
+                        remainingDepth - 1,
+                        visited
+                );
+                if (found != null) {
+                    return found;
+                }
+            }
+            return null;
+        }
+        if (!root.getClass().getName().startsWith("org.apache.sshd.")) {
+            return null;
+        }
+
+        for (Class<?> type = root.getClass(); type != null; type = type.getSuperclass()) {
+            for (Field field : type.getDeclaredFields()) {
+                if ((field.getModifiers() & java.lang.reflect.Modifier.STATIC) != 0) {
+                    continue;
+                }
+                try {
+                    field.setAccessible(true);
+                    Object value = field.get(root);
+                    Object found = findSshdObjectBySimpleName(value, simpleName, remainingDepth - 1, visited);
+                    if (found != null) {
+                        return found;
+                    }
+                } catch (RuntimeException ignored) {
+                }
+            }
+        }
+        return null;
+    }
+
+    private Field findField(Class<?> type) {
+        for (Class<?> current = type; current != null; current = current.getSuperclass()) {
+            try {
+                return current.getDeclaredField("listeners");
+            } catch (NoSuchFieldException ignored) {
+            }
+        }
+        return null;
     }
 
     public RemoteCommandHandle streamRemoteCommand(String command,

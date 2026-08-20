@@ -69,7 +69,7 @@ public class AiContextService {
 
     private String linuxContext(String connId) {
         SshService ssh = ConnectionManager.getInstance().getConnectionById(connId);
-        if (ssh == null || !ssh.isConnected() || !ssh.isExecAvailable()) {
+        if (ssh == null || !ssh.isConnected() || ssh.isExecAvailable()) {
             return "- Linux 系统：当前连接不可执行远程查询";
         }
         String command = "sh -lc " + shellQuote(
@@ -98,7 +98,7 @@ public class AiContextService {
                     + ", images " + snapshot.imageCount();
         }
         SshService ssh = ConnectionManager.getInstance().getConnectionById(connId);
-        if (ssh == null || !ssh.isConnected() || !ssh.isExecAvailable()) {
+        if (ssh == null || !ssh.isConnected() || ssh.isExecAvailable()) {
             return "- Docker：未查询";
         }
         String command = "sh -lc " + shellQuote("command -v docker >/dev/null 2>&1 && docker version --format 'Server {{.Server.Version}}, API {{.Server.APIVersion}}, {{.Server.Os}}/{{.Server.Arch}}' 2>/dev/null || printf 'not available'");
@@ -118,7 +118,7 @@ public class AiContextService {
                     + ", namespaces " + String.join(",", snapshot.namespaces());
         }
         SshService ssh = ConnectionManager.getInstance().getConnectionById(connId);
-        if (ssh == null || !ssh.isConnected() || !ssh.isExecAvailable()) {
+        if (ssh == null || !ssh.isConnected() || ssh.isExecAvailable()) {
             return "- Kubernetes：未查询";
         }
         String command = "sh -lc " + shellQuote("command -v kubectl >/dev/null 2>&1 && (kubectl version --client=true 2>/dev/null; kubectl version 2>/dev/null | sed -n '1,4p') || printf 'not available'");
